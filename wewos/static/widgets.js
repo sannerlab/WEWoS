@@ -123,7 +123,12 @@ const W = (() => {
     inp.value = fmt(spec.value, o);
     const scrub = el('span', {class: 'scrub', title: 'drag left/right, or scroll, to change\n(Shift: finer, Alt/Option: coarser)'}, '&#8644;');
     inp.title = 'scroll to change (Shift: finer, Alt/Option: coarser)';
-    box.append(scrub, inp);
+    /* our own up/down arrows: the browser's spin buttons are hidden, as
+       WebKit draws them at the corner of the canvas for an input inside the
+       SVG of a node (foreignObject) */
+    const spin = el('span', {class: 'spin', title: 'click or hold to step (Shift: finer, Alt/Option: coarser)'},
+                    '<span data-d=1>&#9652;</span><span data-d=-1>&#9662;</span>');
+    box.append(scrub, inp, spin);
     let range = null;
     if(hasRange && !ctx.compact){
       range = el('input', {type: 'range', min: o.min, max: o.max,
@@ -144,7 +149,7 @@ const W = (() => {
       return v;
     };
     const step = stepOf(o);
-    onWheel(box, k => {
+    const bump = k => {
       const cur = inp.value === '' ? 0 : +inp.value;
       const st = o.type === 'int' ? Math.max(1, Math.round(step * Math.abs(k))) * Math.sign(k) : step * k;
       const v = clamp(clean(cur + st, Math.abs(st)));
@@ -152,6 +157,26 @@ const W = (() => {
       inp.value = fmt(v, o);
       if(range) range.value = v;
       send(v, false);
+    };
+    onWheel(box, bump);
+    spin.addEventListener('pointerdown', e => {
+      const d = +(e.target.dataset && e.target.dataset.d);
+      if(!d) return;
+      e.preventDefault(); e.stopPropagation();     // not a node drag
+      const k = d * (e.shiftKey ? 0.1 : e.altKey ? 10 : 1);
+      dragging = true;
+      bump(k);
+      let timer = setTimeout(function again(){ bump(k); timer = setTimeout(again, 70); }, 400);
+      const stop = () => {
+        clearTimeout(timer);
+        spin.removeEventListener('pointerup', stop); spin.removeEventListener('pointercancel', stop);
+        spin.removeEventListener('lostpointercapture', stop);
+        dragging = false; busyUntil = performance.now() + 400;
+        if(inp.value !== '') live(+inp.value);
+      };
+      spin.setPointerCapture(e.pointerId);
+      spin.addEventListener('pointerup', stop); spin.addEventListener('pointercancel', stop);
+      spin.addEventListener('lostpointercapture', stop);
     });
     inp.addEventListener('change', () => { if(inp.value !== '') send(+inp.value, true); });
     inp.addEventListener('keydown', e => { if(e.key === 'Enter') inp.blur(); });

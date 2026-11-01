@@ -150,6 +150,15 @@ body.vfull #viewers{position:fixed;inset:0;z-index:25;height:auto !important;bac
 .w-number input[type=number]{width:80px;flex:none}
 .w-number input[type=range]{flex:1;min-width:40px}
 .w-number .scrub{cursor:ew-resize;color:var(--dim);user-select:none;padding:0 3px}
+/* no native spin buttons on number fields of nodes and number widgets
+   (WebKit draws them at the corner of the canvas inside SVG foreignObject) */
+.nw input[type=number],.w-number input[type=number]{-moz-appearance:textfield;appearance:textfield}
+.nw input[type=number]::-webkit-inner-spin-button,.nw input[type=number]::-webkit-outer-spin-button,
+.w-number input[type=number]::-webkit-inner-spin-button,.w-number input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;appearance:none;margin:0}
+.w-number .spin{display:inline-flex;flex-direction:column;flex:none;user-select:none;cursor:pointer;
+  color:var(--dim);font-size:10px;line-height:10px;margin-left:-2px}
+.w-number .spin span{padding:0 2px;border-radius:2px}
+.w-number .spin span:hover{color:var(--accent);background:var(--soft)}
 .w-file{display:flex;gap:3px;width:100%}
 .w-file input{flex:1;min-width:0}
 .w-vector{display:flex;gap:3px;width:100%}
