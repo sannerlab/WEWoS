@@ -427,12 +427,20 @@ function panel(){
   if($('p_open')) $('p_open').onclick = () => switchTab(n.id);
   if($('p_explode')) $('p_explode').onclick = () => explodeMacro(n.id);
 }
-function widgetMenu(n, p, ev){
-  menu(ev, [
+function widgetMenuItems(n, p){
+  return [
     ['Show in the node', () => edit('widget_opts', {node: n.id, port: p.name, opts: {master: 'node'}}), p.widget.master === 'node'],
     ['Show in the panel only', () => edit('widget_opts', {node: n.id, port: p.name, opts: {master: 'ParamPanel'}}), p.widget.master !== 'node'],
     ['Unbind (show the port)', () => edit('unbind', {node: n.id, port: p.name}), p.widget.locked],
-  ]);
+  ];
+}
+function widgetMenu(n, p, ev){ menu(ev, widgetMenuItems(n, p)); }
+// right-click on a widget shown in a node: its menu, then the node's
+function nodeWidgetMenu(id, port, ev){
+  const [, n] = findNode(id);
+  const p = n && (n.in || []).find(x => x.name === port);
+  if(!p || !p.widget) return nodeMenu(id, ev);
+  menu(ev, widgetMenuItems(n, p).concat(['-'], nodeMenuItems(id)));
 }
 
 /* ------------------------------------------------------------ dialogs */
@@ -575,10 +583,11 @@ function groupMacro(ids){
 function paste(){
   edit('paste', {net: ST.cur, offset: [40, 40]});
 }
-function nodeMenu(id, ev){
+function nodeMenu(id, ev){ menu(ev, nodeMenuItems(id)); }
+function nodeMenuItems(id){
   const [, n] = findNode(id);
   const sel = ED.selection().nodes;
-  menu(ev, [
+  return [
     ['Run this node', () => run('run_node', {node: id})],
     ['Edit code…', () => codeEditor(id)],
     ['Rename…', () => { const nm = prompt('Name', n.name); if(nm) edit('rename', {node: id, name: nm}); }],
@@ -592,7 +601,7 @@ function nodeMenu(id, ev){
     ['Copy', () => edit('copy', {nodes: sel})],
     ['Group into a macro…', () => groupMacro(sel)],
     ['Delete', () => edit('delete', {nodes: sel})],
-  ]));
+  ]);
 }
 async function explodeMacro(id){
   if(ST.tabs.includes(id)) closeTab(id);
@@ -809,6 +818,7 @@ ED.init($('canvas'), {
   selected: () => panel(),
   dblclick: id => { const [, n] = findNode(id); if(n && n.macro) switchTab(id); else codeEditor(id); },
   contextNode: nodeMenu,
+  contextWidget: nodeWidgetMenu,
   contextPort: portMenu,
   contextConn: (cid, ev) => menu(ev, [['Delete connection', () => edit('delete', {conns: [cid]})]]),
   contextCanvas: (pos, ev) => menu(ev, [['Paste', paste], ['Fit the network in view', () => ED.fit()],

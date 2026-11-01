@@ -141,7 +141,7 @@ const ED = (() => {
         const fo = S('foreignObject', {x: 6, y: y - ROW / 2, width: g.w - 12 - (n.out && n.out[i] ? tw(n.out[i].name, 5.8) + 14 : 0), height: ROW});
         const div = document.createElementNS('http://www.w3.org/1999/xhtml', 'div');
         div.className = 'nw';
-        const row = document.createElement('div'); row.className = 'wrow';
+        const row = document.createElement('div'); row.className = 'wrow'; row.dataset.port = r.p.name;
         const lab = document.createElement('label'); lab.textContent = r.p.widget.label || r.p.name;
         lab.title = r.p.name + ': ' + r.p.datatype;
         if(r.p.widget.label !== '') row.append(lab);
@@ -429,7 +429,14 @@ const ED = (() => {
       const port = t.closest && t.closest('.port');
       const nodeEl = t.closest && t.closest('.node');
       const conn = t.closest && t.closest('.conn');
+      const wrow = t.closest && t.closest('.wrow');
       if(port) cb.contextPort(port.dataset.node, port.dataset.io, port.dataset.port, e);
+      else if(nodeEl && wrow && cb.contextWidget){
+        // a widget shown in the node: its menu (unbind...), then the node's
+        const id = nodeEl.dataset.id;
+        if(!SEL.has(id)){ SEL = new Set([id]); CSEL.clear(); refreshSel(); }
+        cb.contextWidget(id, wrow.dataset.port, e);
+      }
       else if(nodeEl){
         const id = nodeEl.dataset.id;
         if(!SEL.has(id)){ SEL = new Set([id]); CSEL.clear(); refreshSel(); }
