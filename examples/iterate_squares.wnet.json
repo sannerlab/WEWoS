@@ -1,0 +1,181 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "Standard"
+ ],
+ "network": {
+  "name": "iterate squares",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "range",
+    "cls": "Range",
+    "lib": "Standard",
+    "pos": [
+     30,
+     40
+    ],
+    "label": "range",
+    "widgets": {
+     "fromInd": 0,
+     "toInd": 10,
+     "step": 1
+    },
+    "widgetOpts": {
+     "fromInd": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "toInd": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "step": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n2",
+    "name": "iterate",
+    "cls": "Iterate",
+    "lib": "Standard",
+    "pos": [
+     260,
+     40
+    ],
+    "label": "iterate",
+    "widgets": {
+     "stopOnFailure": 0
+    }
+   },
+   {
+    "id": "n3",
+    "name": "square",
+    "cls": "Generic",
+    "lib": "Standard",
+    "pos": [
+     520,
+     40
+    ],
+    "label": "Generic",
+    "addPorts": {
+     "in": [
+      {
+       "name": "x",
+       "datatype": "None",
+       "required": true,
+       "singleConnection": true
+      }
+     ],
+     "out": [
+      {
+       "name": "y",
+       "datatype": "None"
+      }
+     ]
+    },
+    "code": "def doit(self, x):\n    self.outputData(y=x * x)\n"
+   },
+   {
+    "id": "n4",
+    "name": "accum",
+    "cls": "Accumulate",
+    "lib": "Standard",
+    "pos": [
+     720,
+     40
+    ],
+    "label": "accum"
+   },
+   {
+    "id": "n5",
+    "name": "print",
+    "cls": "Print",
+    "lib": "Standard",
+    "pos": [
+     940,
+     60
+    ],
+    "label": "print"
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n1",
+     "data"
+    ],
+    "to": [
+     "n2",
+     "listToLoopOver"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n2",
+     "oneItem"
+    ],
+    "to": [
+     "n3",
+     "x"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n3",
+     "y"
+    ],
+    "to": [
+     "n4",
+     "data"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n2",
+     "begin"
+    ],
+    "to": [
+     "n4",
+     "begin"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n2",
+     "end"
+    ],
+    "to": [
+     "n4",
+     "output"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n4",
+     "listOfValues"
+    ],
+    "to": [
+     "n5",
+     "in1"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

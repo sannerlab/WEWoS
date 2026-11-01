@@ -1,0 +1,52 @@
+#!/bin/sh
+# WEWoS: Vision visual programming on the web.
+# Author: Michel Sanner, PhD. Copyright (c) 2026.
+#
+# Runs WEWoS with a Python that has numpy (and, for the Molecules library,
+# MolKit2, prody and mslib): the ADCP distribution's "adcpsuite" environment.
+#
+#   bin/wewos serve            # port 8767, networks in $WEWOS_OUTDIR (default ~/wewos_runs)
+#
+# The environment is the first of: $WEWOS_PYTHON_ENV, $ADCPSUITE, $ADS_ROOT,
+# the environment of an `adcp` or `agfr` on the PATH, $CONDA_PREFIX, then an
+# "adcpsuite" env in the usual micromamba / conda locations.
+
+is_env() {  # a Python environment with numpy
+    [ -n "$1" ] && [ -x "$1/bin/python" ] &&
+        ls -d "$1"/lib/python3*/site-packages/numpy >/dev/null 2>&1
+}
+
+find_env() {
+    for c in "$WEWOS_PYTHON_ENV" "$ADCPSUITE" "$ADS_ROOT"; do
+        if is_env "$c"; then echo "$c"; return 0; fi
+    done
+    for tool in adcp agfr; do
+        p="$(command -v "$tool" 2>/dev/null)"
+        if [ -n "$p" ]; then
+            c="$(cd "$(dirname "$p")/.." 2>/dev/null && pwd)"
+            if is_env "$c"; then echo "$c"; return 0; fi
+        fi
+    done
+    for c in "$CONDA_PREFIX" "$MAMBA_ROOT_PREFIX/envs/adcpsuite" \
+             "$HOME/micromamba/envs/adcpsuite" "$HOME/.local/share/mamba/envs/adcpsuite" \
+             "$HOME/miniforge3/envs/adcpsuite" "$HOME/mambaforge/envs/adcpsuite" \
+             "$HOME/miniconda3/envs/adcpsuite" "$HOME/anaconda3/envs/adcpsuite" \
+             "/opt/conda/envs/adcpsuite"; do
+        if is_env "$c"; then echo "$c"; return 0; fi
+    done
+    return 1
+}
+
+ENV_ROOT="$(find_env)" || {
+    echo "WEWoS: no Python environment with numpy found (e.g. the ADCP distribution's" >&2
+    echo "       'adcpsuite'). Set WEWOS_PYTHON_ENV=/path/to/env." >&2
+    exit 2
+}
+HERE="$(cd "$(dirname "$0")/.." && pwd)"
+export PATH="$ENV_ROOT/bin:$PATH"
+export ADS_ROOT="${ADS_ROOT:-$ENV_ROOT}"
+export PYTHONNOUSERSITE="disable"
+export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$ENV_ROOT/lib"
+export PYTHONPATH="$HERE"
+export WEWOS_OUTDIR="${WEWOS_OUTDIR:-$HOME/wewos_runs}"
+exec "$ENV_ROOT/bin/python" -m wewos "$@"

@@ -1,0 +1,145 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "Molecules",
+  "SymServer",
+  "3D Visualization"
+ ],
+ "network": {
+  "name": "helical crambin",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "Read Molecule",
+    "cls": "ReadMolecule",
+    "lib": "Molecules",
+    "pos": [
+     30,
+     40
+    ],
+    "label": "Read Molecule",
+    "widgets": {
+     "filename": "data/1crn.pdb"
+    }
+   },
+   {
+    "id": "n2",
+    "name": "Helix",
+    "cls": "SymHelixNE",
+    "lib": "SymServer",
+    "pos": [
+     30,
+     200
+    ],
+    "label": "Helix",
+    "widgets": {
+     "vector": [
+      0.0,
+      0.0,
+      1.0
+     ],
+     "point": [
+      -15.0,
+      -15.0,
+      0.0
+     ],
+     "angle": 30.0,
+     "hrise": 12.0,
+     "copies": 12
+    },
+    "widgetOpts": {
+     "point": {
+      "size": 3
+     },
+     "angle": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "hrise": {
+      "min": null,
+      "max": null,
+      "increment": 0.0
+     },
+     "copies": {
+      "max": null
+     }
+    }
+   },
+   {
+    "id": "n3",
+    "name": "Cartoon",
+    "cls": "Cartoon",
+    "lib": "Molecules",
+    "pos": [
+     380,
+     60
+    ],
+    "label": "Cartoon",
+    "widgets": {
+     "colorBy": "secondary structure",
+     "opacity": 1.0
+    },
+    "widgetOpts": {
+     "colorBy": {
+      "autoList": false
+     },
+     "opacity": {
+      "type": "float",
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n4",
+    "name": "Viewer",
+    "cls": "Viewer",
+    "lib": "3D Visualization",
+    "pos": [
+     700,
+     120
+    ],
+    "label": "Viewer"
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n1",
+     "mol"
+    ],
+    "to": [
+     "n3",
+     "atoms"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n2",
+     "outMatrices"
+    ],
+    "to": [
+     "n3",
+     "instanceMatrices"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n3",
+     "cartoon"
+    ],
+    "to": [
+     "n4",
+     "geometries"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

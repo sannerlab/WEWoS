@@ -1,0 +1,713 @@
+/* Author: Michel Sanner, PhD. Copyright (c) 2026. Conventions (token in the URL,
+   api() wrapper, theme switch) from ADapt / ADCP_docking (BSD 3-Clause). */
+/* The page: palette, network tabs, parameter panel, menus, and the loop that
+   keeps the drawing in step with the server. The server holds the network;
+   every user action is a request (api/edit, api/run...) and every change comes
+   back as an event from api/events, including changes made while a network
+   runs. */
+'use strict';
+const T = new URLSearchParams(location.search).get('t') || '';
+const $ = i => document.getElementById(i);
+const esc = W.esc;
+
+const ST = {
+  sid: null, name: '', folder: '', seq: 0, gen: 0, exec: 'waiting', auto: true,
+  nets: {},              // netid -> {id, name, nodes:{}, conns:{}, macroNode, parent}
+  tabs: ['main'], cur: 'main',
+  libs: [], types: {}, sel: [], errors: {},
+};
+
+/* ------------------------------------------------------------ api */
+async function api(path, body, raw){
+  const url = path + (path.includes('?') ? '&' : '?') + 't=' + encodeURIComponent(T);
+  const opt = raw !== undefined && raw !== null ? {method: 'POST', body: raw}
+            : body ? {method: 'POST', headers: {'Content-Type': 'application/json'},
+                      body: JSON.stringify(body)} : {};
+  try {
+    const r = await fetch(url, opt);
+    let d;
+    try { d = await r.json(); }
+    catch(e){ d = {error: 'the server did not answer with JSON (' + r.status + ')'}; }
+    if(d.error){ status('<span class=bad>' + esc(d.error) + '</span>'); if(d.trace) logText(d.trace + '\n'); }
+    return d;
+  } catch(e){
+    status('<span class=bad>the server did not answer: ' + esc(e) + '</span>');
+    return {error: String(e), offline: true};
+  }
+}
+function status(html){ $('status').innerHTML = html || '&nbsp;'; }
+function logText(t){
+  const pre = $('log');
+  pre.textContent += t;
+  if(pre.textContent.length > 400000) pre.textContent = pre.textContent.slice(-300000);
+  pre.scrollTop = pre.scrollHeight;
+  $('loglen').textContent = '(' + pre.textContent.split('\n').length + ' lines)';
+}
+const edit = (op, args) => api('api/edit', Object.assign({s: ST.sid, op}, args || {}));
+const run = (mode, extra) => api('api/run', Object.assign({s: ST.sid, mode, net: ST.cur}, extra || {}));
+
+/* ------------------------------------------------------------ store */
+function netOf(id){ return ST.nets[id] || (ST.nets[id] = {id, name: id, nodes: {}, conns: {}}); }
+function addNetwork(d){
+  const n = netOf(d.id);
+  n.name = d.name; n.macroNode = d.macroNode; n.parent = d.parent;
+  n.nodes = {}; n.conns = {};
+  (d.nodes || []).forEach(x => { n.nodes[x.id] = x; });
+  (d.connections || []).forEach(c => { n.conns[c.id] = c; });
+}
+function findNode(id){
+  for(const k in ST.nets) if(ST.nets[k].nodes[id]) return [ST.nets[k], ST.nets[k].nodes[id]];
+  return [null, null];
+}
+async function loadSession(sid){
+  const d = await api('api/session?s=' + encodeURIComponent(sid));
+  if(d.error) return false;
+  ST.gen++;
+  ST.sid = d.session; ST.name = d.name; ST.folder = d.folder; ST.seq = d.seq;
+  ST.nets = {}; ST.errors = {};
+  Object.values(d.networks).forEach(addNetwork);
+  const q = new URLSearchParams(location.search);
+  const tab = q.get('tab');
+  ST.tabs = ['main']; ST.cur = 'main';
+  if(tab && ST.nets[tab]){ ST.tabs.push(tab); ST.cur = tab; }
+  setExec(d.execStatus); setAuto(d.runOnNewData);
+  q.set('session', ST.sid);
+  history.replaceState(null, '', '?' + q.toString());
+  VIEW3D.reset();
+  drawTabs(); ED.show(ST.nets[ST.cur]); ED.fit(); panel();
+  document.title = ST.name + ' · WEWoS';
+  refreshSessions();
+  poll(ST.gen);
+  VIEW3D.requestAll(ST.nets);
+  if(d.report && d.report.length){ reportDialog('Opened with problems', d.report); }
+  return true;
+}
+
+/* ------------------------------------------------------------ events */
+async function poll(gen){
+  while(gen === ST.gen){
+    const d = await api('api/events?s=' + encodeURIComponent(ST.sid) + '&since=' + ST.seq + '&timeout=25');
+    if(gen !== ST.gen) return;
+    if(d.error){
+      if(/no such network/.test(d.error)) return;
+      await new Promise(r => setTimeout(r, 2000));
+      continue;
+    }
+    if(d.reset){ loadSession(ST.sid); return; }
+    applyEvents(d.events || []);
+    ST.seq = Math.max(ST.seq, d.seq || 0);
+  }
+}
+function applyEvents(evs){
+  const dirty = new Set(), stat = new Set();
+  let refreshPanel = false, reshow = false;
+  for(const e of evs){
+    if(e.seq <= ST.seq) continue;
+    ST.seq = e.seq;
+    const net = e.net ? netOf(e.net) : null;
+    switch(e.kind){
+      case 'node_added':
+        net.nodes[e.node.id] = e.node;
+        if(e.node.macro) netOf(e.node.id).parent = e.net;
+        dirty.add(e.node.id); break;
+      case 'node_deleted': {
+        delete net.nodes[e.node];
+        for(const cid in net.conns){ const c = net.conns[cid];
+          if(c.from[0] === e.node || c.to[0] === e.node){ delete net.conns[cid]; if(e.net === ST.cur) ED.removeConn(cid); } }
+        if(ST.nets[e.node]){ delete ST.nets[e.node]; closeTab(e.node); }
+        if(e.net === ST.cur) ED.removeNode(e.node);
+        VIEW3D.removeViewer(e.node);
+        if(ST.sel.includes(e.node)) { ST.sel = ST.sel.filter(x => x !== e.node); refreshPanel = true; }
+        break; }
+      case 'node_moved': { const [, n] = findNode(e.node); if(n){ n.pos = e.pos; if(e.net === ST.cur) ED.moveNode(e.node); } break; }
+      case 'node_renamed': { const [, n] = findNode(e.node); if(n){ n.name = e.name; dirty.add(e.node);
+        if(ST.nets[e.node]) { ST.nets[e.node].name = e.name; drawTabs(); } } break; }
+      case 'node_status': { const [, n] = findNode(e.node); if(n){ n.status = e.status;
+        if(e.status === 'error'){ ST.errors[e.node] = e; status_err(n, e); }
+        else if(e.status === 'running') delete ST.errors[e.node];
+        n.time = e.time; stat.add(e.node); if(ST.sel.includes(e.node)) refreshPanel = true; } break; }
+      case 'node_label': { const [, n] = findNode(e.node); if(n){ n.label = e.label; dirty.add(e.node); } break; }
+      case 'node_frozen': { const [, n] = findNode(e.node); if(n){ n.frozen = e.frozen; stat.add(e.node); } break; }
+      case 'node_code': { const [, n] = findNode(e.node); if(n){ n.codeModified = e.modified; dirty.add(e.node); } break; }
+      case 'progress': { const [, n] = findNode(e.node); if(n){ n.progress = e.value; if(e.net === ST.cur) ED.progress(e.node, e.value); } break; }
+      case 'ports': { const [, n] = findNode(e.node); if(n){ n.in = e.ports.in; n.out = e.ports.out; dirty.add(e.node);
+        if(ST.sel.includes(e.node)) refreshPanel = true; } break; }
+      case 'port_type': { const [, n] = findNode(e.node); if(n){
+        const p = (e.io === 'in' ? n.in : n.out).find(x => x.name === e.port); if(p) p.datatype = e.datatype; dirty.add(e.node); } break; }
+      case 'widget': { const [, n] = findNode(e.node); if(n){
+        const p = n.in.find(x => x.name === e.port);
+        if(p){ p.widget = e.widget; if(!e.widget) p.unbound = true; else p.unbound = false; }
+        dirty.add(e.node); if(ST.sel.includes(e.node)) refreshPanel = true; } break; }
+      case 'connected':
+        net.conns[e.conn.id] = e.conn;
+        if(e.net === ST.cur) ED.addConn(e.conn);
+        break;
+      case 'disconnected':
+        if(net){ delete net.conns[e.conn]; if(e.net === ST.cur) ED.removeConn(e.conn); }
+        break;
+      case 'exec_status': setExec(e.status); break;
+      case 'run_on_new_data': setAuto(e.value); break;
+      case 'log': logText(e.text); if(/ERROR|Traceback|Error/.test(e.text)) $('logbox').open = true; break;
+      case 'saved': status('saved ' + esc(e.file)); break;
+      case 'network_added': addNetwork(e.network); break;
+      case 'network_renamed': ST.name = e.name; document.title = e.name + ' · WEWoS'; break;
+      case 'scene': VIEW3D.apply(e); break;
+      case 'viewer': VIEW3D.viewerEvent(e); break;
+      case 'message': reportDialog(e.title || 'Message', [e.text]); break;
+    }
+  }
+  const cur = ST.nets[ST.cur];
+  if(reshow){ ED.show(cur); }
+  dirty.forEach(id => { if(cur && cur.nodes[id]) ED.updateNode(id); });
+  stat.forEach(id => { if(cur && cur.nodes[id] && !dirty.has(id)) ED.statusOnly(id); });
+  if(refreshPanel) panel();
+}
+function status_err(n, e){
+  status('<span class=bad>node ' + esc(n.name) + ' failed: ' + esc(e.error) + '</span>');
+}
+function setExec(s){
+  ST.exec = s;
+  const p = $('execstatus');
+  p.textContent = s === 'waiting' ? 'idle' : s;
+  p.className = 'pill ' + s;
+  $('b_pause').innerHTML = s === 'pause' ? '&#9654; resume' : '&#10073;&#10073;';
+}
+function setAuto(v){ ST.auto = !!v; $('b_auto').checked = ST.auto; }
+
+/* ------------------------------------------------------------ palette */
+async function loadLibraries(){
+  const d = await api('api/libraries');
+  if(d.error) return;
+  ST.libs = d.libraries; ST.types = d.types;
+  ED.setTypes(d.types);
+  drawPalette('');
+}
+const OPENCATS = new Set((() => { try { return JSON.parse(localStorage.getItem('wewos.cats') || '["Standard/Input"]'); } catch(e) { return []; } })());
+function saveCats(){ try { localStorage.setItem('wewos.cats', JSON.stringify([...OPENCATS])); } catch(e) {} }
+function drawPalette(q){
+  q = (q || '').toLowerCase();
+  const box = $('libs'); box.innerHTML = '';
+  ST.libs.forEach(lib => {
+    const det = document.createElement('details');
+    det.className = 'lib'; det.open = true;
+    det.innerHTML = '<summary><span class=swatch style="background:' + esc(lib.color) + '"></span>' + esc(lib.name) + '</summary>';
+    if(lib.error){ det.innerHTML += '<div class=liberr>not available: ' + esc(lib.error) + '</div>'; box.append(det); return; }
+    let any = false;
+    lib.categories.forEach(cat => {
+      const nodes = cat.nodes.filter(n => !q || n.label.toLowerCase().includes(q) || cat.name.toLowerCase().includes(q));
+      if(!nodes.length) return;
+      any = true;
+      const c = document.createElement('details'); c.className = 'cat';
+      const key = lib.name + '/' + cat.name;
+      c.open = !!q || OPENCATS.has(key);
+      c.innerHTML = '<summary class=cname>' + esc(cat.name) + ' <span class=dim>' + nodes.length + '</span></summary>';
+      c.addEventListener('toggle', () => { if(!q){ if(c.open) OPENCATS.add(key); else OPENCATS.delete(key); saveCats(); } });
+      nodes.forEach(n => {
+        const e = document.createElement('div');
+        e.className = 'pnode'; e.textContent = n.label; e.title = n.doc || n.cls;
+        e.draggable = true;
+        e.addEventListener('dragstart', ev => {
+          ev.dataTransfer.setData('application/x-wewos-node', JSON.stringify({lib: lib.name, label: n.label}));
+        });
+        e.addEventListener('dblclick', () => {
+          const [x, y] = ED.center();
+          edit('add', {net: ST.cur, lib: lib.name, label: n.label, pos: [Math.round(x), Math.round(y)]});
+        });
+        c.append(e);
+      });
+      det.append(c);
+    });
+    if(any || !q) box.append(det);
+  });
+}
+$('search').addEventListener('input', e => drawPalette(e.target.value));
+
+/* ------------------------------------------------------------ tabs */
+function drawTabs(){
+  const nav = $('tabs'); nav.innerHTML = '';
+  ST.tabs = ST.tabs.filter(t => ST.nets[t]);
+  ST.tabs.forEach(id => {
+    const b = document.createElement('button');
+    b.className = 'tab' + (id === ST.cur ? ' on' : '');
+    const n = id === 'main' ? null : findNode(id)[1];
+    b.innerHTML = esc(id === 'main' ? (ST.name || 'network') : ('▣ ' + (n ? n.name : id))) +
+                  (id === 'main' ? '' : ' <span class=x title="close">&#10005;</span>');
+    b.addEventListener('click', e => {
+      if(e.target.classList.contains('x')){ closeTab(id); return; }
+      switchTab(id);
+    });
+    nav.append(b);
+  });
+}
+function switchTab(id){
+  if(!ST.nets[id]) return;
+  if(!ST.tabs.includes(id)) ST.tabs.push(id);
+  ST.cur = id;
+  const q = new URLSearchParams(location.search);
+  if(id === 'main') q.delete('tab'); else q.set('tab', id);
+  history.replaceState(null, '', '?' + q.toString());
+  drawTabs(); ED.show(ST.nets[id]);
+  if(!Object.keys(ST.nets[id].nodes).length) ED.fit();
+}
+function closeTab(id){
+  ST.tabs = ST.tabs.filter(t => t !== id);
+  if(ST.cur === id) switchTab('main'); else drawTabs();
+}
+
+/* ------------------------------------------------------------ parameter panel */
+function widgetCtx(nid, port, compact){
+  return {
+    compact,
+    change: (value, runIt) => edit('set_widget', {node: nid, port, value, run: runIt && ST.auto}),
+    pickFile: (kind, cur, opts) => filePicker(kind, cur, opts),
+    upload: () => uploadFile(),
+  };
+}
+function panel(){
+  const box = $('panel');
+  const ids = ED.selection().nodes;
+  ST.sel = ids;
+  if(ids.length !== 1){
+    box.innerHTML = ids.length ? '<p class=dim>' + ids.length + ' nodes selected.</p>' +
+      '<div class=btns><button id=p_group>Group into a macro</button><button id=p_del>Delete</button></div>'
+      : '<p class=dim>Select a node to see its parameters.</p>';
+    if(ids.length){
+      $('p_group').onclick = () => groupMacro(ids);
+      $('p_del').onclick = () => edit('delete', {nodes: ids});
+    }
+    return;
+  }
+  const [, n] = findNode(ids[0]);
+  if(!n){ box.innerHTML = ''; return; }
+  const h = [];
+  h.push('<h3><input id=p_name value="' + esc(n.name) + '" title="rename"></h3>');
+  h.push('<div class=dim>' + esc(n.lib || 'built-in') + ' &middot; ' + esc(n.cls) +
+         (n.time != null ? ' &middot; last run ' + (n.time * 1000).toFixed(0) + ' ms' : '') + '</div>');
+  if(n.unsupported) h.push('<p class=bad>This node is not available here (' + esc(JSON.stringify(n.unsupported)) + '); it does not run.</p>');
+  const err = ST.errors[n.id];
+  if(err && n.status === 'error') h.push('<p class=bad>' + esc(err.error) + '</p><details><summary>traceback</summary><div class=err>' + esc(err.trace) + '</div></details>');
+  if(n.doc) h.push('<details><summary class=dim>About this node</summary><div class=doc>' + esc(n.doc) + '</div></details>');
+  h.push('<div id=p_widgets></div>');
+  h.push('<div class=btns><button id=p_run class=primary>Run node</button><button id=p_code>Edit code&hellip;</button>' +
+         '<button id=p_freeze>' + (n.frozen ? 'Unfreeze' : 'Freeze') + '</button>' +
+         (n.macro ? '<button id=p_open>Open macro</button><button id=p_explode>Explode macro</button>' : '') +
+         '<button id=p_del>Delete</button></div>');
+  h.push('<table id=p_ports></table>');
+  if(!n.macro && !n.unsupported && !n.readOnly)
+    h.push('<details id=p_addport><summary class=dim>Add a port</summary><div class=row style="grid-template-columns:auto 1fr auto auto">' +
+      '<select id=ap_io><option value=in>input</option><option value=out>output</option></select>' +
+      '<input id=ap_name placeholder="name" spellcheck=false>' +
+      '<select id=ap_type>' + ['None', 'float', 'int', 'boolean', 'string', 'list', 'dict', 'coord3(0)', 'geom', 'AtomSet', 'Molecule']
+        .map(t => '<option>' + t + '</option>').join('') + '</select>' +
+      '<label class=chk title="give the input a widget"><input type=checkbox id=ap_w> widget</label></div>' +
+      '<button id=ap_go>Add port</button> <span class=dim>The compute function gets one more argument.</span></details>');
+  box.innerHTML = h.join('');
+  const wbox = $('p_widgets');
+  (n.in || []).forEach(p => {
+    if(!p.widget) return;
+    const row = document.createElement('div'); row.className = 'row';
+    const lab = document.createElement('label');
+    lab.textContent = p.widget.label || p.name; lab.title = p.name + ': ' + p.datatype + (p.widget.master === 'node' ? ' (also shown in the node)' : '');
+    row.append(lab, W.render(p.widget, widgetCtx(n.id, p.name, false)));
+    lab.addEventListener('contextmenu', ev => { ev.preventDefault(); widgetMenu(n, p, ev); });
+    wbox.append(row);
+  });
+  const t = $('p_ports');
+  const rows = [];
+  (n.in || []).forEach(p => rows.push('<tr><td>&#9664; ' + esc(p.name) + '</td><td class=t>' + esc(p.datatype) +
+      (p.required ? '' : ' (opt.)') + '</td><td>' + (p.widget ? '<button data-unbind="' + esc(p.name) + '" class=plainbtn title="remove the widget so the port can be connected">unbind</button>'
+      : (p.unbound ? '<button data-rebind="' + esc(p.name) + '" class=plainbtn>rebind widget</button>' : '')) +
+      '<button data-show="in:' + esc(p.name) + '" class=plainbtn>data</button>' +
+      (n.macro ? '' : '<button data-del="in:' + esc(p.name) + '" class=plainbtn title="delete this port">&#10005;</button>') + '</td></tr>'));
+  (n.out || []).forEach(p => rows.push('<tr><td>' + esc(p.name) + ' &#9654;</td><td class=t>' + esc(p.datatype) +
+      '</td><td><button data-show="out:' + esc(p.name) + '" class=plainbtn>data</button>' +
+      (n.macro ? '' : '<button data-del="out:' + esc(p.name) + '" class=plainbtn title="delete this port">&#10005;</button>') + '</td></tr>'));
+  t.innerHTML = rows.join('');
+  t.onclick = e => {
+    const b = e.target.closest('button'); if(!b) return;
+    if(b.dataset.show){ const [io, port] = b.dataset.show.split(':'); showData(n.id, io, port); }
+    if(b.dataset.unbind) edit('unbind', {node: n.id, port: b.dataset.unbind});
+    if(b.dataset.rebind) edit('rebind', {node: n.id, port: b.dataset.rebind});
+    if(b.dataset.del){ const [io, port] = b.dataset.del.split(':');
+      if(confirm('Delete port ' + port + ' of ' + n.name + '?')) edit('delete_port', {node: n.id, io, port}); }
+  };
+  if($('ap_go')) $('ap_go').onclick = () => edit('add_port', {node: n.id, io: $('ap_io').value,
+      name: $('ap_name').value.trim(), datatype: $('ap_type').value, widget: $('ap_w').checked});
+  $('p_name').addEventListener('change', e => edit('rename', {node: n.id, name: e.target.value}));
+  $('p_run').onclick = () => run('run_node', {node: n.id});
+  $('p_code').onclick = () => codeEditor(n.id);
+  $('p_freeze').onclick = () => edit('freeze', {node: n.id, frozen: !n.frozen});
+  $('p_del').onclick = () => edit('delete', {nodes: [n.id]});
+  if($('p_open')) $('p_open').onclick = () => switchTab(n.id);
+  if($('p_explode')) $('p_explode').onclick = () => explodeMacro(n.id);
+}
+function widgetMenu(n, p, ev){
+  menu(ev, [
+    ['Show in the node', () => edit('widget_opts', {node: n.id, port: p.name, opts: {master: 'node'}}), p.widget.master === 'node'],
+    ['Show in the panel only', () => edit('widget_opts', {node: n.id, port: p.name, opts: {master: 'ParamPanel'}}), p.widget.master !== 'node'],
+    ['Unbind (show the port)', () => edit('unbind', {node: n.id, port: p.name}), p.widget.locked],
+  ]);
+}
+
+/* ------------------------------------------------------------ dialogs */
+function modal(title, bodyEl){
+  $('mtitle').textContent = title;
+  const b = $('mbody'); b.innerHTML = '';
+  if(typeof bodyEl === 'string') b.innerHTML = bodyEl; else b.append(bodyEl);
+  $('modal').hidden = false;
+}
+function closeModal(){ $('modal').hidden = true; if(modalCancel){ const f = modalCancel; modalCancel = null; f(); } }
+let modalCancel = null;
+$('mclose').onclick = closeModal;
+$('modal').addEventListener('pointerdown', e => { if(e.target === $('modal')) closeModal(); });
+document.addEventListener('keydown', e => { if(e.key === 'Escape' && !$('modal').hidden) closeModal(); });
+
+function reportDialog(title, lines){
+  const ul = '<ul class=report>' + lines.map(l => '<li>' + esc(typeof l === 'string' ? l : JSON.stringify(l)) + '</li>').join('') + '</ul>';
+  modal(title, ul);
+}
+async function showData(nid, io, port){
+  const d = await edit('port_data', {node: nid, io, port});
+  if(d.error) return;
+  const pre = document.createElement('pre');
+  pre.style.cssText = 'white-space:pre-wrap;font:12px ui-monospace,Menlo,monospace;max-height:65vh;overflow:auto';
+  pre.textContent = d.text;
+  modal(port + ' (' + d.type + ')', pre);
+}
+async function codeEditor(nid){
+  const d = await edit('get_code', {node: nid});
+  if(d.error) return;
+  const box = document.createElement('div');
+  box.innerHTML = '<p class=dim>The compute function of <b>' + esc(d.name) + '</b>. Its arguments are the input ports, in order; ' +
+    'call <code>self.outputData(port=value)</code> to send data. ' + (d.readOnly ? '<span class=warn>This node is read only.</span>' : '') + '</p>' +
+    '<textarea class=code spellcheck=false></textarea><p id=c_err class=bad></p>' +
+    '<div class=btns style="display:flex;gap:6px"><button class=primary id=c_save>Save</button><button id=c_saverun>Save and run</button><button id=c_cancel>Cancel</button></div>';
+  const ta = box.querySelector('textarea');
+  ta.value = d.code || '';
+  ta.addEventListener('keydown', e => {
+    if(e.key === 'Tab'){ e.preventDefault();
+      const s = ta.selectionStart; ta.setRangeText('    ', s, ta.selectionEnd, 'end'); }
+  });
+  modal('Edit code', box);
+  const save = async runAfter => {
+    const r = await edit('set_code', {node: nid, code: ta.value, force: true});
+    if(r.error){ box.querySelector('#c_err').textContent = r.error; return; }
+    closeModal();
+    if(runAfter) run('run_node', {node: nid});
+  };
+  box.querySelector('#c_save').onclick = () => save(false);
+  box.querySelector('#c_saverun').onclick = () => save(true);
+  box.querySelector('#c_cancel').onclick = closeModal;
+  setTimeout(() => ta.focus(), 30);
+}
+function filePicker(kind, current, opts){
+  return new Promise(resolve => {
+    let dir = current ? current.replace(/\/[^/]*$/, '') || current : '';
+    let chosen = null;
+    const box = document.createElement('div');
+    box.innerHTML = '<div style="display:flex;gap:6px;align-items:center"><button id=f_up>&#8593;</button>' +
+      '<button id=f_sess title="this network\'s folder">network folder</button><input id=f_dir style="flex:1"></div>' +
+      '<div class=fb-list id=f_list></div>' +
+      (kind === 'filesave' ? '<div style="display:flex;gap:6px;align-items:center">name <input id=f_name style="flex:1"></div>' : '') +
+      '<div class=btns style="display:flex;gap:6px;margin-top:8px"><button class=primary id=f_ok>' +
+      (kind === 'dir' ? 'Choose this folder' : 'Choose') + '</button><button id=f_cancel>Cancel</button><span class=grow></span>' +
+      (kind === 'file' ? '<button id=f_upload>Upload from this computer&hellip;</button>' : '') + '</div>';
+    modal(opts.title || (kind === 'dir' ? 'Choose a folder' : 'Choose a file'), box);
+    modalCancel = () => resolve(null);
+    const done = v => { modalCancel = null; $('modal').hidden = true; resolve(v); };
+    let session = '';
+    async function go(d){
+      const r = await api('api/files?s=' + encodeURIComponent(ST.sid) + '&dir=' + encodeURIComponent(d || ''));
+      if(r.error) return;
+      dir = r.path; session = r.session;
+      box.querySelector('#f_dir').value = dir;
+      const list = box.querySelector('#f_list'); list.innerHTML = '';
+      r.entries.forEach(en => {
+        const it = document.createElement('div');
+        it.innerHTML = (en.dir ? '&#128193; ' : '&#128196; ') + esc(en.name) + (en.dir ? '' : '<span class=sz>' + (en.size / 1024).toFixed(1) + ' kB</span>');
+        it.onclick = () => { if(en.dir) go(dir + '/' + en.name); else {
+          list.querySelectorAll('.sel').forEach(x => x.classList.remove('sel')); it.classList.add('sel');
+          chosen = dir + '/' + en.name; if(box.querySelector('#f_name')) box.querySelector('#f_name').value = en.name; } };
+        it.ondblclick = () => { if(!en.dir) done(dir + '/' + en.name); };
+        list.append(it);
+      });
+    }
+    box.querySelector('#f_up').onclick = () => go(dir.replace(/\/[^/]+$/, '') || '/');
+    box.querySelector('#f_sess').onclick = () => go(session);
+    box.querySelector('#f_dir').addEventListener('change', e => go(e.target.value));
+    box.querySelector('#f_cancel').onclick = () => done(null);
+    box.querySelector('#f_ok').onclick = () => {
+      if(kind === 'dir') done(dir);
+      else if(kind === 'filesave'){ const nm = box.querySelector('#f_name').value.trim(); done(nm ? dir + '/' + nm : null); }
+      else done(chosen);
+    };
+    if(box.querySelector('#f_upload')) box.querySelector('#f_upload').onclick = async () => {
+      const p = await uploadFile(); if(p) done(p); };
+    go(dir);
+  });
+}
+function uploadFile(){
+  return new Promise(resolve => {
+    const inp = $('fileupload');
+    inp.value = '';
+    inp.onchange = async () => {
+      const f = inp.files[0]; if(!f){ resolve(null); return; }
+      status('uploading ' + esc(f.name) + '&hellip;');
+      const d = await api('api/upload?s=' + encodeURIComponent(ST.sid) + '&name=' + encodeURIComponent(f.name), null, f);
+      if(d.error){ resolve(null); return; }
+      status('uploaded ' + esc(d.name));
+      resolve(d.path);
+    };
+    inp.click();
+  });
+}
+
+/* ------------------------------------------------------------ menus */
+function menu(ev, items){
+  const m = $('menu'); m.innerHTML = '';
+  items.forEach(it => {
+    if(it === '-'){ m.append(document.createElement('hr')); return; }
+    const [label, fn, disabled] = it;
+    const d = document.createElement('div');
+    d.textContent = label;
+    if(disabled) d.className = 'dis';
+    else d.onclick = () => { m.hidden = true; fn(); };
+    m.append(d);
+  });
+  m.hidden = false;
+  const r = m.getBoundingClientRect();
+  m.style.left = Math.min(ev.clientX, innerWidth - r.width - 6) + 'px';
+  m.style.top = Math.min(ev.clientY, innerHeight - r.height - 6) + 'px';
+}
+document.addEventListener('pointerdown', e => { if(!$('menu').contains(e.target)) $('menu').hidden = true; });
+
+function groupMacro(ids){
+  const name = prompt('Name of the new macro node', 'macro');
+  if(name === null) return;
+  edit('make_macro', {nodes: ids, name});
+}
+function paste(){
+  edit('paste', {net: ST.cur, offset: [40, 40]});
+}
+function nodeMenu(id, ev){
+  const [, n] = findNode(id);
+  const sel = ED.selection().nodes;
+  menu(ev, [
+    ['Run this node', () => run('run_node', {node: id})],
+    ['Edit code…', () => codeEditor(id)],
+    ['Rename…', () => { const nm = prompt('Name', n.name); if(nm) edit('rename', {node: id, name: nm}); }],
+    [n.frozen ? 'Unfreeze' : 'Freeze', () => edit('freeze', {node: id, frozen: !n.frozen})],
+  ].concat(n.macro ? [
+    '-',
+    ['Open macro', () => switchTab(id)],
+    ['Explode macro (put its nodes here)', () => explodeMacro(id)],
+  ] : []).concat([
+    '-',
+    ['Copy', () => edit('copy', {nodes: sel})],
+    ['Group into a macro…', () => groupMacro(sel)],
+    ['Delete', () => edit('delete', {nodes: sel})],
+  ]));
+}
+async function explodeMacro(id){
+  if(ST.tabs.includes(id)) closeTab(id);
+  const d = await edit('explode_macro', {node: id});
+  if(!d.error){
+    ED.select(d.nodes || []);
+    status('macro exploded into ' + (d.nodes || []).length + ' nodes' +
+           (d.report && d.report.length ? '; some connections could not be remade (see the log)' : ''));
+  }
+}
+function portMenu(nid, io, port, ev){
+  const [, n] = findNode(nid);
+  const items = [['Show data', () => showData(nid, io, port)]];
+  if(io === 'in'){
+    const p = (n.in || []).find(x => x.name === port);
+    if(p && p.unbound) items.push(['Rebind widget', () => edit('rebind', {node: nid, port})]);
+  }
+  const net = ST.nets[ST.cur];
+  const conns = Object.values(net.conns).filter(c => (io === 'out' ? c.from : c.to)[0] === nid && (io === 'out' ? c.from : c.to)[1] === port);
+  if(conns.length) items.push(['Disconnect (' + conns.length + ')', () => edit('delete', {conns: conns.map(c => c.id)})]);
+  menu(ev, items);
+}
+const fileMenu = ev => menu(ev, [
+  ['New network', newNetwork],
+  ['Open network (.wnet.json)…', () => $('fileopen').click()],
+  ['Import a Vision network (*_net.py)…', () => $('fileimport').click()],
+  ['Open an example…', examplesDialog],
+  '-',
+  ['Save', () => save(false)],
+  ['Save as…', () => save(true)],
+  ['Download the network file', downloadNet],
+  ['Download the network folder (zip)', () => { location.href = 'api/download?s=' + ST.sid + '&t=' + encodeURIComponent(T); }],
+  '-',
+  ['Rename network…', () => { const nm = prompt('Network name', ST.name); if(nm) edit('rename_network', {name: nm}); }],
+]);
+const editMenu = ev => {
+  const sel = ED.selection();
+  menu(ev, [
+    ['Copy', () => edit('copy', {nodes: sel.nodes}), !sel.nodes.length],
+    ['Paste', paste],
+    ['Delete', () => edit('delete', sel), !(sel.nodes.length || sel.conns.length)],
+    ['Select all', () => ED.select(Object.keys(ST.nets[ST.cur].nodes))],
+    ['Group into a macro…', () => groupMacro(sel.nodes), !sel.nodes.length],
+    '-',
+    ['Fit the network in view (f)', () => ED.fit()],
+    [(W.isReversed() ? '\u2713 ' : '') + 'Reverse the scrolling direction on numbers',
+     () => { W.setReverse(!W.isReversed());
+             status('scrolling up now ' + (W.isReversed() ? 'decreases' : 'increases') + ' values'); }],
+  ]);
+};
+$('m_file').onclick = e => { e.stopPropagation(); fileMenu(e); };
+$('m_edit').onclick = e => { e.stopPropagation(); editMenu(e); };
+
+async function save(ask){
+  let name = ST.name;
+  if(ask){ name = prompt('Save as (in the network folder)', ST.name); if(!name) return; }
+  const d = await api('api/save', {s: ST.sid, name});
+  if(!d.error){ ST.savedFile = d.file; status('saved ' + esc(d.path)); }
+  return d;
+}
+async function downloadNet(){
+  const d = await save(false);
+  if(d && !d.error) location.href = 'api/download?s=' + ST.sid + '&file=' + encodeURIComponent(d.file) + '&t=' + encodeURIComponent(T);
+}
+async function examplesDialog(){
+  const d = await api('api/examples');
+  if(d.error) return;
+  const box = document.createElement('div');
+  box.className = 'fb-list';
+  d.examples.forEach(x => {
+    const it = document.createElement('div');
+    it.innerHTML = '&#128200; ' + esc(x.name) + '<span class=sz>' + x.nodes + ' nodes</span>';
+    it.onclick = async () => {
+      closeModal();
+      const r = await api('api/example', {name: x.file});
+      if(!r.error) loadSession(r.session);
+    };
+    box.append(it);
+  });
+  modal('Examples', box);
+}
+async function newNetwork(){
+  const name = prompt('Name of the new network', 'network');
+  if(name === null) return;
+  const d = await api('api/new', {name});
+  if(!d.error) loadSession(d.session);
+}
+async function openUpload(file, kind){
+  if(!file) return;
+  status((kind === 'import' ? 'importing ' : 'opening ') + esc(file.name) + '&hellip;');
+  const d = await api('api/' + kind + '?name=' + encodeURIComponent(file.name), null, file);
+  if(d.error) return;
+  await loadSession(d.session);
+  if(kind === 'import' && d.report){
+    const r = d.report, lines = [];
+    lines.push(r.nodes + ' nodes, ' + r.connections + ' connections imported');
+    (r.unmapped || []).forEach(u => lines.push('not available: ' + u));
+    (r.code || []).forEach(u => lines.push('edited code converted to Python 3: ' + u));
+    (r.warnings || []).forEach(u => lines.push(u));
+    (r.load || []).forEach(u => lines.push(u));
+    reportDialog('Imported ' + file.name, lines);
+  }
+}
+$('fileopen').onchange = e => openUpload(e.target.files[0], 'open');
+$('fileimport').onchange = e => openUpload(e.target.files[0], 'import');
+document.addEventListener('dragover', e => { if(e.dataTransfer.types.includes('Files')){ e.preventDefault(); document.body.classList.add('drag'); } });
+document.addEventListener('dragleave', e => { if(!e.relatedTarget) document.body.classList.remove('drag'); });
+document.addEventListener('drop', e => {
+  document.body.classList.remove('drag');
+  const f = e.dataTransfer.files && e.dataTransfer.files[0];
+  if(!f) return;
+  e.preventDefault();
+  if(/_net\.py$|\.py$/.test(f.name)) openUpload(f, 'import');
+  else if(/\.json$/.test(f.name)) openUpload(f, 'open');
+});
+
+async function refreshSessions(){
+  const d = await api('api/sessions');
+  if(d.error) return;
+  const s = $('sessions'); s.innerHTML = '';
+  d.sessions.forEach(x => {
+    const o = document.createElement('option');
+    o.value = x.session; o.textContent = x.name + ' (' + x.nodes + ' nodes)';
+    if(x.session === ST.sid) o.selected = true;
+    s.append(o);
+  });
+}
+$('sessions').onchange = e => loadSession(e.target.value);
+$('sessions').onfocus = refreshSessions;
+
+/* ------------------------------------------------------------ toolbar */
+$('b_run').onclick = () => run('run');
+$('b_hardrun').onclick = () => run('hardrun');
+$('b_pause').onclick = () => run(ST.exec === 'pause' ? 'resume' : 'pause');
+$('b_stop').onclick = () => run('stop');
+$('b_auto').onchange = e => edit('run_on_new_data', {value: e.target.checked});
+$('logclear').onclick = e => { e.preventDefault(); $('log').textContent = ''; $('loglen').textContent = ''; };
+$('theme').onclick = () => {
+  const cur = document.documentElement.dataset.theme ||
+    (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  const next = cur === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  try { localStorage.setItem('wewos.theme', next); } catch(e) {}
+  VIEW3D.theme();
+};
+(function hsplit(){
+  // drag the divider to share the column between the viewers and the panel;
+  // the share is remembered in this browser
+  const sp = $('hsplit'), side = $('side'), vw = $('viewers');
+  try { const f = parseFloat(localStorage.getItem('wewos.viewerShare')); if(f > 0.1 && f < 0.95) vw.style.height = (f * 100) + '%'; } catch(e) {}
+  sp.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    sp.setPointerCapture(e.pointerId);
+    const top = side.getBoundingClientRect().top, H = side.clientHeight;
+    const mv = ev => {
+      const f = Math.max(0.12, Math.min(0.94, (ev.clientY - top) / H));
+      vw.style.height = (f * 100) + '%';
+    };
+    const up = () => {
+      sp.removeEventListener('pointermove', mv); sp.removeEventListener('pointerup', up);
+      try { localStorage.setItem('wewos.viewerShare', String(vw.offsetHeight / H)); } catch(e) {}
+    };
+    sp.addEventListener('pointermove', mv); sp.addEventListener('pointerup', up);
+  });
+})();
+(function splitter(){
+  const sp = $('splitter'), side = $('side');
+  sp.addEventListener('pointerdown', e => {
+    sp.setPointerCapture(e.pointerId);
+    const x0 = e.clientX, w0 = side.offsetWidth;
+    const mv = ev => { side.style.width = Math.max(260, Math.min(innerWidth - 400, w0 - (ev.clientX - x0))) + 'px'; VIEW3D.resize(); };
+    const up = () => { sp.removeEventListener('pointermove', mv); sp.removeEventListener('pointerup', up); };
+    sp.addEventListener('pointermove', mv); sp.addEventListener('pointerup', up);
+  });
+})();
+
+/* ------------------------------------------------------------ start */
+ED.init($('canvas'), {
+  edit: (op, a) => edit(op, a).then(d => { if(op === 'copy' && !d.error) status(d.copied + ' node(s) copied'); return d; }),
+  selected: () => panel(),
+  dblclick: id => { const [, n] = findNode(id); if(n && n.macro) switchTab(id); else codeEditor(id); },
+  contextNode: nodeMenu,
+  contextPort: portMenu,
+  contextConn: (cid, ev) => menu(ev, [['Delete connection', () => edit('delete', {conns: [cid]})]]),
+  contextCanvas: (pos, ev) => menu(ev, [['Paste', paste], ['Fit the network in view', () => ED.fit()],
+                                        ['Run (soft)', () => run('run')], ['Run all', () => run('hardrun')]]),
+  widgetCtx: (nid, port, compact) => widgetCtx(nid, port, compact),
+  paste,
+});
+VIEW3D.init($('viewers'), {
+  pick: body => api('api/pick', Object.assign({s: ST.sid}, body)),
+  find: id => findNode(id)[1],
+  edit: (op, a) => edit(op, a),
+});
+(async function start(){
+  await loadLibraries();
+  const q = new URLSearchParams(location.search);
+  const sid = q.get('session');
+  if(sid && await loadSession(sid)) return;
+  const d = await api('api/sessions');
+  if(!d.error && d.sessions && d.sessions.length){ await loadSession(d.sessions[0].session); return; }
+  const n = await api('api/new', {name: 'network'});
+  if(!n.error) loadSession(n.session);
+})();

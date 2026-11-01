@@ -1,0 +1,231 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "Molecules",
+  "3D Visualization"
+ ],
+ "network": {
+  "name": "crambin surface",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "Read Molecule",
+    "cls": "ReadMolecule",
+    "lib": "Molecules",
+    "pos": [
+     30,
+     40
+    ],
+    "label": "Read Molecule",
+    "widgets": {
+     "filename": "data/1crn.pdb"
+    }
+   },
+   {
+    "id": "n2",
+    "name": "Select",
+    "cls": "NodeSelector",
+    "lib": "Molecules",
+    "pos": [
+     330,
+     30
+    ],
+    "label": "Select",
+    "widgets": {
+     "selectionString": "resname CYS",
+     "syntax": "prody"
+    },
+    "widgetOpts": {
+     "syntax": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n3",
+    "name": "Sticks",
+    "cls": "AtomsAsSticks",
+    "lib": "Molecules",
+    "pos": [
+     630,
+     30
+    ],
+    "label": "Sticks",
+    "widgets": {
+     "colorBy": "element",
+     "opacity": 1.0,
+     "cradii": 0.2
+    },
+    "widgetOpts": {
+     "colorBy": {
+      "autoList": false
+     },
+     "opacity": {
+      "type": "float",
+      "increment": 0.0,
+      "precision": 2
+     },
+     "cradii": {
+      "type": "float",
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n4",
+    "name": "Cartoon",
+    "cls": "Cartoon",
+    "lib": "Molecules",
+    "pos": [
+     330,
+     190
+    ],
+    "label": "Cartoon",
+    "widgets": {
+     "colorBy": "spectrum",
+     "opacity": 1.0
+    },
+    "widgetOpts": {
+     "colorBy": {
+      "autoList": false
+     },
+     "opacity": {
+      "type": "float",
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n5",
+    "name": "MSMS",
+    "cls": "AtomsAsMSMS",
+    "lib": "Molecules",
+    "pos": [
+     330,
+     330
+    ],
+    "label": "MSMS",
+    "widgets": {
+     "probeRadius": 1.5,
+     "density": 3.0,
+     "colorBy": "element",
+     "opacity": 0.6
+    },
+    "widgetOpts": {
+     "probeRadius": {
+      "type": "float",
+      "increment": 0.0,
+      "precision": 2
+     },
+     "density": {
+      "type": "float",
+      "increment": 0.0,
+      "precision": 2
+     },
+     "colorBy": {
+      "autoList": false
+     },
+     "opacity": {
+      "type": "float",
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n6",
+    "name": "Viewer",
+    "cls": "Viewer",
+    "lib": "3D Visualization",
+    "pos": [
+     700,
+     300
+    ],
+    "label": "Viewer"
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n1",
+     "mol"
+    ],
+    "to": [
+     "n2",
+     "nodes"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n2",
+     "selection"
+    ],
+    "to": [
+     "n3",
+     "atoms"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n1",
+     "mol"
+    ],
+    "to": [
+     "n4",
+     "atoms"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n1",
+     "mol"
+    ],
+    "to": [
+     "n5",
+     "atoms"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n3",
+     "sticks"
+    ],
+    "to": [
+     "n6",
+     "geometries"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n4",
+     "cartoon"
+    ],
+    "to": [
+     "n6",
+     "geometries"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n5",
+     "surface"
+    ],
+    "to": [
+     "n6",
+     "geometries"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

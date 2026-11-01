@@ -1,0 +1,206 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "Standard",
+  "3D Visualization"
+ ],
+ "network": {
+  "name": "spheres and a color map",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "eval",
+    "cls": "Eval",
+    "lib": "Standard",
+    "pos": [
+     30,
+     40
+    ],
+    "label": "eval",
+    "widgets": {
+     "command": "[[i, (i * 7) % 13 - 6, (i * 3) % 11 - 5] for i in range(-12, 13)]",
+     "importString": ""
+    }
+   },
+   {
+    "id": "n2",
+    "name": "Spheres",
+    "cls": "Spheres",
+    "lib": "3D Visualization",
+    "pos": [
+     520,
+     40
+    ],
+    "label": "Spheres",
+    "widgets": {
+     "radius": 0.8
+    },
+    "widgetOpts": {
+     "radius": {
+      "type": "float",
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n3",
+    "name": "x values",
+    "cls": "Generic",
+    "lib": "Standard",
+    "pos": [
+     260,
+     200
+    ],
+    "label": "Generic",
+    "addPorts": {
+     "in": [
+      {
+       "name": "coords",
+       "datatype": "None",
+       "required": true,
+       "singleConnection": true
+      }
+     ],
+     "out": [
+      {
+       "name": "values",
+       "datatype": "None"
+      }
+     ]
+    },
+    "code": "def doit(self, coords):\n    self.outputData(values=[c[0] for c in coords])\n"
+   },
+   {
+    "id": "n4",
+    "name": "Color Map",
+    "cls": "ColorMap",
+    "lib": "3D Visualization",
+    "pos": [
+     260,
+     330
+    ],
+    "label": "Color Map",
+    "widgets": {
+     "ramp": "rainbow"
+    },
+    "widgetOpts": {
+     "ramp": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n5",
+    "name": "axis",
+    "cls": "AxisNE",
+    "lib": "3D Visualization",
+    "pos": [
+     520,
+     330
+    ],
+    "label": "axis",
+    "widgets": {
+     "length": 10.0,
+     "radius": 0.3
+    },
+    "widgetOpts": {
+     "length": {
+      "type": "float",
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "radius": {
+      "type": "float",
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n6",
+    "name": "Viewer",
+    "cls": "Viewer",
+    "lib": "3D Visualization",
+    "pos": [
+     800,
+     200
+    ],
+    "label": "Viewer"
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n1",
+     "result"
+    ],
+    "to": [
+     "n2",
+     "coords"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n1",
+     "result"
+    ],
+    "to": [
+     "n3",
+     "coords"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n3",
+     "values"
+    ],
+    "to": [
+     "n4",
+     "values"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n4",
+     "colors"
+    ],
+    "to": [
+     "n2",
+     "colors"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n2",
+     "spheres"
+    ],
+    "to": [
+     "n6",
+     "geometries"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n5",
+     "axis"
+    ],
+    "to": [
+     "n6",
+     "geometries"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

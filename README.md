@@ -1,0 +1,86 @@
+# WEWoS: Vision visual programming on the web
+
+WEWoS ports Vision, the visual programming environment of MGLTools, to the web.
+- **Server:** a Python 3 port of the NetworkEditor/Vision engine runs on a local server.
+- **Browser:** draws the network editor and the 3D viewer. [3Dmol.js](https://3dmol.csb.pitt.edu) replaces DejaVu.
+
+It follows ADapt's approach: a standard-library HTTP server bound to localhost with a URL token, plain JavaScript with no build step, and a bundled 3Dmol.js.
+
+## Start
+
+```
+bin/wewos serve            # prints http://127.0.0.1:8767/?t=...   open it in a browser
+bin/wewos check            # what is missing (MolKit2, prody, mslib for the Molecules library)
+bin/wewos test             # the test suite
+```
+
+`bin/wewos` needs a Python 3 environment with numpy. The Molecules library also needs MolKit2, prody and mslib, which the ADCP distribution's `adcpsuite` env provides. Each network keeps its own folder under `~/wewos_runs` (`$WEWOS_OUTDIR`), holding uploads, saved networks and an autosave.
+
+To use it from another machine, forward the port: `ssh -L 8767:127.0.0.1:8767 host`, then open the printed URL locally.
+
+## Using it
+
+- **Add nodes:** drag them from the palette, or double-click a palette entry.
+- **Connect:** drag from an **output** (the right edge of a node) to an **input** (the left edge). Compatible ports light up while you drag.
+- **Widgets:** an input with a widget shows it on its row in the node, or in the parameter panel on the right. Changing a widget runs the node's subtree when *run on change* is checked.
+- **Number widgets:** scroll over one (mouse wheel or two-finger trackpad) or drag its ⇄ handle to change the value. Shift gives finer steps and Alt/Option coarser ones.
+- **Run:** **Run** runs the nodes that have new data, as Vision's run did. **Run all** runs every node. **Pause** and **Stop** act after the current node.
+- **Edit a node's code:** use the panel's *Edit code…* or double-click the node. The compute function's arguments are the input ports.
+- **Add ports:** *Add a port* in the panel adds an input or output port. A Generic node plus your own ports and code is a new node.
+- **Macros:** select nodes, then right-click > *Group into a macro*. Double-click a macro to open its network in a tab. Inside it, connect to port `new` of the input or output node to add a macro port.
+- **3D viewing:** a Viewer node opens a 3Dmol panel. Drag the divider under it to make it taller, use ⇕ to give it the whole column, or ⤢ to fill the window (Esc to come back); the splitter left of the column makes it wider. Click an atom or shape and the Viewer's `lastPick` output carries what you clicked to the connected nodes, for example *Picked Atom*.
+- **Files:** File > Save writes `<name>.wnet.json` in the network's folder. *Open network* reads one back. *Download* gets the network or the whole folder.
+- **Examples:** File > *Open an example…*.
+
+## Libraries
+
+| Library | Contents |
+|---|---|
+| Standard | the 75 nodes of Vision's StandardNodes that do not drive Tk: input widgets, Python (iterate, while, accum, eval, map…), logic, filters, numpy |
+| 3D Visualization | Viewer, Spheres, Cylinders, IndPolygons (meshes), IndPolylines, labels, box, axis, groups, color map, mesh reader. This replaces DejaVu's vizlib, and the port names are DejaVu's. |
+| Molecules | MolKit2: Read Molecule, Fetch PDB, Select (ProDy or MolKit syntax), atom properties, radii, CPK, Sticks, Lines, Cartoon, Surface (3Dmol), MSMS (mslib), Write PDB, Picked Atom |
+| SymServer | symserv: n-fold axes (2- to 6-fold and N-fold), helix, super-helix, rotate, translate, orient, scale, merge, multiply, split, inverse, transpose, the Icosahedral1 and IcosCage macros, reading and saving matrices. Its matrices go to the `instanceMatrices` input of a geometry, or of a molecule's CPK/Sticks/Lines/Cartoon/Surface/MSMS node, which draws one copy per matrix. |
+
+## Vision networks (`*_net.py`)
+
+File > *Import a Vision network* (or `bin/wewos import old_net.py`) converts a saved Vision network to the WEWoS format. The file is **not executed**: it is parsed after a Python 2 → 3 syntax conversion, and only what the generated files do is interpreted. That covers libraries, nodes, widget values, edited code, ports added to nodes, user macros and connections.
+
+How nodes come across:
+- Nodes of the Standard, DejaVu, MolKit and symserv libraries map onto the WEWoS libraries (`wewos/legacy/classmap.py`).
+- Other nodes become placeholders that keep their name, ports and code. They show in red and do not run.
+- Edited compute functions are converted to Python 3 and kept for Standard nodes.
+
+The import report lists what was not carried over. All 76 networks in `/home/sanner/*_net.py` import and open.
+
+## Layout
+
+```
+bin/wewos                 launcher (finds the adcpsuite env)
+wewos/engine/             the Vision engine in Python 3: types, ports, nodes, network scheduler,
+                          macros, widgets as data, event stream, file format
+wewos/libs/               standard.py, viz3d.py, molecules.py, symserv.py
+wewos/symserv/            symserv's operators (Python 3) and the mglutil math they use
+wewos/geom.py             geometry without OpenGL (what DejaVu geometries were to nodes)
+wewos/legacy/             py2to3 conversion and the *_net.py importer
+wewos/server.py, session.py, page.py, static/   the web server and page
+examples/                 example networks (make_examples.py rebuilds them)
+tests/                    bin/wewos test
+```
+
+## What is different from Vision
+
+The engine keeps Vision's semantics: soft and hard runs, blocking connections, breadth-first scheduling, `Stop`, scheduling nodes (iterate, while), macros, port types with shapes, casting and missing-dimension handling. It also keeps the node-definition API (`inputPortsDescr`, `widgetDescr`, `setFunction`, `outputData`).
+
+Some things changed:
+- **No Tk.** Widgets are data drawn by the page.
+- **One run at a time.** Runs execute on a server thread. Changing a widget during a run queues another run.
+- **Not ported:**
+  - user panels;
+  - the libraries that are not listed above (Volume, matplotlib, PIL…);
+  - DejaVu textures, volume rendering, stereo and clip planes.
+
+Node code runs on the server with your rights, as it did in Vision. The server listens on 127.0.0.1 only, and the token in the URL keeps other users of the machine out.
+
+## Licences
+
+See THIRD_PARTY_NOTICES.md. The engine and libraries are ported from MGLTools (Michel Sanner, Daniel Stoffler, TSRI). 3Dmol.js is BSD 3-Clause. The server and page conventions come from ADapt and ADCP_docking (BSD 3-Clause).

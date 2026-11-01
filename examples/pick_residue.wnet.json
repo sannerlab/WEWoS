@@ -1,0 +1,186 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "Molecules",
+  "3D Visualization",
+  "Standard"
+ ],
+ "network": {
+  "name": "pick a residue",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "Read Molecule",
+    "cls": "ReadMolecule",
+    "lib": "Molecules",
+    "pos": [
+     30,
+     40
+    ],
+    "label": "Read Molecule",
+    "widgets": {
+     "filename": "data/1crn.pdb"
+    }
+   },
+   {
+    "id": "n2",
+    "name": "Lines",
+    "cls": "AtomsAsLines",
+    "lib": "Molecules",
+    "pos": [
+     330,
+     40
+    ],
+    "label": "Lines",
+    "widgets": {
+     "colorBy": "element",
+     "opacity": 1.0
+    },
+    "widgetOpts": {
+     "colorBy": {
+      "autoList": false
+     },
+     "opacity": {
+      "type": "float",
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n3",
+    "name": "Viewer",
+    "cls": "Viewer",
+    "lib": "3D Visualization",
+    "pos": [
+     640,
+     120
+    ],
+    "label": "Viewer"
+   },
+   {
+    "id": "n4",
+    "name": "Picked Atom",
+    "cls": "PickedAtom",
+    "lib": "Molecules",
+    "pos": [
+     330,
+     300
+    ],
+    "label": "Picked Atom"
+   },
+   {
+    "id": "n5",
+    "name": "Sticks",
+    "cls": "AtomsAsSticks",
+    "lib": "Molecules",
+    "pos": [
+     600,
+     330
+    ],
+    "label": "Sticks",
+    "widgets": {
+     "colorBy": "orange",
+     "opacity": 1.0,
+     "cradii": 0.2
+    },
+    "widgetOpts": {
+     "colorBy": {
+      "autoList": false
+     },
+     "opacity": {
+      "type": "float",
+      "increment": 0.0,
+      "precision": 2
+     },
+     "cradii": {
+      "type": "float",
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n6",
+    "name": "print",
+    "cls": "Print",
+    "lib": "Standard",
+    "pos": [
+     640,
+     520
+    ],
+    "label": "print"
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n1",
+     "mol"
+    ],
+    "to": [
+     "n2",
+     "atoms"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n2",
+     "lines"
+    ],
+    "to": [
+     "n3",
+     "geometries"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n3",
+     "lastPick"
+    ],
+    "to": [
+     "n4",
+     "pick"
+    ],
+    "blocking": false
+   },
+   {
+    "from": [
+     "n4",
+     "residue"
+    ],
+    "to": [
+     "n5",
+     "atoms"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n5",
+     "sticks"
+    ],
+    "to": [
+     "n3",
+     "geometries"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n4",
+     "label"
+    ],
+    "to": [
+     "n6",
+     "in1"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

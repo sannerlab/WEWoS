@@ -1,0 +1,67 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WEWoS docs</title>
+<style>
+:root{--bg:#f7f8fb;--fg:#1b2333;--dim:#66718a;--line:#dfe3ee;--card:#fff;--accent:#1a56db}
+@media (prefers-color-scheme: dark){:root{--bg:#12151c;--fg:#dde3ef;--dim:#8e98ad;--line:#2e3444;--card:#1a1e27;--accent:#6b9bff}}
+body{background:var(--bg);color:var(--fg);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;margin:0}
+main{max-width:860px;margin:0 auto;padding:24px 16px 60px}
+h1{font-size:26px} h2{margin-top:32px;border-bottom:1px solid var(--line);padding-bottom:4px}
+code,pre{font:13px ui-monospace,Menlo,Consolas,monospace;background:var(--card);border:1px solid var(--line);border-radius:4px}
+code{padding:0 3px} pre{padding:10px;overflow:auto}
+table{border-collapse:collapse;width:100%} td,th{border-bottom:1px solid var(--line);padding:4px 6px;text-align:left;vertical-align:top}
+.dim{color:var(--dim)}
+</style></head><body><main>
+<h1>WEWoS</h1>
+<p class=dim>Vision, the visual programming environment of MGLTools, in a web browser.</p>
+
+<h2>The idea</h2>
+<p>A network is a set of <b>nodes</b>, each running a small Python function, joined by
+<b>connections</b> that carry data from an output port to an input port. Data flows from left to
+right: a node's inputs are on its left edge, its outputs on its right edge. When a node gets new
+data it runs and sends its results on; that is all a program is.</p>
+
+<h2>Building a network</h2>
+<ul>
+<li>Drag a node from the palette on the left onto the canvas (or double-click it in the palette).</li>
+<li>Drag from an output port to an input port to connect them. Ports that can take the data light up.</li>
+<li>Inputs with a widget (a number, a text, a file name...) show it in the node or in the parameter panel on the right.
+  To connect such an input instead, click <i>unbind</i> in the panel.</li>
+<li>Scroll over a number (mouse wheel, or two fingers on a trackpad) to change it step by step; Shift makes
+  the steps 10 times finer, Alt/Option 10 times coarser. Dragging the &#8644; handle changes it continuously.</li>
+<li>Shift-drag on the canvas selects several nodes; <kbd>Delete</kbd> deletes, <kbd>Ctrl-C</kbd>/<kbd>Ctrl-V</kbd> copy and paste,
+  <kbd>f</kbd> fits the network in view; the mouse wheel zooms and dragging the background pans.</li>
+</ul>
+
+<h2>Running</h2>
+<table>
+<tr><td><b>Run</b></td><td>runs the nodes that have new data, and the nodes below them (Vision's run)</td></tr>
+<tr><td><b>Run all</b></td><td>runs every node</td></tr>
+<tr><td><b>run on change</b></td><td>when checked, changing a widget or a connection runs what it affects</td></tr>
+<tr><td><b>Pause / Stop</b></td><td>act between nodes; a node that is running finishes</td></tr>
+</table>
+<p>A node that fails is outlined in red; select it to read the error. Anything nodes print goes to the Log.</p>
+
+<h2>Writing nodes</h2>
+<p>Every node's computation is Python you can edit (<i>Edit code…</i>, or double-click the node):</p>
+<pre>def doit(self, x, k):
+    self.outputData(y=x * k)</pre>
+<p>The arguments are the input ports in order; <code>self.outputData(port=value)</code> sends results.
+Start from a <b>Generic</b> node, add ports with <i>Add a port</i> in the panel, and write its code.
+Returning <code>'Stop'</code> stops the nodes below.</p>
+
+<h2>Macros</h2>
+<p>Select nodes and choose <i>Group into a macro</i>: they become one node whose inside opens in a tab
+(double-click it). Inside, connecting to port <code>new</code> of the input or output node adds a port to the macro.</p>
+
+<h2>3D</h2>
+<p>A <b>Viewer</b> node opens a 3D panel (3Dmol.js). Connect geometries to its <code>geometries</code> input:
+Spheres, Cylinders, IndPolygons (meshes), lines, labels, and from the Molecules library CPK, Sticks, Lines,
+Cartoon, Surface and MSMS. Click something in the viewer: the Viewer's <code>lastPick</code> output sends it to
+the nodes connected there (try <b>Picked Atom</b>, or the example <i>pick a residue</i>).</p>
+
+<h2>Files</h2>
+<p>Networks are saved as <code>.wnet.json</code> in the network's folder (File > Save), and opened with File >
+Open network. Vision's <code>*_net.py</code> files are imported with File > Import a Vision network; the file is
+read, never executed, and a report lists any node that has no counterpart here (those stay in the network,
+outlined in red, with their ports and code).</p>
+</main></body></html>
