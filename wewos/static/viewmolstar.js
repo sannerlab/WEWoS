@@ -27,15 +27,24 @@
                                 ['shadow', 'shadows'], ['dof', 'depth of field'], ['illumination', 'illumination']]};
 
   let loading = null;
+  // Mol*'s own panels and buttons follow the page theme: its light or dark stylesheet
+  function cssHref(){
+    const f = V3DU.isDark() ? 'molstar-dark.css' : 'molstar.css';
+    return 'static/' + f + '?v=' + ((window.STATIC_V || {})[f] || '0');
+  }
+  function molstarTheme(){
+    const l = document.getElementById('molstar-css');
+    if(l && !l.href.endsWith(cssHref())) l.href = cssHref();
+  }
   function loadMolstar(status){
     if(window.molstar) return Promise.resolve();
     if(loading) return loading;
     const ver = window.STATIC_V || {};
     if(status) status('loading Mol*&hellip;');
     const css = new Promise((ok, ko) => {
-      const l = document.createElement('link'); l.rel = 'stylesheet';
-      l.href = 'static/molstar.css?v=' + (ver['molstar.css'] || '0');
-      l.onload = ok; l.onerror = () => ko(new Error('could not load molstar.css')); document.head.append(l);
+      const l = document.createElement('link'); l.rel = 'stylesheet'; l.id = 'molstar-css';
+      l.href = cssHref();
+      l.onload = ok; l.onerror = () => ko(new Error('could not load the Mol* stylesheet')); document.head.append(l);
     });
     const js = new Promise((ok, ko) => {
       const s = document.createElement('script');
@@ -396,7 +405,7 @@
         applyCanvas();
         if(opts.onCanvas) opts.onCanvas(canvas);
       },
-      background(c){ bg = c; if(plugin) applyCanvas(); },
+      background(c){ bg = c; molstarTheme(); if(plugin) applyCanvas(); },
       resize(){ try { if(viewer) viewer.handleResize(); if(plugin) plugin.canvas3d.requestResize(); } catch(e) {} },
       interacted(){ setTimeout(noticeCanvas, 50); },
       dispose(){ try { if(viewer) viewer.dispose(); } catch(e) {} div.innerHTML = ''; },

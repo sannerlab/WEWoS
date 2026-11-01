@@ -24,6 +24,11 @@
 
 // helpers shared by the renderers
 const V3DU = {
+  // is the page in its dark theme (chosen, or the system's)?
+  isDark(){
+    const t = document.documentElement.dataset.theme;
+    return t === 'dark' || (!t && matchMedia('(prefers-color-scheme: dark)').matches);
+  },
   dec(o){
     if(!o) return null;
     const bin = atob(o.b64);
@@ -102,11 +107,7 @@ const VIEW3D = (() => {
     c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const status = h => { if(cb && cb.status) cb.status(h); };
 
-  function bg(){
-    const dark = document.documentElement.dataset.theme === 'dark' ||
-      (!document.documentElement.dataset.theme && matchMedia('(prefers-color-scheme: dark)').matches);
-    return dark ? '#151922' : '#ffffff';
-  }
+  function bg(){ return V3DU.isDark() ? '#151922' : '#ffffff'; }
 
   function init(container, callbacks){ box = container; cb = callbacks; }
 
