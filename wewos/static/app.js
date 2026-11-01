@@ -794,6 +794,7 @@ VIEW3D.init($('viewers'), {
   pick: body => api('api/pick', Object.assign({s: ST.sid}, body)),
   find: id => findNode(id)[1],
   edit: (op, a) => edit(op, a),
+  status,
 });
 (async function start(){
   await loadLibraries();

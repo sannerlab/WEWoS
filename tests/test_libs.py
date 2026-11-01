@@ -269,3 +269,37 @@ def test_viewer_silhouettes_and_fog():
     fileio.from_dict(n2, fileio.to_dict(n))
     v2 = n2.nodes[0]
     eq(v2.rendering, v.rendering)
+
+
+def test_viewer_renderer_and_molstar_settings():
+    from wewos.engine import fileio
+    vz = get_library('3D Visualization')
+    v = vz.instantiate(label='Viewer')
+    n = net(v)
+    eq(v.sceneState()['renderer'], '3dmol')                  # the default
+    eq(v.getStateForSaving(), {})
+    seq = n.bus.seq
+    v.setRenderer('molstar')
+    evs = [e for e in n.bus.since(seq)['events'] if e['kind'] == 'viewer']
+    eq((evs[-1]['op'], evs[-1]['renderer']), ('renderer', 'molstar'))
+    try:
+        v.setRenderer('jmol')
+        check(False, 'an unknown renderer was accepted')
+    except ValueError as e:
+        check('jmol' in str(e))
+    v.setView([1, 2, 3], '3dmol')
+    v.setView({'mode': 'perspective', 'radius': 30}, 'molstar')
+    v.setMolstarSettings({'postprocessing': {'shadow': {'name': 'on', 'params': {'steps': 1}}}})
+    st = v.sceneState()
+    eq(st['camera'], [1, 2, 3])
+    eq(st['cameras']['molstar']['radius'], 30)
+    eq(st['molstar']['postprocessing']['shadow']['name'], 'on')
+    # saved with the network
+    n2 = Network('copy')
+    fileio.from_dict(n2, fileio.to_dict(n))
+    v2 = n2.nodes[0]
+    eq((v2.renderer, v2.camera, v2.cameras, v2.molstarCanvas),
+       (v.renderer, v.camera, v.cameras, v.molstarCanvas))
+    # a viewer saved before there was a renderer choice opens in 3Dmol
+    v2.setStateFromSaving({'camera': [4, 5, 6]})
+    eq((v2.renderer, v2.camera, v2.cameras, v2.molstarCanvas), ('3dmol', [4, 5, 6], {}, None))

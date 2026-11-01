@@ -2,7 +2,7 @@
 
 WEWoS ports Vision, the visual programming environment of MGLTools, to the web.
 - **Server:** a Python 3 port of the NetworkEditor/Vision engine runs on a local server.
-- **Browser:** draws the network editor and the 3D viewer. [3Dmol.js](https://3dmol.csb.pitt.edu) replaces DejaVu.
+- **Browser:** draws the network editor and the 3D viewer. [3Dmol.js](https://3dmol.csb.pitt.edu) replaces DejaVu; [Mol*](https://molstar.org) can be used instead, viewer by viewer.
 
 It follows ADapt's approach: a standard-library HTTP server bound to localhost with a URL token, plain JavaScript with no build step, and a bundled 3Dmol.js.
 
@@ -28,7 +28,7 @@ To use it from another machine, forward the port: `ssh -L 8767:127.0.0.1:8767 ho
 - **Edit a node's code:** use the panel's *Edit code…* or double-click the node. The compute function's arguments are the input ports.
 - **Add ports:** *Add a port* in the panel adds an input or output port. A Generic node plus your own ports and code is a new node.
 - **Macros:** select nodes, then right-click > *Group into a macro*. Double-click a macro to open its network in a tab. Inside it, connect to port `new` of the input or output node to add a macro port.
-- **3D viewing:** a Viewer node opens a 3Dmol panel. Drag the divider under it to make it taller, use ⇕ to give it the whole column, or ⤢ to fill the window (Esc to come back); the splitter left of the column makes it wider. Click an atom or shape and the Viewer's `lastPick` output carries what you clicked to the connected nodes, for example *Picked Atom*.
+- **3D viewing:** a Viewer node opens a 3D panel, drawn with 3Dmol.js or Mol* (the menu in the panel's header). Drag the divider under it to make it taller, use ⇕ to give it the whole column, or ⤢ to fill the window (Esc to come back); the splitter left of the column makes it wider. Click an atom or shape and the Viewer's `lastPick` output carries what you clicked to the connected nodes, for example *Picked Atom*.
 - **Files:** File > Save writes `<name>.wnet.json` in the network's folder. *Open network* reads one back. *Download* gets the network or the whole folder.
 - **Examples:** File > *Open an example…*.
 
@@ -40,6 +40,9 @@ Libraries load on demand, as in Vision. When the server starts, only Standard (a
 |---|---|
 | Standard | the 75 nodes of Vision's StandardNodes that do not drive Tk: input widgets, Python (iterate, while, accum, eval, map…), logic, filters, numpy |
 | 3D Visualization | Viewer, Spheres, Cylinders, IndPolygons (meshes), IndPolylines, labels, box, axis, groups, color map, mesh reader. This replaces DejaVu's vizlib, and the port names are DejaVu's. The viewer draws silhouettes and fog (depth cueing), on by default; its &#9680; button sets their width, color and depth range, and node code can call `viewer.setRendering(...)`. |
+
+**Mol\* viewers.** The menu in a viewer's header switches it between 3Dmol.js (the default) and Mol\* (node code: `viewer.setRenderer('molstar')`); the choice, a camera for each renderer, and Mol\*'s rendering settings are saved with the network. Mol\* is loaded the first time a viewer uses it (1.5 MB). It brings Mol\*'s rendering: ambient occlusion (on by default), shadows, outlines, depth of field, bloom, fog, and its illumination mode, set with the settings (sliders) and illumination buttons in its view; the &#9680; button gives quick switches for the main ones. Its other buttons reset the camera, take a screenshot, and open Mol\*'s own panels (sequence, state tree). The scene is the network's: what you add in Mol\*'s panels is not saved, and a change in the network redraws the scene. All the geometries are drawn (molecules with their representations, colors and copies, spheres, cylinders, lines, meshes, labels), and picking works as in 3Dmol.
+
 | Molecules | MolKit2: Read Molecule, Fetch PDB, Select (ProDy or MolKit syntax), atom properties, radii, CPK, Sticks, Lines, Cartoon, Surface (3Dmol), MSMS (mslib), Write PDB, Picked Atom |
 | Volume | Volume: read maps (AutoGrid, CCP4, MRC, CNS/XPLOR, DX, Delphi, GRD, BRIX, SPIDER, UHBD, Rawiv, AVS/FLD, numpy), write CCP4/Rawiv, statistics, masks, clipping, transforms, resampling, Gaussian blurring of molecules (UT blur), isocontouring with its contour spectrum (UTiso, UT-Isocontour), signed distance, meshing, orthogonal slices drawn as colored meshes, bounding boxes, a coarse molecular surface macro. Volume rendering and QSlim decimation are not ported. |
 | Imaging | Pillow: read, save, filter, invert, split, mask, paste, blend, multiply, composite, rotate, transpose, scale, statistics; Show Image shows an image in a panel of the page, Grab Image takes a snapshot of a 3D viewer. |
@@ -71,7 +74,8 @@ wewos/volcore/            Volume's core (Grid3D, readers, writers, operators), P
 wewos/mglmath/            the mglutil.math modules symserv and Volume use
 wewos/geom.py             geometry without OpenGL (what DejaVu geometries were to nodes)
 wewos/legacy/             py2to3 conversion and the *_net.py importer
-wewos/server.py, session.py, page.py, static/   the web server and page
+wewos/server.py, session.py, page.py, static/   the web server and page (static/viewer3d.js: the viewer
+                          panels; view3dmol.js and viewmolstar.js: the two renderers)
 examples/                 example networks (make_examples.py rebuilds them)
 tests/                    bin/wewos test
 ```
@@ -92,4 +96,4 @@ Node code runs on the server with your rights, as it did in Vision. The server l
 
 ## Licences
 
-See THIRD_PARTY_NOTICES.md. The engine and libraries are ported from MGLTools (Michel Sanner, Daniel Stoffler, TSRI). 3Dmol.js is BSD 3-Clause. The server and page conventions come from ADapt and ADCP_docking (BSD 3-Clause).
+See THIRD_PARTY_NOTICES.md. The engine and libraries are ported from MGLTools (Michel Sanner, Daniel Stoffler, TSRI). 3Dmol.js is BSD 3-Clause; Mol* is MIT. The server and page conventions come from ADapt and ADCP_docking (BSD 3-Clause).

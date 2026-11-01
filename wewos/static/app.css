@@ -103,6 +103,12 @@ body.vfull #viewers{position:fixed;inset:0;z-index:25;height:auto !important;bac
 .vlook input[type=range]{width:80px}
 .vlook input[type=color]{width:26px;height:18px;padding:0;border:1px solid var(--line)}
 .vlook .vsep{width:1px;align-self:stretch;background:var(--line)}
+.vlook .look3dmol,.vlook .lookms{display:contents}
+.vlook .look3dmol[hidden],.vlook .lookms[hidden]{display:none}
+/* Mol*: each scene load is a state snapshot; its snapshot player means nothing here */
+.vbox .msp-state-snapshot-viewport-controls{display:none}
+.vhead select.vrend{font-size:11px;padding:0 2px;height:20px;border:1px solid var(--line);border-radius:4px;
+  background:var(--card);color:var(--fg)}
 .ibox{flex:1;min-height:80px;overflow:auto;display:flex;align-items:center;justify-content:center;
   background:repeating-conic-gradient(var(--soft) 0 25%,var(--card) 0 50%) 0 0/16px 16px}
 .ibox img{max-width:100%;max-height:100%;object-fit:contain}

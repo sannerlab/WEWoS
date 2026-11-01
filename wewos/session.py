@@ -420,13 +420,21 @@ class Session(object):
         return n.imageData()
 
     def _op_viewer_view(self, a):
-        self._viewer(a['node']).setView(a.get('view'))
+        self._viewer(a['node']).setView(a.get('view'), a.get('renderer') or '3dmol')
         return {}
 
     def _op_viewer_rendering(self, a):
         v = self._viewer(a['node'])
-        v.setRendering(**(a.get('rendering') or {}))
-        return {'rendering': dict(v.rendering)}
+        if a.get('rendering') is not None:
+            v.setRendering(**a['rendering'])
+        if 'molstar' in a:
+            v.setMolstarSettings(a['molstar'])
+        return {'rendering': dict(v.rendering), 'molstar': v.molstarCanvas}
+
+    def _op_viewer_renderer(self, a):
+        v = self._viewer(a['node'])
+        v.setRenderer(a.get('renderer'))
+        return {'renderer': v.renderer}
 
     def _op_explode_macro(self, a):
         """Replace a macro node by the nodes inside it (Vision's "expand"):

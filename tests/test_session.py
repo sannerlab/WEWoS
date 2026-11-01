@@ -82,3 +82,20 @@ def test_viewer_rendering_edit():
     out = s.edit('viewer_rendering', {'node': v.id, 'rendering': {'outline': False, 'fogStart': 0.0}})
     eq(out['rendering']['outline'], False)
     eq(v.sceneState()['rendering']['fogStart'], 0.0)
+
+
+def test_viewer_renderer_edit():
+    s = _session()
+    _example(s, 'icosahedral_spheres.wnet.json')
+    v = _viewer(s)
+    eq(s.edit('viewer_renderer', {'node': v.id, 'renderer': 'molstar'})['renderer'], 'molstar')
+    s.edit('viewer_view', {'node': v.id, 'view': {'radius': 12}, 'renderer': 'molstar'})
+    out = s.edit('viewer_rendering', {'node': v.id, 'molstar': {'cameraFog': {'name': 'off', 'params': {}}}})
+    eq(out['molstar']['cameraFog']['name'], 'off')
+    st = v.sceneState()
+    eq((st['renderer'], st['cameras']['molstar']), ('molstar', {'radius': 12}))
+    try:
+        s.edit('viewer_renderer', {'node': v.id, 'renderer': 'pymol'})
+        check(False, 'an unknown renderer was accepted')
+    except Exception as e:
+        check('pymol' in str(e))

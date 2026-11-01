@@ -424,6 +424,9 @@ def read_mesh(filename):
 RENDERING = {'outline': True, 'outlineWidth': 2.0, 'outlineColor': '#000000',
              'fog': True, 'fogStart': 0.3, 'fogEnd': 1.3}
 
+# the page's renderers: 3Dmol.js (the default) and Mol*
+RENDERERS = ('3dmol', 'molstar')
+
 
 class Viewer(NetworkNode):
     """A 3D viewer (3Dmol.js, in the right-hand panel of the page).
@@ -433,10 +436,14 @@ cylinder, a mesh or an atom: lastPick outputs a dict describing it
 ({'geom': name, 'object': the geometry, 'atom': {...} for molecules}) and the
 nodes connected to lastPick run.
 
-Silhouettes and fog are set with the viewer's \u25d0 button, or from code
-with viewer.setRendering(outline=True, outlineWidth=2, outlineColor='#000000',
-fog=True, fogStart=0.3, fogEnd=1.3) (fog from 30% to 130% of the scene's
-depth)."""
+The viewer draws with 3Dmol.js or Mol* (the menu in its header, or
+viewer.setRenderer('molstar') from code); the choice is saved with the
+network. 3Dmol's silhouettes and fog are set with the viewer's \u25d0 button,
+or with viewer.setRendering(outline=True, outlineWidth=2,
+outlineColor='#000000', fog=True, fogStart=0.3, fogEnd=1.3) (fog from 30% to
+130% of the scene's depth). Mol*'s rendering settings (ambient occlusion,
+shadows, depth of field, illumination...) are set in its viewport, and are
+saved too."""
 
     def __init__(self, name='Viewer', **kw):
         kw['name'] = name
@@ -446,6 +453,9 @@ depth)."""
         self.camera = None
         self.background = None
         self.rendering = dict(RENDERING)
+        self.renderer = RENDERERS[0]
+        self.cameras = {}           # renderer -> its camera (3Dmol's is self.camera)
+        self.molstarCanvas = None   # Mol*'s rendering settings, when changed
         self.inputPortsDescr.append(name='geometries', datatype='geom', required=False,
                                     singleConnection=False)
         self.outputPortsDescr.append(datatype='None', name='lastPick')
@@ -504,10 +514,34 @@ depth)."""
     def sceneState(self):
         return {'viewer': self.id, 'name': self.name, 'geoms': self.geomsJSON(),
                 'camera': self.camera, 'background': self.background,
-                'rendering': dict(self.rendering)}
+                'rendering': dict(self.rendering), 'renderer': self.renderer,
+                'cameras': dict(self.cameras), 'molstar': self.molstarCanvas}
 
-    def setView(self, view):
-        self.camera = view
+    def setView(self, view, renderer='3dmol'):
+        if renderer in (None, '3dmol'):
+            self.camera = view
+        elif renderer in RENDERERS:
+            self.cameras[renderer] = view
+        else:
+            raise ValueError('unknown renderer %r (one of %s)' % (renderer, ', '.join(RENDERERS)))
+
+    def setRenderer(self, renderer):
+        """Draw with '3dmol' or 'molstar'."""
+        if renderer not in RENDERERS:
+            raise ValueError('unknown renderer %r (one of %s)' % (renderer, ', '.join(RENDERERS)))
+        self.renderer = renderer
+        if self.network is not None:
+            self.network.emit('viewer', op='renderer', node=self.id, renderer=renderer)
+
+    def setMolstarSettings(self, settings):
+        """Mol*'s rendering settings (its canvas3d props: postprocessing,
+        cameraFog, illumination...), as the page reads them; None for the
+        defaults."""
+        if settings is not None and not isinstance(settings, dict):
+            raise ValueError('Mol* settings are a dict')
+        self.molstarCanvas = settings
+        if self.network is not None:
+            self.network.emit('viewer', op='canvas', node=self.id, molstar=settings)
 
     def setRendering(self, **kw):
         """Silhouettes and fog (see RENDERING for the options)."""
@@ -584,11 +618,20 @@ depth)."""
             st['background'] = self.background
         if self.rendering != RENDERING:
             st['rendering'] = dict(self.rendering)
+        if self.renderer != RENDERERS[0]:
+            st['renderer'] = self.renderer
+        if self.cameras:
+            st['cameras'] = dict(self.cameras)
+        if self.molstarCanvas:
+            st['molstar'] = self.molstarCanvas
         return st
 
     def setStateFromSaving(self, st):
         self.camera = st.get('camera')
         self.background = st.get('background')
+        self.renderer = st.get('renderer') if st.get('renderer') in RENDERERS else RENDERERS[0]
+        self.cameras = {k: v for k, v in (st.get('cameras') or {}).items() if k in RENDERERS}
+        self.molstarCanvas = st.get('molstar') or None
         self.rendering = dict(RENDERING)
         self.rendering.update({k: v for k, v in (st.get('rendering') or {}).items()
                                if k in RENDERING})

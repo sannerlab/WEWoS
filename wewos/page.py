@@ -55,7 +55,7 @@ PAGE = r"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 </main>
 <footer><span id=status>&nbsp;</span><span class=grow></span>
   <span class=dim>__APP__ __VERSION__ &middot; __COPYRIGHT__ &middot; engine ported from MGLTools Vision/NetworkEditor
-  &middot; viewer 3Dmol.js</span></footer>
+  &middot; viewers 3Dmol.js and Mol*</span></footer>
 <div id=menu class=menu hidden></div>
 <div id=modal hidden><div class=dialog><div class=dhead><b id=mtitle></b><span class=grow></span>
   <button id=mclose class=plainbtn>&#10005;</button></div><div id=mbody></div></div></div>
@@ -63,7 +63,10 @@ PAGE = r"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <input type=file id=fileimport accept=".py" hidden>
 <input type=file id=fileupload hidden>
 <script src="static/3Dmol-min.js?v=__V_3DMOL__"></script>
+<script>const STATIC_V = {'molstar.js': '__V_MOLSTAR__', 'molstar.css': '__V_MOLSTARCSS__'};</script>
 <script src="static/widgets.js?v=__V_WIDGETS__"></script>
+<script src="static/view3dmol.js?v=__V_VIEW3DMOL__"></script>
+<script src="static/viewmolstar.js?v=__V_VIEWMOLSTAR__"></script>
 <script src="static/viewer3d.js?v=__V_VIEWER__"></script>
 <script src="static/editor.js?v=__V_EDITOR__"></script>
 <script src="static/app.js?v=__V_JS__"></script>
@@ -94,4 +97,8 @@ def render():
                 .replace('__V_EDITOR__', _v('editor.js'))
                 .replace('__V_WIDGETS__', _v('widgets.js'))
                 .replace('__V_VIEWER__', _v('viewer3d.js'))
-                .replace('__V_3DMOL__', _v('3Dmol-min.js')))
+                .replace('__V_3DMOL__', _v('3Dmol-min.js'))
+                .replace('__V_VIEW3DMOL__', _v('view3dmol.js'))
+                .replace('__V_VIEWMOLSTAR__', _v('viewmolstar.js'))
+                .replace('__V_MOLSTARCSS__', _v('molstar.css'))
+                .replace('__V_MOLSTAR__', _v('molstar.js')))

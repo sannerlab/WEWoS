@@ -10,6 +10,14 @@ bundled next to it: `wewos/static/3Dmol.LICENSE.txt` and `wewos/static/3Dmol-min
 Rego N, Koes D. 3Dmol.js: molecular visualization with WebGL. *Bioinformatics* 31(8):1322-1324,
 2015.
 
+## Mol* (bundled)
+
+`wewos/static/molstar.js` and `molstar.css` (and `molstar.js.gz`, the same file compressed): the
+Mol* viewer 5.13.1, from the `molstar` npm package (`build/viewer`), MIT license, "Copyright (c)
+2017 - now, Mol* contributors"; the licence text is `wewos/static/molstar.LICENSE.txt`.
+Sehnal D, Bittrich S, Deshpande M, et al. Mol* Viewer: modern web app for 3D visualization and
+analysis of large biomolecular structures. *Nucleic Acids Research* 49(W1):W431-W437, 2021.
+
 ## MGLTools (ported code)
 
 `wewos/engine/` (datatypes, ports, nodes, network scheduler, macros, node libraries) is a

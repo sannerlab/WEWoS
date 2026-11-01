@@ -150,3 +150,22 @@ def test_libraries_on_demand_and_user_library():
         check('node' in d, d)
     finally:
         httpd.shutdown()
+
+
+def test_molstar_bundle_served_gzipped():
+    import gzip
+    httpd, base, tok = _server()
+    try:
+        st, page = _get(base + '/?t=' + tok, raw=True)
+        check(b'viewmolstar.js' in page and b"'molstar.js': '" in page)    # loaded on demand
+        req = urllib.request.Request(base + '/static/molstar.js', headers={'Accept-Encoding': 'gzip'})
+        with urllib.request.urlopen(req) as r:
+            eq(r.headers.get('Content-Encoding'), 'gzip')
+            zipped = r.read()
+        with urllib.request.urlopen(base + '/static/molstar.js') as r:      # no gzip asked: plain
+            check(r.headers.get('Content-Encoding') is None)
+            plain = r.read()
+        eq(gzip.decompress(zipped), plain)
+        check(len(zipped) < len(plain) / 2)
+    finally:
+        httpd.shutdown()
