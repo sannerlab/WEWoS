@@ -43,13 +43,13 @@ PAGE = r"""<!doctype html><html lang="en"><head><meta charset="utf-8">
       <div id=hint class=dim>Drag nodes from the left. Drag from an output (right side of a node) to an input (left side) to connect.
         Right-click for menus. Shift-drag selects.</div>
     </div>
+    <div id=hsplit title="drag to share the height between the network and the viewers"></div>
+    <div id=viewers></div>
     <details id=logbox><summary>Log <span id=loglen class=dim></span>
       <button id=logclear class=plainbtn>clear</button></summary><pre id=log></pre></details>
   </section>
   <div id=splitter title="drag to resize"></div>
   <aside id=side>
-    <div id=viewers></div>
-    <div id=hsplit title="drag to resize the viewer"></div>
     <div id=panel><p class=dim>Select a node to see its parameters.</p></div>
   </aside>
 </main>

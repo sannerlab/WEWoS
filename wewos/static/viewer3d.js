@@ -126,7 +126,7 @@ const VIEW3D = (() => {
       '<button class=plainbtn data-a=fit title="center the scene">&#8982;</button>' +
       '<button class=plainbtn data-a=png title="save an image">&#128247;</button>' +
       '<button class=plainbtn data-a=look title="silhouettes, fog and other effects">&#9680;</button>' +
-      '<button class=plainbtn data-a=max title="use the whole column (hide the parameter panel)">&#8661;</button>' +
+      '<button class=plainbtn data-a=max title="give the viewers the network\'s height too (hide the network)">&#8661;</button>' +
       '<button class=plainbtn data-a=full title="fill the window (Esc to come back)">&#10530;</button>' +
       '<button class=plainbtn data-a=fold title="hide / show">&#9662;</button></div>' +
       '<div class=vlook hidden>' +
@@ -160,7 +160,7 @@ const VIEW3D = (() => {
       if(a === 'png' && rec.be){ const url = await rec.be.png(); const l = document.createElement('a');
         l.href = url; l.download = (n ? n.name : 'viewer') + '.png'; l.click(); }
       if(a === 'fold'){ div.hidden = !div.hidden; panel.classList.toggle('folded', div.hidden); }
-      if(a === 'max') setLayout(document.getElementById('side').classList.contains('vmax') ? null : 'vmax');
+      if(a === 'max') setLayout(document.getElementById('center').classList.contains('vmax') ? null : 'vmax');
       if(a === 'full') setLayout(document.body.classList.contains('vfull') ? null : 'vfull');
     });
     // the renderers size their canvas when created: follow every later size change
@@ -184,10 +184,10 @@ const VIEW3D = (() => {
     div.addEventListener('wheel', () => { clearTimeout(t); t = setTimeout(() => sendView(rec, true), 600); }, {passive: true});
     return rec;
   }
-  /* layout of the viewers: null (divider), 'vmax' (whole column), 'vfull' (window) */
+  /* layout of the viewers: null (the row under the network, divider above it),
+     'vmax' (the network's height too), 'vfull' (the window) */
   function setLayout(mode){
-    const side = document.getElementById('side');
-    side.classList.toggle('vmax', mode === 'vmax');
+    document.getElementById('center').classList.toggle('vmax', mode === 'vmax');
     document.body.classList.toggle('vfull', mode === 'vfull');
     document.querySelectorAll('.vhead button[data-a=max]').forEach(b => b.classList.toggle('on', mode === 'vmax'));
     document.querySelectorAll('.vhead button[data-a=full]').forEach(b => b.classList.toggle('on', mode === 'vfull'));
@@ -327,6 +327,8 @@ const VIEW3D = (() => {
     panel.innerHTML = '<div class=vhead><b>' + esc(n ? n.name : id) + '</b>' +
       '<span class=isize></span>' +
       '<button class=plainbtn data-a=save title="save the image">&#128190;</button>' +
+      '<button class=plainbtn data-a=max title="give the viewers the network\'s height too (hide the network)">&#8661;</button>' +
+      '<button class=plainbtn data-a=full title="fill the window (Esc to come back)">&#10530;</button>' +
       '<button class=plainbtn data-a=fold title="hide / show">&#9662;</button></div>' +
       '<div class=ibox><img alt=""></div>';
     box.append(panel);
@@ -336,6 +338,8 @@ const VIEW3D = (() => {
       if(a === 'save' && rec.img.src){ const l = document.createElement('a');
         l.href = rec.img.src; l.download = (n ? n.name : 'image') + '.png'; l.click(); }
       if(a === 'fold'){ const b = panel.querySelector('.ibox'); b.hidden = !b.hidden; panel.classList.toggle('folded', b.hidden); }
+      if(a === 'max') setLayout(document.getElementById('center').classList.contains('vmax') ? null : 'vmax');
+      if(a === 'full') setLayout(document.body.classList.contains('vfull') ? null : 'vfull');
     });
     IM[id] = rec;
     return rec;

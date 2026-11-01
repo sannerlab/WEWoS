@@ -760,33 +760,45 @@ $('theme').onclick = () => {
   try { localStorage.setItem('wewos.theme', next); } catch(e) {}
   VIEW3D.theme();
 };
+(function viewerRow(){
+  // the row of viewers and images under the network shows when there is one
+  const vw = $('viewers'), center = $('center');
+  const upd = () => center.classList.toggle('hasviewers', vw.children.length > 0);
+  new MutationObserver(upd).observe(vw, {childList: true});
+  upd();
+})();
 (function hsplit(){
-  // drag the divider to share the column between the viewers and the panel;
-  // the share is remembered in this browser
-  const sp = $('hsplit'), side = $('side'), vw = $('viewers');
-  try { const f = parseFloat(localStorage.getItem('wewos.viewerShare')); if(f > 0.1 && f < 0.95) vw.style.height = (f * 100) + '%'; } catch(e) {}
+  // drag the divider to share the height between the network and the viewers
+  // under it; the share is remembered in this browser
+  const sp = $('hsplit'), center = $('center'), vw = $('viewers');
+  try { const f = parseFloat(localStorage.getItem('wewos.viewerRow')); if(f > 0.1 && f < 0.9) vw.style.height = (f * 100) + '%'; } catch(e) {}
   sp.addEventListener('pointerdown', e => {
     e.preventDefault();
     sp.setPointerCapture(e.pointerId);
-    const top = side.getBoundingClientRect().top, H = side.clientHeight;
+    const H = center.clientHeight, bottom = vw.getBoundingClientRect().bottom;
     const mv = ev => {
-      const f = Math.max(0.12, Math.min(0.94, (ev.clientY - top) / H));
+      const f = Math.max(0.12, Math.min(0.88, (bottom - ev.clientY) / H));
       vw.style.height = (f * 100) + '%';
     };
     const up = () => {
       sp.removeEventListener('pointermove', mv); sp.removeEventListener('pointerup', up);
-      try { localStorage.setItem('wewos.viewerShare', String(vw.offsetHeight / H)); } catch(e) {}
+      try { localStorage.setItem('wewos.viewerRow', String(vw.offsetHeight / H)); } catch(e) {}
     };
     sp.addEventListener('pointermove', mv); sp.addEventListener('pointerup', up);
   });
 })();
 (function splitter(){
+  // drag to resize the parameter column; its width is remembered in this browser
   const sp = $('splitter'), side = $('side');
+  try { const w = parseFloat(localStorage.getItem('wewos.sideWidth')); if(w >= 240) side.style.width = w + 'px'; } catch(e) {}
   sp.addEventListener('pointerdown', e => {
     sp.setPointerCapture(e.pointerId);
     const x0 = e.clientX, w0 = side.offsetWidth;
-    const mv = ev => { side.style.width = Math.max(260, Math.min(innerWidth - 400, w0 - (ev.clientX - x0))) + 'px'; VIEW3D.resize(); };
-    const up = () => { sp.removeEventListener('pointermove', mv); sp.removeEventListener('pointerup', up); };
+    const mv = ev => { side.style.width = Math.max(240, Math.min(innerWidth - 500, w0 - (ev.clientX - x0))) + 'px'; };
+    const up = () => {
+      sp.removeEventListener('pointermove', mv); sp.removeEventListener('pointerup', up);
+      try { localStorage.setItem('wewos.sideWidth', String(side.offsetWidth)); } catch(e) {}
+    };
     sp.addEventListener('pointermove', mv); sp.addEventListener('pointerup', up);
   });
 })();

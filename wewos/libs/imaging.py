@@ -615,8 +615,8 @@ def image_png(image, maxsize=1600):
 
 
 class ShowImage(NetworkNode):
-    """Show an image in a panel of the page (right-hand column, below or
-beside the 3D viewers).
+    """Show an image in a panel of the page (in the row of panels under the
+network, beside the 3D viewers).
 
 Input Ports
     image: the image to show

@@ -445,7 +445,7 @@ RENDERERS = ('3dmol', 'molstar')
 
 
 class Viewer(NetworkNode):
-    """A 3D viewer (3Dmol.js, in the right-hand panel of the page).
+    """A 3D viewer (3Dmol.js or Mol*, in the row of panels under the network).
 
 Connect geometries (or lists of them) to 'geometries'. Click a sphere, a
 cylinder, a mesh or an atom: lastPick outputs a dict describing it

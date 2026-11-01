@@ -79,20 +79,22 @@ input[type=text],input[type=number],input[type=search]{padding:2px 5px}
 #log{max-height:200px;overflow:auto;font-size:11px;white-space:pre-wrap;margin:4px 0;font-family:ui-monospace,Menlo,Consolas,monospace}
 #splitter{width:5px;cursor:col-resize;background:var(--line)}
 
-/* side */
-#side{width:400px;min-width:260px;display:flex;flex-direction:column;background:var(--card);overflow:hidden}
-/* the viewers take the height given by the divider (#hsplit, default 55%);
-   several viewers share it; 'vmax' gives them the whole column, 'vfull' the window */
-#viewers{display:flex;flex-direction:column;min-height:0;height:55%;flex:none}
-#viewers:empty{display:none}
-#viewers:empty+#hsplit{display:none}
+/* side: the node parameters, beside the network */
+#side{width:340px;min-width:240px;display:flex;flex-direction:column;background:var(--card);overflow:hidden}
+/* the viewers and image panels: a row under the network, as tall as the
+   divider above it makes them (#hsplit, default 45% of the column), shown
+   when there is one; 'vmax' gives them the network's height too, 'vfull'
+   the window */
+#viewers{display:flex;flex-direction:row;min-height:0;height:45%;flex:none;overflow-x:auto;background:var(--card)}
+#center:not(.hasviewers) #viewers,#center:not(.hasviewers) #hsplit{display:none}
 #hsplit{height:6px;cursor:row-resize;background:var(--line);flex:none}
 #hsplit:hover,#splitter:hover{background:var(--accent)}
-#side.vmax #viewers{height:auto !important;flex:1}
-#side.vmax #hsplit,#side.vmax #panel{display:none}
+#center.vmax #canvaswrap,#center.vmax #hsplit{display:none}
+#center.vmax #viewers{height:auto !important;flex:1}
 body.vfull #viewers{position:fixed;inset:0;z-index:25;height:auto !important;background:var(--card)}
-.vpanel{border-bottom:1px solid var(--line);display:flex;flex-direction:column;flex:1;min-height:80px}
-.vpanel.folded{flex:none;min-height:0}
+.vpanel{border-right:1px solid var(--line);display:flex;flex-direction:column;flex:1 1 0;min-width:220px;min-height:0}
+.vpanel:last-child{border-right:0}
+.vpanel.folded{flex:none;min-width:0}
 .vhead{display:flex;align-items:center;gap:6px;padding:3px 8px;background:var(--panel);font-size:12px}
 .vhead b{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .vhead button.on{color:var(--accent)}
