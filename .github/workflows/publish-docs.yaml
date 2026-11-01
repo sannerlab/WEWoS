@@ -1,0 +1,36 @@
+name: publish-docs
+run-name: Publish docs to sannerlab.github.io/wewos
+
+# copies the built docs (HTML, CSS, screenshots; no code, no docs/src) into the lab website repo
+on:
+  push:
+    branches: [main]
+    paths: ["docs/**"]
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Copy docs into the website repo
+        env:
+          SSH_KEY: ${{ secrets.WEBSITE_DEPLOY_KEY }}
+        run: |
+          if [ -z "$SSH_KEY" ]; then echo "::error::secret WEBSITE_DEPLOY_KEY is missing or empty"; exit 1; fi
+          mkdir -p ~/.ssh && printf '%s\n' "$SSH_KEY" | tr -d '\r' > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+          ssh -T git@github.com 2>&1 | grep -q "sannerlab/sannerlab.github.io" \
+            || { echo "::error::deploy key not accepted by GitHub; re-paste WEBSITE_DEPLOY_KEY"; exit 1; }
+          git clone --depth 1 git@github.com:sannerlab/sannerlab.github.io.git site
+          rm -rf site/wewos && mkdir -p site/wewos/img
+          cp docs/*.html docs/style.css site/wewos/
+          cp docs/img/* site/wewos/img/
+          cd site
+          git config user.name "wewos-docs-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A wewos
+          if git diff --cached --quiet; then echo "docs unchanged"; exit 0; fi
+          git commit -m "Update WEWoS docs from ${GITHUB_REPOSITORY}@${GITHUB_SHA::7}"
+          git push
