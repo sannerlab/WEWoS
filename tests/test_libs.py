@@ -241,3 +241,31 @@ def test_matplotlib_multiplot_and_colorbar():
     eq(len(multi.axes.lines), 1)
     eq(len(multi.axes.collections), 1)
     eq(len(cont.figure.axes), 2)              # the plot and its color bar
+
+
+def test_viewer_silhouettes_and_fog():
+    from wewos.engine import fileio
+    from wewos.libs.viz3d import RENDERING
+    vz = get_library('3D Visualization')
+    v = vz.instantiate(label='Viewer')
+    n = net(v)
+    eq(v.sceneState()['rendering'], RENDERING)           # on by default
+    check(RENDERING['outline'] and RENDERING['fog'])
+    eq(v.getStateForSaving(), {})                         # defaults are not saved
+    seq = n.bus.seq
+    v.setRendering(fog=False, outlineWidth=3, fogEnd='1.5')
+    evs = [e for e in n.bus.since(seq)['events'] if e['kind'] == 'viewer']
+    eq(evs[-1]['op'], 'rendering')
+    eq(evs[-1]['rendering']['fog'], False)
+    eq(v.rendering['outlineWidth'], 3.0)
+    eq(v.rendering['fogEnd'], 1.5)
+    try:
+        v.setRendering(shadows=True)
+        check(False, 'an unknown option was accepted')
+    except ValueError as e:
+        check('shadows' in str(e))
+    # saved with the network
+    n2 = Network('copy')
+    fileio.from_dict(n2, fileio.to_dict(n))
+    v2 = n2.nodes[0]
+    eq(v2.rendering, v.rendering)

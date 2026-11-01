@@ -73,3 +73,12 @@ def test_arrange_lays_out_the_network():
     for c in s.net.connections:
         if c.blocking:
             check(c.port1.node.posx < c.port2.node.posx)
+
+
+def test_viewer_rendering_edit():
+    s = _session()
+    _example(s, 'icosahedral_spheres.wnet.json')
+    v = _viewer(s)
+    out = s.edit('viewer_rendering', {'node': v.id, 'rendering': {'outline': False, 'fogStart': 0.0}})
+    eq(out['rendering']['outline'], False)
+    eq(v.sceneState()['rendering']['fogStart'], 0.0)

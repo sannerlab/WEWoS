@@ -97,6 +97,12 @@ body.vfull #viewers{position:fixed;inset:0;z-index:25;height:auto !important;bac
 .vhead b{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .vhead button.on{color:var(--accent)}
 .vbox{position:relative;flex:1;min-height:60px;overflow:hidden}
+.vlook{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:4px 8px;font-size:12px;
+  background:var(--panel);border-top:1px solid var(--line);color:var(--dim)}
+.vlook label{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.vlook input[type=range]{width:80px}
+.vlook input[type=color]{width:26px;height:18px;padding:0;border:1px solid var(--line)}
+.vlook .vsep{width:1px;align-self:stretch;background:var(--line)}
 .ibox{flex:1;min-height:80px;overflow:auto;display:flex;align-items:center;justify-content:center;
   background:repeating-conic-gradient(var(--soft) 0 25%,var(--card) 0 50%) 0 0/16px 16px}
 .ibox img{max-width:100%;max-height:100%;object-fit:contain}

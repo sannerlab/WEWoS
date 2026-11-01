@@ -423,6 +423,11 @@ class Session(object):
         self._viewer(a['node']).setView(a.get('view'))
         return {}
 
+    def _op_viewer_rendering(self, a):
+        v = self._viewer(a['node'])
+        v.setRendering(**(a.get('rendering') or {}))
+        return {'rendering': dict(v.rendering)}
+
     def _op_explode_macro(self, a):
         """Replace a macro node by the nodes inside it (Vision's "expand"):
         its inner connections are kept, and every connection that went

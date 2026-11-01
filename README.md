@@ -39,7 +39,7 @@ Libraries load on demand, as in Vision. When the server starts, only Standard (a
 | Library | Contents |
 |---|---|
 | Standard | the 75 nodes of Vision's StandardNodes that do not drive Tk: input widgets, Python (iterate, while, accum, eval, map…), logic, filters, numpy |
-| 3D Visualization | Viewer, Spheres, Cylinders, IndPolygons (meshes), IndPolylines, labels, box, axis, groups, color map, mesh reader. This replaces DejaVu's vizlib, and the port names are DejaVu's. |
+| 3D Visualization | Viewer, Spheres, Cylinders, IndPolygons (meshes), IndPolylines, labels, box, axis, groups, color map, mesh reader. This replaces DejaVu's vizlib, and the port names are DejaVu's. The viewer draws silhouettes and fog (depth cueing), on by default; its &#9680; button sets their width, color and depth range, and node code can call `viewer.setRendering(...)`. |
 | Molecules | MolKit2: Read Molecule, Fetch PDB, Select (ProDy or MolKit syntax), atom properties, radii, CPK, Sticks, Lines, Cartoon, Surface (3Dmol), MSMS (mslib), Write PDB, Picked Atom |
 | Volume | Volume: read maps (AutoGrid, CCP4, MRC, CNS/XPLOR, DX, Delphi, GRD, BRIX, SPIDER, UHBD, Rawiv, AVS/FLD, numpy), write CCP4/Rawiv, statistics, masks, clipping, transforms, resampling, Gaussian blurring of molecules (UT blur), isocontouring with its contour spectrum (UTiso, UT-Isocontour), signed distance, meshing, orthogonal slices drawn as colored meshes, bounding boxes, a coarse molecular surface macro. Volume rendering and QSlim decimation are not ported. |
 | Imaging | Pillow: read, save, filter, invert, split, mask, paste, blend, multiply, composite, rotate, transpose, scale, statistics; Show Image shows an image in a panel of the page, Grab Image takes a snapshot of a 3D viewer. |

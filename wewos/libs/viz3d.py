@@ -418,13 +418,25 @@ def read_mesh(filename):
     return v, tri, G.vertex_normals(v, tri)
 
 
+# how a viewer draws: silhouette edges (width in pixels) and fog (depth cueing:
+# from fogStart to fogEnd, in fractions of the scene's depth, 0 = its front,
+# 1 = its back; things fade into the background color)
+RENDERING = {'outline': True, 'outlineWidth': 2.0, 'outlineColor': '#000000',
+             'fog': True, 'fogStart': 0.3, 'fogEnd': 1.3}
+
+
 class Viewer(NetworkNode):
     """A 3D viewer (3Dmol.js, in the right-hand panel of the page).
 
 Connect geometries (or lists of them) to 'geometries'. Click a sphere, a
 cylinder, a mesh or an atom: lastPick outputs a dict describing it
 ({'geom': name, 'object': the geometry, 'atom': {...} for molecules}) and the
-nodes connected to lastPick run."""
+nodes connected to lastPick run.
+
+Silhouettes and fog are set with the viewer's \u25d0 button, or from code
+with viewer.setRendering(outline=True, outlineWidth=2, outlineColor='#000000',
+fog=True, fogStart=0.3, fogEnd=1.3) (fog from 30% to 130% of the scene's
+depth)."""
 
     def __init__(self, name='Viewer', **kw):
         kw['name'] = name
@@ -433,6 +445,7 @@ nodes connected to lastPick run."""
         self.geoms = {}
         self.camera = None
         self.background = None
+        self.rendering = dict(RENDERING)
         self.inputPortsDescr.append(name='geometries', datatype='geom', required=False,
                                     singleConnection=False)
         self.outputPortsDescr.append(datatype='None', name='lastPick')
@@ -490,10 +503,29 @@ nodes connected to lastPick run."""
 
     def sceneState(self):
         return {'viewer': self.id, 'name': self.name, 'geoms': self.geomsJSON(),
-                'camera': self.camera, 'background': self.background}
+                'camera': self.camera, 'background': self.background,
+                'rendering': dict(self.rendering)}
 
     def setView(self, view):
         self.camera = view
+
+    def setRendering(self, **kw):
+        """Silhouettes and fog (see RENDERING for the options)."""
+        for k, v in kw.items():
+            if k not in RENDERING:
+                raise ValueError('unknown rendering option %r (options: %s)'
+                                 % (k, ', '.join(sorted(RENDERING))))
+            default = RENDERING[k]
+            if isinstance(default, bool):
+                v = bool(v)
+            elif isinstance(default, float):
+                v = float(v)
+            else:
+                v = str(v)
+            self.rendering[k] = v
+        if self.network is not None:
+            self.network.emit('viewer', op='rendering', node=self.id,
+                              rendering=dict(self.rendering))
 
     def snapshot(self, timeout=15.0):
         """The picture this viewer shows on the page, as a PIL image. The
@@ -550,11 +582,16 @@ nodes connected to lastPick run."""
             st['camera'] = self.camera
         if self.background:
             st['background'] = self.background
+        if self.rendering != RENDERING:
+            st['rendering'] = dict(self.rendering)
         return st
 
     def setStateFromSaving(self, st):
         self.camera = st.get('camera')
         self.background = st.get('background')
+        self.rendering = dict(RENDERING)
+        self.rendering.update({k: v for k, v in (st.get('rendering') or {}).items()
+                               if k in RENDERING})
 
     def afterAddingToNetwork(self):
         # a pick is an event fed back into the network: connections from
