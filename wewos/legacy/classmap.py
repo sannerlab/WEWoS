@@ -4,7 +4,8 @@
 lookup(module, cls) returns (library, class, in-port map, out-port map) or
 None. Port maps rename ports whose name changed; '*' maps any port not listed
 (used for library macros that became single nodes, whose port names were
-built from their inner nodes).
+built from their inner nodes). With '*', a name '<inner node>_<port>' goes to
+<port> when the new node has that port (map_port finds them under '**ports').
 """
 
 # Vision.StandardNodes: same class names in the Standard library
@@ -49,10 +50,16 @@ PACKAGES = (
     (('MolKit.VisionInterface', 'molkitlib', 'MolKit'), 'molkit'),
     (('symserv', 'symlib', 'SymServer'), 'symserv'),
     (('Volume.VisionInterface', 'vollib', 'volume'), 'volume'),
+    (('Vision.matplotlibNodes', 'matplotliblib', 'MatPlotLib'), 'matplotlib'),
+    (('Vision.PILNodes', 'imagelib', 'Imaging'), 'imaging'),
 )
 
+# ports renamed between MGLTools versions, for classes that keep their names
+RENAMES = {('Volume', 'BoundingBox'): ({}, {'geom': 'Grid3DBB'})}
+
 # libraries whose node classes keep their names here
-SAME_NAMES = {'symserv': 'SymServer', 'volume': 'Volume'}
+SAME_NAMES = {'symserv': 'SymServer', 'volume': 'Volume', 'matplotlib': 'MatPlotLib',
+              'imaging': 'Imaging'}
 
 
 def family(module, libname=None):
@@ -77,8 +84,10 @@ def lookup(module, cls, libname=None):
         return MOLKIT.get(cls)
     if fam in SAME_NAMES:
         from wewos.engine import get_library
-        if cls in get_library(SAME_NAMES[fam]).nodeClassFromName:
-            return (SAME_NAMES[fam], cls, {}, {})
+        lib = SAME_NAMES[fam]
+        if cls in get_library(lib).nodeClassFromName:
+            inmap, outmap = RENAMES.get((lib, cls), ({}, {}))
+            return (lib, cls, inmap, outmap)
         return None
     return None
 
@@ -87,5 +96,8 @@ def map_port(pmap, name):
     if name in pmap:
         return pmap[name]
     if '*' in pmap and isinstance(name, str):
+        for p in sorted(pmap.get('**ports', ()), key=len, reverse=True):
+            if name == p or name.endswith('_' + p):
+                return p
         return pmap['*']
     return name

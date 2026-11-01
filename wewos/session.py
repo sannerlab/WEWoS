@@ -171,6 +171,11 @@ class Session(object):
                 n.move(float(pos[0]), float(pos[1]))
         return {}
 
+    def _op_arrange(self, a):
+        from wewos.engine.layout import arrange
+        arrange(self.network(a.get('net')))
+        return {}
+
     def _op_connect(self, a):
         n1, p1 = a['from']
         n2, p2 = a['to']

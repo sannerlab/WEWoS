@@ -219,6 +219,7 @@ const ED = (() => {
   function show(net){
     if(NET) views[NET.id] = Object.assign({}, view);
     NET = net;
+    const first = !views[net.id];
     view = views[net.id] || {x: 40, y: 30, k: 1};
     applyView();
     gNodes.innerHTML = ''; gConns.innerHTML = '';
@@ -228,6 +229,7 @@ const ED = (() => {
     CSEL = new Set();
     Object.values(net.nodes).forEach(drawNode);
     Object.values(net.conns).forEach(drawConn);
+    if(first && Object.keys(net.nodes).length) fit(1);    // a macro opened for the first time
   }
   function current(){ return NET; }
   function updateNode(id, full){
@@ -271,7 +273,7 @@ const ED = (() => {
     Object.values(NET ? NET.conns : {}).forEach(drawConn);
     cb.selected([...SEL]);
   }
-  function fit(){
+  function fit(maxK){
     if(!NET) return;
     const ns = Object.values(NET.nodes);
     if(!ns.length){ view = {x: 40, y: 30, k: 1}; applyView(); return; }
@@ -280,7 +282,7 @@ const ED = (() => {
       x0 = Math.min(x0, n.pos[0]); y0 = Math.min(y0, n.pos[1]);
       x1 = Math.max(x1, n.pos[0] + g.w); y1 = Math.max(y1, n.pos[1] + g.h); });
     const r = svg.getBoundingClientRect();
-    const k = Math.min(1.5, Math.max(0.2, Math.min((r.width - 60) / (x1 - x0 || 1), (r.height - 60) / (y1 - y0 || 1))));
+    const k = Math.min(maxK || 1.5, Math.max(0.2, Math.min((r.width - 60) / (x1 - x0 || 1), (r.height - 60) / (y1 - y0 || 1))));
     view = {k, x: 30 - x0 * k + Math.max(0, (r.width - 60 - (x1 - x0) * k) / 2), y: 30 - y0 * k};
     applyView();
   }

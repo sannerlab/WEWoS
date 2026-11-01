@@ -49,9 +49,6 @@
      "copies": 12
     },
     "widgetOpts": {
-     "point": {
-      "size": 3
-     },
      "angle": {
       "min": null,
       "max": null,

@@ -14,8 +14,8 @@ sys.path.insert(0, os.path.dirname(HERE))
 
 from wewos.engine import Network, fileio, get_library  # noqa: E402
 
-STD, VIZ, MOL, SYM, VOL, IMG = (get_library(n) for n in (
-    'Standard', '3D Visualization', 'Molecules', 'SymServer', 'Volume', 'Imaging'))
+STD, VIZ, MOL, SYM, VOL, IMG, MPL = (get_library(n) for n in (
+    'Standard', '3D Visualization', 'Molecules', 'SymServer', 'Volume', 'Imaging', 'MatPlotLib'))
 
 
 def node(net, lib, label, x, y, **widgets):
@@ -177,6 +177,24 @@ def viewer_snapshot():
     save(n, 'viewer_snapshot')
 
 
+def plots():
+    n = new('plots')
+    sin = node(n, MPL, 'SinFunc', 30, 40)
+    rnd = node(n, MPL, 'RandNormDist', 30, 300)
+    da = node(n, MPL, 'Draw Area', 30, 150)
+    da.inputPortByName['title'].widget.set('sin(x)', run=False)
+    pl = node(n, MPL, 'Plot', 330, 40, color='blue')
+    hi = node(n, MPL, 'Histogram', 330, 300)
+    fig = node(n, MPL, 'Figure', 660, 160, nbColumns=2, width=10.0, height=4.0)
+    n.connectNodes(sin, pl, 'x', 'x')
+    n.connectNodes(sin, pl, 'y', 'y')
+    n.connectNodes(da, pl, da.outputPorts[0].name, 'drawAreaDef')
+    n.connectNodes(rnd, hi, 'data', 'values')
+    n.connectNodes(pl, fig, 'plot', 'plots')
+    n.connectNodes(hi, fig, hi.outputPorts[0].name, 'plots')
+    save(n, 'plots')
+
+
 if __name__ == '__main__':
     crambin_surface()
     iterate_squares()
@@ -186,3 +204,4 @@ if __name__ == '__main__':
     icosahedral_spheres()
     map_isosurface()
     viewer_snapshot()
+    plots()

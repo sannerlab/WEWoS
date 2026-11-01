@@ -294,6 +294,10 @@ def build(net, d, report=None):
             ids[e['id']] = node
             _restore_node(node, e, report)
         _connect(net, d.get('connections', []), ids, report)
+        if d.get('layout') == 'vision':
+            # imported from Vision: positions made for its top-down drawing
+            from .layout import arrange
+            arrange(net, source='vision', emit=False)
     finally:
         net.runOnNewData.value = saved
     return ids

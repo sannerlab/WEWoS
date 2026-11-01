@@ -582,7 +582,8 @@ def _network(net, ids, report):
             b[1] = _mapped(maps, n2, p2, 'in')
         conns.append({'from': a, 'to': b, 'blocking': bool(blocking)})
         report.connections += 1
-    return {'nodes': nodes, 'connections': conns}
+    # Vision drew data flowing down; WEWoS lays the network out again on loading
+    return {'nodes': nodes, 'connections': conns, 'layout': 'vision'}
 
 
 def localize_code(code):
@@ -627,6 +628,10 @@ def _node_entry(n, ids, report):
                                   n.ports_seen_out | {d['name'] for d in n.added_out})]})
         return e, inmap, outmap
     lib, cls, inmap, outmap = target
+    if '*' in inmap or '*' in outmap:
+        ins, outs = _port_names(lib, cls)
+        inmap = dict(inmap, **{'**ports': ins}) if '*' in inmap else inmap
+        outmap = dict(outmap, **{'**ports': outs}) if '*' in outmap else outmap
     e.update(lib=lib, cls=cls)
     if n.added_in or n.added_out:
         e['addPorts'] = {'in': n.added_in, 'out': n.added_out}
@@ -667,6 +672,22 @@ def _node_entry(n, ids, report):
     if n.frozen:
         e['frozen'] = True
     return e, inmap, outmap
+
+
+_PORTS = {}
+
+
+def _port_names(lib, cls):
+    """(input port names, output port names) of a WEWoS node class."""
+    if (lib, cls) not in _PORTS:
+        try:
+            from wewos.engine import get_library
+            n = get_library(lib).instantiate(cls=cls)
+            _PORTS[lib, cls] = ([d['name'] for d in n.inputPortsDescr],
+                                [d['name'] for d in n.outputPortsDescr])
+        except Exception:
+            _PORTS[lib, cls] = ([], [])
+    return _PORTS[lib, cls]
 
 
 def _note_ports(net):

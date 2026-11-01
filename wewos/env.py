@@ -18,7 +18,8 @@ def check():
                      ('prody', 'the Molecules library'),
                      ('mslib', 'molecular surfaces (MSMS)'),
                      ('UTpackages.UTisocontour', 'isocontouring in the Volume library'),
-                     ('PIL', 'the Imaging library')):
+                     ('PIL', 'the Imaging library'),
+                     ('matplotlib', 'the MatPlotLib library')):
         try:
             __import__(mod)
         except Exception:

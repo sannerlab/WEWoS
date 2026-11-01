@@ -637,12 +637,20 @@ const editMenu = ev => {
     ['Select all', () => ED.select(Object.keys(ST.nets[ST.cur].nodes))],
     ['Group into a macro…', () => groupMacro(sel.nodes), !sel.nodes.length],
     '-',
+    ['Arrange the nodes from left to right', arrangeNodes],
     ['Fit the network in view (f)', () => ED.fit()],
     [(W.isReversed() ? '\u2713 ' : '') + 'Reverse the scrolling direction on numbers',
      () => { W.setReverse(!W.isReversed());
              status('scrolling up now ' + (W.isReversed() ? 'decreases' : 'increases') + ' values'); }],
   ]);
 };
+async function arrangeNodes(){
+  const d = await edit('arrange', {net: ST.cur});
+  if(!d || d.error) return;
+  // the moves arrive as events: fit the view once they are in
+  for(let i = 0; i < 60 && ST.seq < d.seq; i++) await new Promise(r => setTimeout(r, 50));
+  ED.fit();
+}
 $('m_file').onclick = e => { e.stopPropagation(); fileMenu(e); };
 $('m_edit').onclick = e => { e.stopPropagation(); editMenu(e); };
 

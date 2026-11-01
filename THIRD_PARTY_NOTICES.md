@@ -34,6 +34,10 @@ the UTpackages (University of Texas, CVC) of the environment, which are not incl
 
 `wewos/libs/imaging.py` is a port of Vision/PILNodes.py; it uses Pillow from the environment.
 
+`wewos/libs/mpl.py` is a port of Vision/matplotlibNodes.py (Michel Sanner, Daniel Stoffler,
+Sowjanya Karnati, TSRI), with Vision/colours.py and Vision/posnegFill.py folded in; MGLTools
+license. It uses matplotlib from the environment (matplotlib license, PSF-based).
+
 `wewos/mglmath/` holds rotax, transformation, VectorModule, TensorModule, crystal and stats
 from MGLTools mglutil.math (Python 3 versions from the ADFR/ADCP distribution, with removed
 numpy calls updated), under the GNU LGPL as stated in their headers.

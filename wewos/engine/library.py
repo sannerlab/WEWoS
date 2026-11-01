@@ -21,6 +21,7 @@ LIBRARIES = {
     'SymServer': ('wewos.libs.symserv', 'symlib'),
     'Volume': ('wewos.libs.volume', 'vollib'),
     'Imaging': ('wewos.libs.imaging', 'imagelib'),
+    'MatPlotLib': ('wewos.libs.mpl', 'matplotliblib'),
 }
 
 _loaded = {}

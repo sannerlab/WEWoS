@@ -87,3 +87,45 @@ def test_py2_code_strings_converted():
     check(changed)
     compile(new, 'x', 'exec')
     check("'a' in d" in new and 'print(x)' in new, new)
+
+
+def _left_to_right(net, loops_ok=False):
+    """Links go from left to right (but loop-closing ones) and nodes do not overlap."""
+    from wewos.engine.layout import node_geometry
+    geo = {id(n): node_geometry(n.describe()) for n in net.nodes}
+    for c in net.connections:
+        a, b = c.port1.node, c.port2.node
+        if loops_ok and not c.blocking:
+            continue
+        check(a.posx + geo[id(a)]['w'] < b.posx, '%s is not left of %s' % (a.name, b.name))
+    for i, a in enumerate(net.nodes):
+        for b in net.nodes[i + 1:]:
+            ga, gb = geo[id(a)], geo[id(b)]
+            check(not (a.posx < b.posx + gb['w'] and b.posx < a.posx + ga['w'] and
+                       a.posy < b.posy + gb['h'] and b.posy < a.posy + ga['h']),
+                  '%s overlaps %s' % (a.name, b.name))
+
+
+def test_icos_macro_matrices_reach_the_cpk_macro():
+    # Vision's CPK Macro exposed its spheres' instanceMatrices as a macro port
+    net, data, report, problems = _load('icos_net.py')
+    eq(problems, [])
+    cpk = [n for n in net.nodes if n.name == 'CPK Macro'][0]
+    eq([c.port1.node.name for c in cpk.inputPortByName['instanceMatrices'].connections],
+       ['Icosahedral1'])
+    eq([c.port1.node.name for c in cpk.inputPortByName['atoms'].connections], ['Read Molecule'])
+
+
+def test_imported_networks_and_library_macros_flow_left_to_right():
+    net, data, report, problems = _load('icos_net.py')
+    eq(data['network']['layout'], 'vision')
+    _left_to_right(net)
+    ic = [n for n in net.nodes if n.name == 'Icosahedral1'][0]
+    _left_to_right(ic.macroNetwork)
+    m = ic.macroNetwork
+    check(m.ipNode.posx <= min(n.posx for n in m.nodes))      # in the first column
+    check(m.opNode.posx > max(n.posx for n in m.nodes if n is not m.opNode))
+    net, data, report, problems = _load('loop_net.py')
+    _left_to_right(net, loops_ok=True)
+    # saving drops the flag: the positions are WEWoS's from then on
+    check('layout' not in fileio.to_dict(net)['network'])

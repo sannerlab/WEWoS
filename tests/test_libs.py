@@ -2,7 +2,7 @@
 """The node libraries: every node instantiates; molecules, MSMS, viewer, picking."""
 import os
 
-from common import DATA, check, eq, net
+from common import DATA, check, eq, net, outdir
 
 from wewos.engine import Network, get_library
 
@@ -20,7 +20,8 @@ def _all_nodes(libname):
 
 
 def test_every_node_instantiates():
-    for name in ('Standard', '3D Visualization', 'Molecules', 'SymServer', 'Volume', 'Imaging'):
+    for name in ('Standard', '3D Visualization', 'Molecules', 'SymServer', 'Volume', 'Imaging',
+                 'MatPlotLib'):
         n = _all_nodes(name)
         check(len(n.nodes) > 5, name)
 
@@ -195,3 +196,48 @@ def test_imaging_read_filter_show():
     d = sh.imageData()
     eq(d['size'], [96, 64])
     check(d['png'].startswith('data:image/png;base64,'))
+
+
+def test_matplotlib_plots_figure_and_save():
+    L = get_library('MatPlotLib')
+    sin, rnd, plot, hist, fig, save = (L.instantiate(label=x) for x in (
+        'SinFunc', 'RandNormDist', 'Plot', 'Histogram', 'Figure', 'SaveFig'))
+    n = net(sin, rnd, plot, hist, fig, save)
+    n.connectNodes(sin, plot, 'x', 'x')
+    n.connectNodes(sin, plot, 'y', 'y')
+    n.connectNodes(rnd, hist, 'data', 'values')
+    n.connectNodes(plot, fig, 'plot', 'plots')
+    n.connectNodes(hist, fig, hist.outputPorts[0].name, 'plots')
+    n.connectNodes(fig, save, 'figure', 'figure')
+    path = os.path.join(outdir('mpl'), 'figure.png')
+    save.inputPortByName['fname'].widget.set(path, run=False)
+    seq = n.bus.seq
+    n.run(n.rootNodes)
+    check(all(x.status == 'done' for x in n.nodes), {x.name: x.status for x in n.nodes})
+    shown = {e['node'] for e in n.bus.since(seq)['events'] if e['kind'] == 'image'}
+    check({plot.id, hist.id, fig.id} <= shown, shown)
+    eq(len(fig.figure.axes), 2)
+    check(os.path.getsize(path) > 1000)
+    d = plot.imageData()
+    check(d['png'].startswith('data:image/png;base64,') and d['size'][0] > 100)
+
+
+def test_matplotlib_multiplot_and_colorbar():
+    L = get_library('MatPlotLib')
+    sin, plot, scat, multi, mesh, biv, cont, cb = (L.instantiate(label=x) for x in (
+        'SinFunc', 'Plot', 'Scatter', 'MultiPlot', 'MeshGrid', 'BivariateNormal', 'Contour',
+        'ColorBar'))
+    n = net(sin, plot, scat, multi, mesh, biv, cont, cb)
+    c = n.connectNodes
+    c(sin, plot, 'x', 'x'); c(sin, plot, 'y', 'y')
+    c(sin, scat, 'x', 'x'); c(sin, scat, 'y', 'y')
+    c(plot, multi, 'plot', 'multiplot'); c(scat, multi, scat.outputPorts[0].name, 'multiplot')
+    c(sin, mesh, 'x', 'x'); c(sin, mesh, 'x', 'y')
+    c(mesh, biv, 'X', 'arraylist1'); c(mesh, biv, 'Y', 'arraylist2')
+    c(biv, cont, biv.outputPorts[0].name, 'arraylistz')
+    c(cont, cb, 'axes', 'plot'); c(cont, cb, 'contour', 'current_image')
+    n.run(n.rootNodes)
+    check(all(x.status == 'done' for x in n.nodes), {x.name: x.status for x in n.nodes})
+    eq(len(multi.axes.lines), 1)
+    eq(len(multi.axes.collections), 1)
+    eq(len(cont.figure.axes), 2)              # the plot and its color bar

@@ -60,3 +60,16 @@ def test_group_then_explode_round_trip():
     s.run('hardrun')
     acc = [n for n in s.net.nodes if n.name == 'accum'][0]
     eq(list(acc.outputPorts[0].data), want)
+
+
+def test_arrange_lays_out_the_network():
+    s = _session()
+    _example(s, 'iterate_squares.wnet.json')
+    for i, n in enumerate(s.net.nodes):
+        n.move(10, 10)                       # all on top of each other
+    s.edit('arrange', {})
+    pos = {(n.posx, n.posy) for n in s.net.nodes}
+    eq(len(pos), len(s.net.nodes))
+    for c in s.net.connections:
+        if c.blocking:
+            check(c.port1.node.posx < c.port2.node.posx)

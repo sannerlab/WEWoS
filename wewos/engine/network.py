@@ -179,8 +179,13 @@ class Network(object):
         node.createPorts()
         self.rootNodes.append(node)
         node.afterAddingToNetwork()
-        self.emit('node_added', node=node.describe())
         from .macros import MacroNode, MacroInputNode
+        if (isinstance(node, MacroNode) and type(node) is not MacroNode
+                and getattr(node, 'visionLayout', True)):
+            # a library macro: its inner nodes were placed for Vision's top-down drawing
+            from .layout import arrange
+            arrange(node.macroNetwork, source='vision')
+        self.emit('node_added', node=node.describe())
         if (self.runOnNewData.value is True and len(node.inputPorts) == 0
                 and not isinstance(node, (MacroNode, MacroInputNode))):
             node.forceExecution = 1
