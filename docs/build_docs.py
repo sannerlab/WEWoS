@@ -48,7 +48,7 @@ TEMPLATE = """<!doctype html>
 <link rel="stylesheet" href="style.css">
 </head><body><div class="layout">
 <nav class="side">
-<a class="brand" href="index.html">WEWoS<small>Vision's visual programming, on the web</small></a>
+<a class="brand" href="index.html">WEWoS<small>Web Enabled Workflow System</small></a>
 {nav}
 </nav>
 <main>

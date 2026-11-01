@@ -1,6 +1,6 @@
-# WEWoS: Vision visual programming on the web
+# WEWoS: Web Enabled Workflow System
 
-WEWoS ports Vision, the visual programming environment of MGLTools (first presented as ViPEr in 2002, see [History](#history)), to the web.
+WEWoS, the **W**eb **E**nabled **Wo**rkflow **S**ystem, ports Vision, the visual programming environment of MGLTools (first presented as ViPEr in 2002, see [History](#history)), to the web: workflows are networks of nodes, built and run in a browser.
 - **Server:** a Python 3 port of the NetworkEditor/Vision engine runs on a local server.
 - **Browser:** draws the network editor and the 3D viewers, which replace DejaVu. Each viewer draws with [3Dmol.js](https://3dmol.csb.pitt.edu) (the default) or [Mol\*](https://molstar.org) (ambient occlusion, shadows, depth of field, illumination), switched in the viewer's header.
 

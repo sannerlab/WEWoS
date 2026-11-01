@@ -13,6 +13,6 @@ __author__ = 'Michel Sanner, PhD'
 __copyright__ = 'Copyright (c) 2026 Michel Sanner, PhD'
 
 APP = 'WEWoS'
-APP_LONG = 'Vision visual programming on the web'
+APP_LONG = 'Web Enabled Workflow System'
 AUTHOR = __author__
 COPYRIGHT = __copyright__
