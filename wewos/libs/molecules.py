@@ -186,19 +186,44 @@ class RepNode(NetworkNode):
 
 
 class AtomsAsCPK(RepNode):
-    """Atoms as spheres (van der Waals radii times scale)."""
+    """Atoms as spheres (van der Waals radii times scale). With radii (one
+per atom, e.g. from Extract Atom Property), the atoms are drawn as spheres of
+those radii (times scale), in the colors given, as a Spheres geometry."""
     rep = 'sphere'
     outName = 'spheres'
 
     def __init__(self, name='CPK', **kw):
         RepNode.__init__(self, name, **kw)
+        self.sgeom = None
         self.inputPortsDescr.append(datatype='float', name='scale', required=False)
+        self.inputPortsDescr.append(datatype='None', name='radii', required=False)
         self.widgetDescr['scale'] = {'class': 'NEThumbWheel', 'master': 'node',
                                      'initialValue': 1.0, 'min': 0.05, 'max': 3., 'oneTurn': 2.,
                                      'labelCfg': {'text': 'scale'}}
-        self.setFunction("""def doit(self, atoms, colorBy, colors, opacity, name, instanceMatrices, scale):
-    self.makeRep(atoms, colorBy, colors, opacity, name, {'scale': scale}, instanceMatrices)
+        self.setFunction("""def doit(self, atoms, colorBy, colors, opacity, name, instanceMatrices, scale, radii):
+    if radii is None:
+        self.makeRep(atoms, colorBy, colors, opacity, name, {'scale': scale}, instanceMatrices)
+    else:
+        self.makeSpheres(atoms, colorBy, colors, opacity, name, radii, scale, instanceMatrices)
 """)
+
+    def makeSpheres(self, atoms, colorBy, colors, opacity, name, radii, scale, instanceMatrices):
+        mol, sel = atoms_of(atoms)
+        n = sel.numAtoms()
+        r = numpy.resize(numpy.asarray(radii, 'f').ravel(), n) * float(scale or 1.0)
+        if colors is not None:
+            c = numpy.asarray(colors, 'f')
+            c = numpy.resize(c.reshape(-1, c.shape[-1])[:, :3] if c.ndim > 1 else c[:3][None, :], (n, 3))
+        else:
+            c = colors_for(sel, colorBy or 'element')
+        gname = name or self.name.replace(' ', '_')
+        if self.sgeom is None:
+            self.sgeom = G.Spheres(gname)
+        self.sgeom.Set(name=gname, vertices=sel.getCoords(), radii=r, materials=c,
+                       opacity=1.0 if opacity is None else float(opacity),
+                       instanceMatrices=instance_list(instanceMatrices))
+        self.outputData(spheres=self.sgeom)
+        return self.sgeom
 
     def repStyle(self, extra):
         return {'scale': float(extra.get('scale') or 1.0)}
@@ -398,10 +423,16 @@ resname, resnum, chain, bfactor, occupancy, charge, index)."""
 
 
 def atom_property(mol, sel, p):
+    import re
+    m = re.match(r'^\s*(\w+)\s*\[\s*(-?\d+)\s*\]\s*$', p or '')
+    if m:                                   # MolKit's coords[0]: one column of a property
+        return numpy.asarray(atom_property(mol, sel, m.group(1)))[:, int(m.group(2))]
+    if p == 'radius':                       # MolKit's name
+        p = 'radii'
     if p == 'coords':
         return sel.getCoords().astype('f')
     if p == 'radii':
-        return radii(mol, sel)
+        return atom_radii(mol, sel)
     get = {'element': sel.getElements, 'name': sel.getNames, 'resname': sel.getResnames,
            'resnum': sel.getResnums, 'chain': sel.getChids, 'bfactor': sel.getBetas,
            'occupancy': sel.getOccupancies, 'charge': sel.getCharges,
@@ -411,6 +442,10 @@ def atom_property(mol, sel, p):
 
 
 def radii(mol, sel):
+    return atom_radii(mol, sel)
+
+
+def atom_radii(mol, sel):
     r = sel.getRadii() if hasattr(sel, 'getRadii') else None
     if r is None or not numpy.any(r):
         if mol is not None:
@@ -422,18 +457,68 @@ def radii(mol, sel):
     return numpy.asarray(r, 'f')
 
 
+_PATTERNS = None
+
+
+def pattern_radii(mol, sel, united=True):
+    """The radii MolKit gave atoms (Vision's Assign Radii): from the table of
+    MSMS's pdb_to_xyzr by residue and atom name (radii_patterns.py), the
+    united-atom radius, or with united set the explicit one for an atom bonded
+    to a hydrogen."""
+    import re
+    global _PATTERNS
+    from wewos.libs.radii_patterns import AAradii, AtomRadiiPatterns
+    if _PATTERNS is None:
+        _PATTERNS = [(re.compile(r), re.compile(a), n) for r, a, n in AtomRadiiPatterns]
+    names, resnames = sel.getNames(), sel.getResnames()
+    withH = numpy.zeros(len(names), bool)
+    ag = getattr(mol, '_ag', None)
+    bonds = getattr(ag, '_bonds', None) if united and ag is not None else None
+    if bonds is not None and len(bonds):
+        isH = numpy.array([str(e).upper() in ('H', 'D') for e in ag.getElements()])
+        hbonded = numpy.zeros(ag.numAtoms(), bool)
+        b = numpy.asarray(bonds)
+        hbonded[b[isH[b[:, 1]], 0]] = True
+        hbonded[b[isH[b[:, 0]], 1]] = True
+        withH = hbonded[sel.getIndices()]
+    out, cache = numpy.zeros(len(names), 'f'), {}
+    for i, (a, r) in enumerate(zip(names, resnames)):
+        key = (a, r)
+        if key not in cache:
+            cache[key] = next((n for rp, ap, n in _PATTERNS if ap.search(a) and rp.search(r)), None)
+        n = cache[key]
+        if n is None:
+            out[i] = 0.2                      # MolKit's value for an atom it does not know
+        else:
+            out[i] = AAradii[n][1] if (united and withH[i]) else AAradii[n][2]
+    return out
+
+
 class AssignRadii(NetworkNode):
-    """Assign van der Waals radii to the atoms; outputs the atoms and radii."""
+    """Assign radii to the atoms as MolKit did (the radii of MSMS's
+pdb_to_xyzr, by residue and atom name): united-atom radii, or, with united
+on, explicit radii for atoms bonded to a hydrogen. The radii are kept on the
+atoms, so MSMS, CPK, blurring... use them; outputs the atoms and the radii."""
 
     def __init__(self, name='Assign Radii', **kw):
         kw['name'] = name
         NetworkNode.__init__(self, **kw)
         self.inputPortsDescr.append(datatype='AtomSet', name='atoms')
+        self.inputPortsDescr.append(datatype='boolean', name='united', required=False)
+        self.widgetDescr['united'] = {'class': 'NECheckButton', 'master': 'node',
+                                      'initialValue': 1, 'labelCfg': {'text': 'united atoms'}}
         self.outputPortsDescr.append(datatype='AtomSet', name='atoms')
         self.outputPortsDescr.append(datatype='float(0)', name='radii')
-        self.setFunction("""def doit(self, atoms):
+        self.setFunction("""def doit(self, atoms, united):
     mol, sel = atoms_of(atoms)
-    self.outputData(atoms=sel, radii=radii(mol, sel))
+    r = pattern_radii(mol, sel, bool(united))
+    if mol is not None:
+        ag = mol._ag
+        full = ag.getRadii()
+        full = numpy.zeros(ag.numAtoms(), 'f') if full is None else numpy.array(full, 'f')
+        full[sel.getIndices()] = r
+        ag.setRadii(full)
+    self.outputData(atoms=sel, radii=r)
 """)
 
 
@@ -455,6 +540,7 @@ normals, and for each vertex the index (in the atom set) of the closest atom."""
         ip.append(datatype='float', name='opacity', required=False)
         ip.append(datatype='instancemat(0)', name='instanceMatrices', required=False,
                   singleConnection=False)
+        ip.append(datatype='None', name='radii', required=False)
         self.widgetDescr['probeRadius'] = {'class': 'NEThumbWheel', 'master': 'node',
                                            'initialValue': 1.5, 'min': 0.5, 'max': 10.,
                                            'oneTurn': 2., 'labelCfg': {'text': 'probe'}}
@@ -475,9 +561,10 @@ normals, and for each vertex the index (in the atom set) of the closest atom."""
         op.append(datatype='None', name='faces')
         op.append(datatype='normal3(0)', name='normals')
         op.append(datatype='None', name='closestAtoms')
-        self.setFunction("""def doit(self, atoms, probeRadius, density, colorBy, colors, opacity, instanceMatrices):
+        self.setFunction("""def doit(self, atoms, probeRadius, density, colorBy, colors, opacity, instanceMatrices, radii):
     mol, sel = atoms_of(atoms)
-    v, f, n, closest = msms_surface(sel.getCoords(), radii(mol, sel), probeRadius, density)
+    rad = atom_radii(mol, sel) if radii is None else numpy.resize(numpy.asarray(radii, 'f').ravel(), sel.numAtoms())
+    v, f, n, closest = msms_surface(sel.getCoords(), rad, probeRadius, density)
     if colors is None:
         ac = colors_for(sel, colorBy or 'white')
         colors = ac[closest]
@@ -503,6 +590,29 @@ def msms_surface(coords, rad, probe=1.5, density=3.0):
     f = numpy.asarray(tri[:, :3], 'i')
     closest = numpy.asarray(vi[:, 1], 'i') - 1
     return v, f, n, closest
+
+
+class GetMSMStriangles(NetworkNode):
+    """The triangles of a surface computed by MSMS (its 'surface' output):
+vertices, triangle indices and vertex normals, for an IndPolygons node
+(Vision's "MSMS triang."). selnum and component are kept for networks made
+with Vision; the surface given is used whole."""
+
+    def __init__(self, name='MSMS triang.', **kw):
+        kw['name'] = name
+        NetworkNode.__init__(self, **kw)
+        ip = self.inputPortsDescr
+        ip.append(datatype='geom', name='MSMS')
+        ip.append(datatype='int', name='selnum', required=False)
+        ip.append(datatype='int', name='component', required=False)
+        op = self.outputPortsDescr
+        op.append(datatype='coord3(0)', name='vertices')
+        op.append(datatype='None', name='indices')
+        op.append(datatype='normal3(0)', name='vnormals')
+        self.setFunction("""def doit(self, MSMS, selnum, component):
+    g = G.flatten(MSMS)[0]
+    self.outputData(vertices=g.vertices, indices=g.faces, vnormals=g.getVNormals())
+""")
 
 
 class WriteMolecule(NetworkNode):
@@ -657,4 +767,5 @@ molkitlib.addNode(AtomsAsLines, 'Lines', 'Mapper')
 molkitlib.addNode(Cartoon, 'Cartoon', 'Mapper')
 molkitlib.addNode(Surface3Dmol, 'Surface', 'Mapper')
 molkitlib.addNode(AtomsAsMSMS, 'MSMS', 'Mapper')
+molkitlib.addNode(GetMSMStriangles, 'MSMS triang.', 'Mapper')
 molkitlib.addNode(WriteMolecule, 'Write PDB', 'Output')

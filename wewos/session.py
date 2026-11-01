@@ -420,8 +420,11 @@ class Session(object):
         return n.imageData()
 
     def _op_viewer_view(self, a):
-        self._viewer(a['node']).setView(a.get('view'), a.get('renderer') or '3dmol')
-        return {}
+        v = self._viewer(a['node'])
+        v.setView(a.get('view'), a.get('renderer') or '3dmol')
+        # moved with the mouse: a redraw, for the nodes connected to the redraw output
+        ran = v.viewChanged() if a.get('redraw') else False
+        return {'redraw': ran}
 
     def _op_viewer_rendering(self, a):
         v = self._viewer(a['node'])

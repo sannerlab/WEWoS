@@ -54,7 +54,8 @@ Returning <code>'Stop'</code> stops the nodes below.</p>
 (double-click it). Inside, connecting to port <code>new</code> of the input or output node adds a port to the macro.</p>
 
 <h2>3D</h2>
-<p>A <b>Viewer</b> node opens a 3D panel (3Dmol.js). Connect geometries to its <code>geometries</code> input:
+<p>A <b>Viewer</b> node opens a 3D panel, drawn with 3Dmol.js or Mol* (the menu in its header; Mol* adds
+ambient occlusion, shadows, depth of field and illumination). Connect geometries to its <code>geometries</code> input:
 Spheres, Cylinders, IndPolygons (meshes), lines, labels, and from the Molecules library CPK, Sticks, Lines,
 Cartoon, Surface and MSMS. Click something in the viewer: the Viewer's <code>lastPick</code> output sends it to
 the nodes connected there (try <b>Picked Atom</b>, or the example <i>pick a residue</i>).</p>
@@ -64,4 +65,13 @@ the nodes connected there (try <b>Picked Atom</b>, or the example <i>pick a resi
 Open network. Vision's <code>*_net.py</code> files are imported with File > Import a Vision network; the file is
 read, never executed, and a report lists any node that has no counterpart here (those stay in the network,
 outlined in red, with their ports and code).</p>
+
+<h2>History</h2>
+<p>Vision began as <b>ViPEr</b>, a Visual Programming Environment for Python, by Michel Sanner, Daniel
+Stoffler and Arthur Olson (Molecular Graphics Lab, The Scripps Research Institute). It was presented at the
+10th International Python Conference in February 2002, where it received the best paper award:
+<a href="https://legacy.python.org/workshops/2002-02/papers/10/index.htm">M. F. Sanner, D. Stoffler,
+A. J. Olson, <i>ViPEr, a Visual Programming Environment for Python</i></a>. It was later renamed Vision,
+because of a name conflict at Scripps with VIPER, the Virus Particle Explorer of Charles Brooks's lab, and
+distributed with MGLTools. WEWoS keeps its design and reads its networks.</p>
 </main></body></html>

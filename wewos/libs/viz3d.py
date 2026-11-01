@@ -300,6 +300,22 @@ class GeomOptions(NetworkNode):
 """)
 
 
+class OneRedraw(NetworkNode):
+    """Runs when the viewer has redrawn (connect the Viewer's redraw output to
+its trigger input) and then fires its trigger output (the special port under
+the node): connect that to the runNode input of the node to run after a
+redraw, e.g. Grab Image (Vision's One Redraw)."""
+
+    def __init__(self, name='One Redraw', **kw):
+        kw['name'] = name
+        NetworkNode.__init__(self, **kw)
+        self.inputPortsDescr.append(datatype='viewer', name='viewer', required=False)
+        self.inputPortsDescr.append(datatype='None', name='trigger', required=False)
+        self.setFunction("""def doit(self, viewer, trigger):
+    pass
+""")
+
+
 class ColorMap(NetworkNode):
     """Colors for a list of values: values between mini and maxi are mapped
 through a color ramp (rgb: blue-green-red; rwb: red-white-blue; grey;
@@ -434,7 +450,10 @@ class Viewer(NetworkNode):
 Connect geometries (or lists of them) to 'geometries'. Click a sphere, a
 cylinder, a mesh or an atom: lastPick outputs a dict describing it
 ({'geom': name, 'object': the geometry, 'atom': {...} for molecules}) and the
-nodes connected to lastPick run.
+nodes connected to lastPick run. The redraw output fires when the scene
+changes and when the view is moved with the mouse (every 300 ms during a
+drag, as DejaVu's redraws did): a One Redraw -> Grab Image chain follows the
+view.
 
 The viewer draws with 3Dmol.js or Mol* (the menu in its header, or
 viewer.setRenderer('molstar') from code); the choice is saved with the
@@ -561,7 +580,9 @@ saved too."""
             self.network.emit('viewer', op='rendering', node=self.id,
                               rendering=dict(self.rendering))
 
-    def snapshot(self, timeout=15.0):
+    snapshotTimeout = 15.0      # seconds to wait for the page's picture
+
+    def snapshot(self, timeout=None):
         """The picture this viewer shows on the page, as a PIL image. The
         page draws the viewer, so it is asked for it ('snapshot_request');
         it answers through the session (snapshotReceived)."""
@@ -576,7 +597,7 @@ saved too."""
         done = threading.Event()
         self._snaps[rid] = [done, None]
         self.network.emit('snapshot_request', viewer=self.id, request=rid)
-        if not done.wait(timeout):
+        if not done.wait(self.snapshotTimeout if timeout is None else timeout):
             self._snaps.pop(rid, None)
             raise RuntimeError('no page sent the picture of viewer %s: open the page with '
                                'this network, with the viewer showing' % self.name)
@@ -589,6 +610,21 @@ saved too."""
         if entry is not None and entry[1] is None:
             entry[1] = png
             entry[0].set()
+
+    def viewChanged(self):
+        """The view moved on the page (rotation, zoom...: a redraw in DejaVu):
+        the nodes connected to the redraw output run, as in Vision (e.g. One
+        Redraw -> Grab Image follows the view). Runs asked for while one is
+        going on are merged by the runner."""
+        p = self.outputPortByName['redraw']
+        children = [c.node for c in p.children]
+        if not children or self.network is None:
+            return False
+        self.outputData(redraw=1)
+        for c in children:
+            c.forceExecution = 1
+        self.network.run(children)
+        return True
 
     def picked(self, body):
         d = {'geom': body.get('geom'), 'object': self.geoms.get(body.get('geom'))}
@@ -666,3 +702,4 @@ vizlib.addNode(GeomContainer, 'GeomContainer', 'Geometry')
 vizlib.addNode(GeomOptions, 'Set Geom Options', 'Input')
 vizlib.addNode(ReadMesh, 'Read Mesh', 'Input')
 vizlib.addNode(ColorMap, 'Color Map', 'Mapper')
+vizlib.addNode(OneRedraw, 'One Redraw', 'Output')

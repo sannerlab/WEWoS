@@ -1,0 +1,360 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "MatPlotLib",
+  "Standard"
+ ],
+ "network": {
+  "name": "TablePlot",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "TablePlot",
+    "cls": "TablePlotNE",
+    "lib": "MatPlotLib",
+    "pos": [
+     740,
+     232
+    ],
+    "label": "TablePlot",
+    "widgets": {
+     "location": "bottom"
+    },
+    "widgetOpts": {
+     "location": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n2",
+    "name": "ReadTable",
+    "cls": "ReadTable",
+    "lib": "Standard",
+    "pos": [
+     389,
+     40
+    ],
+    "label": "ReadTable",
+    "widgets": {
+     "filename": "Data/table_data_values.dat",
+     "numOfTopLinesToJump": 0,
+     "numOfBottomLinesToJump": 0,
+     "sep": ",",
+     "datatype": "str"
+    },
+    "widgetOpts": {
+     "filename": {
+      "filetypes": []
+     },
+     "numOfTopLinesToJump": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 360.0,
+      "precision": 2
+     },
+     "numOfBottomLinesToJump": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 360.0,
+      "precision": 2
+     },
+     "datatype": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n3",
+    "name": "Draw Area",
+    "cls": "MPLDrawAreaNE",
+    "lib": "MatPlotLib",
+    "pos": [
+     389,
+     490
+    ],
+    "label": "Draw Area",
+    "widgets": {
+     "left": 0.2,
+     "bottom": 0.2,
+     "width": 0.7,
+     "height": 0.666666666667,
+     "frameon": 1,
+     "hold": 0,
+     "title": "",
+     "xlabel": "",
+     "ylabel": "",
+     "xlimit": "",
+     "ylimit": "",
+     "xticklabels": 1,
+     "yticklabels": 1,
+     "axison": 1,
+     "autoscaleon": 1
+    },
+    "widgetOpts": {
+     "left": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "bottom": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "width": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "height": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n4",
+    "name": "ReadTable",
+    "cls": "ReadTable",
+    "lib": "Standard",
+    "pos": [
+     40,
+     192
+    ],
+    "label": "ReadTable",
+    "widgets": {
+     "filename": "Data/table_data_string.dat",
+     "numOfTopLinesToJump": 0,
+     "numOfBottomLinesToJump": 0,
+     "sep": ",",
+     "datatype": "str"
+    },
+    "widgetOpts": {
+     "filename": {
+      "filetypes": []
+     },
+     "numOfTopLinesToJump": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 360.0,
+      "precision": 2
+     },
+     "numOfBottomLinesToJump": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 360.0,
+      "precision": 2
+     },
+     "datatype": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n5",
+    "name": "Index",
+    "cls": "Index",
+    "lib": "Standard",
+    "pos": [
+     389,
+     202
+    ],
+    "label": "Index",
+    "widgets": {
+     "index": 0
+    },
+    "widgetOpts": {
+     "index": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n6",
+    "name": "Index",
+    "cls": "Index",
+    "lib": "Standard",
+    "pos": [
+     389,
+     298
+    ],
+    "label": "Index",
+    "widgets": {
+     "index": 1
+    },
+    "widgetOpts": {
+     "index": {
+      "min": null,
+      "max": 1,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n7",
+    "name": "ReadTable",
+    "cls": "ReadTable",
+    "lib": "Standard",
+    "pos": [
+     40,
+     491
+    ],
+    "label": "ReadTable",
+    "widgets": {
+     "filename": "Data/table_data_colors.dat",
+     "numOfTopLinesToJump": 0,
+     "numOfBottomLinesToJump": 0,
+     "sep": ",",
+     "datatype": "float"
+    },
+    "widgetOpts": {
+     "filename": {
+      "filetypes": []
+     },
+     "numOfTopLinesToJump": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 360.0,
+      "precision": 2
+     },
+     "numOfBottomLinesToJump": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 360.0,
+      "precision": 2
+     },
+     "datatype": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n8",
+    "name": "As Type",
+    "cls": "AsType",
+    "lib": "Standard",
+    "pos": [
+     389,
+     394
+    ],
+    "label": "As Type",
+    "widgets": {
+     "dtype": "float16"
+    },
+    "widgetOpts": {
+     "dtype": {
+      "autoList": false
+     }
+    }
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n3",
+     "drawAreaDef"
+    ],
+    "to": [
+     "n1",
+     "drawAreaDef"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n2",
+     "data"
+    ],
+    "to": [
+     "n1",
+     "values"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n4",
+     "data"
+    ],
+    "to": [
+     "n5",
+     "data"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n4",
+     "data"
+    ],
+    "to": [
+     "n6",
+     "data"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n5",
+     "data"
+    ],
+    "to": [
+     "n1",
+     "rowLabels"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n6",
+     "data"
+    ],
+    "to": [
+     "n1",
+     "colLabels"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n7",
+     "data"
+    ],
+    "to": [
+     "n8",
+     "inArrayList"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n8",
+     "outArray"
+    ],
+    "to": [
+     "n1",
+     "rowColors"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

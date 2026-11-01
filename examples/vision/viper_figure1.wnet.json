@@ -1,0 +1,628 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "Molecules",
+  "3D Visualization",
+  "Standard",
+  "Imaging"
+ ],
+ "network": {
+  "name": "ViPEr paper figure 1",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "Read Molecule",
+    "cls": "ReadMolecule",
+    "lib": "Molecules",
+    "pos": [
+     40,
+     244
+    ],
+    "label": "Read Molecule",
+    "widgets": {
+     "filename": "1crn.pdb"
+    }
+   },
+   {
+    "id": "n2",
+    "name": "Assign Radii",
+    "cls": "AssignRadii",
+    "lib": "Molecules",
+    "pos": [
+     337,
+     244
+    ],
+    "label": "Assign Radii",
+    "widgets": {
+     "united": 1
+    }
+   },
+   {
+    "id": "n3",
+    "name": "MSMS",
+    "cls": "AtomsAsMSMS",
+    "lib": "Molecules",
+    "pos": [
+     1422,
+     40
+    ],
+    "label": "MSMS",
+    "widgets": {
+     "probeRadius": 1.5,
+     "density": 5.0,
+     "colorBy": "white",
+     "opacity": 1.0
+    },
+    "widgetOpts": {
+     "probeRadius": {
+      "type": "float",
+      "increment": 0.0,
+      "precision": 2
+     },
+     "density": {
+      "type": "float",
+      "increment": 0.0,
+      "precision": 2
+     },
+     "colorBy": {
+      "autoList": false
+     },
+     "opacity": {
+      "type": "float",
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n4",
+    "name": "Select Nodes",
+    "cls": "NodeSelector",
+    "lib": "Molecules",
+    "pos": [
+     692,
+     185
+    ],
+    "label": "Select",
+    "widgets": {
+     "selectionString": "",
+     "syntax": "prody"
+    },
+    "widgetOpts": {
+     "syntax": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n5",
+    "name": "Extract Atom Property",
+    "cls": "AtomsProperty",
+    "lib": "Molecules",
+    "pos": [
+     1037,
+     181
+    ],
+    "label": "Extract Atom Property",
+    "widgets": {
+     "propertyName": "radius"
+    },
+    "widgetOpts": {
+     "propertyName": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n6",
+    "name": "MSMS triang.",
+    "cls": "GetMSMStriangles",
+    "lib": "Molecules",
+    "pos": [
+     1795,
+     49
+    ],
+    "label": "MSMS triang."
+   },
+   {
+    "id": "n7",
+    "name": "indexedPolygons",
+    "cls": "IndexedPolygons",
+    "lib": "3D Visualization",
+    "pos": [
+     2122,
+     73
+    ],
+    "label": "IndPolygons",
+    "widgets": {
+     "opacity": 0.654
+    },
+    "widgetOpts": {
+     "opacity": {
+      "type": "float",
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n8",
+    "name": "Viewer",
+    "cls": "Viewer",
+    "lib": "3D Visualization",
+    "pos": [
+     2422,
+     140
+    ],
+    "label": "Viewer"
+   },
+   {
+    "id": "n9",
+    "name": "Array Ufunc2",
+    "cls": "BinaryFuncs",
+    "lib": "Standard",
+    "pos": [
+     1422,
+     386
+    ],
+    "label": "Array Ufunc2",
+    "widgets": {
+     "operator": "multiply"
+    },
+    "widgetOpts": {
+     "operator": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n10",
+    "name": "Dial",
+    "cls": "DialNE",
+    "lib": "Standard",
+    "pos": [
+     1037,
+     373
+    ],
+    "label": "Dial",
+    "widgets": {
+     "dial": 0.66
+    },
+    "widgetOpts": {
+     "dial": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n11",
+    "name": "Extract Atom Property",
+    "cls": "AtomsProperty",
+    "lib": "Molecules",
+    "pos": [
+     1037,
+     277
+    ],
+    "label": "Extract Atom Property",
+    "widgets": {
+     "propertyName": "coords[0]"
+    },
+    "widgetOpts": {
+     "propertyName": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n12",
+    "name": "Grab Image",
+    "cls": "GetFrontBuffer",
+    "lib": "Imaging",
+    "pos": [
+     2826,
+     163
+    ],
+    "label": "Grab Image"
+   },
+   {
+    "id": "n13",
+    "name": "Scale",
+    "cls": "ResizeImage",
+    "lib": "Imaging",
+    "pos": [
+     3027,
+     164
+    ],
+    "label": "Scale",
+    "widgets": {
+     "scale": 1.0,
+     "filter": "NEAREST"
+    },
+    "widgetOpts": {
+     "scale": {
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "filter": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n14",
+    "name": "Filter Image",
+    "cls": "ImageFilter",
+    "lib": "Imaging",
+    "pos": [
+     3377,
+     165
+    ],
+    "label": "Filter Image",
+    "widgets": {
+     "filter": "CONTOUR"
+    },
+    "widgetOpts": {
+     "filter": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n15",
+    "name": "Show Image",
+    "cls": "ShowImage",
+    "lib": "Imaging",
+    "pos": [
+     3704,
+     165
+    ],
+    "label": "Show Image"
+   },
+   {
+    "id": "n16",
+    "name": "CPK",
+    "cls": "AtomsAsCPK",
+    "lib": "Molecules",
+    "pos": [
+     1795,
+     196
+    ],
+    "label": "CPK",
+    "widgets": {
+     "colorBy": "element",
+     "opacity": 1.0,
+     "scale": 1.0
+    },
+    "widgetOpts": {
+     "colorBy": {
+      "autoList": false
+     },
+     "opacity": {
+      "type": "float",
+      "increment": 0.0,
+      "precision": 2
+     },
+     "scale": {
+      "type": "float",
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n17",
+    "name": "Color Map",
+    "cls": "ColorMap",
+    "lib": "3D Visualization",
+    "pos": [
+     1422,
+     246
+    ],
+    "label": "Color Map",
+    "widgets": {
+     "ramp": "rgb"
+    },
+    "widgetOpts": {
+     "ramp": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n18",
+    "name": "One Redraw",
+    "cls": "OneRedraw",
+    "lib": "3D Visualization",
+    "pos": [
+     2646,
+     163
+    ],
+    "label": "One Redraw"
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n1",
+     "mol"
+    ],
+    "to": [
+     "n2",
+     "atoms"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n2",
+     "atoms"
+    ],
+    "to": [
+     "n4",
+     "nodes"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n4",
+     "selection"
+    ],
+    "to": [
+     "n3",
+     "atoms"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n4",
+     "selection"
+    ],
+    "to": [
+     "n5",
+     "atoms"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n5",
+     "propertyValues"
+    ],
+    "to": [
+     "n3",
+     "radii"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n3",
+     "surface"
+    ],
+    "to": [
+     "n6",
+     "MSMS"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n6",
+     "vertices"
+    ],
+    "to": [
+     "n7",
+     "coords"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n6",
+     "indices"
+    ],
+    "to": [
+     "n7",
+     "indices"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n6",
+     "vnormals"
+    ],
+    "to": [
+     "n7",
+     "vnormals"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n7",
+     "indexedPolygons"
+    ],
+    "to": [
+     "n8",
+     "geometries"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n5",
+     "propertyValues"
+    ],
+    "to": [
+     "n9",
+     "inArrayList1"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n10",
+     "value"
+    ],
+    "to": [
+     "n9",
+     "inArrayList2"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n4",
+     "selection"
+    ],
+    "to": [
+     "n11",
+     "atoms"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n8",
+     "viewer"
+    ],
+    "to": [
+     "n12",
+     "viewer"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n12",
+     "image"
+    ],
+    "to": [
+     "n13",
+     "image"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n13",
+     "scaledImage"
+    ],
+    "to": [
+     "n14",
+     "image"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n14",
+     "image"
+    ],
+    "to": [
+     "n15",
+     "image"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n17",
+     "colors"
+    ],
+    "to": [
+     "n16",
+     "colors"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n11",
+     "propertyValues"
+    ],
+    "to": [
+     "n17",
+     "values"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n9",
+     "outArrayList"
+    ],
+    "to": [
+     "n16",
+     "radii"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n4",
+     "selection"
+    ],
+    "to": [
+     "n16",
+     "atoms"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n16",
+     "spheres"
+    ],
+    "to": [
+     "n8",
+     "geometries"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n8",
+     "viewer"
+    ],
+    "to": [
+     "n18",
+     "viewer"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n8",
+     "redraw"
+    ],
+    "to": [
+     "n18",
+     "trigger"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n18",
+     "trigger"
+    ],
+    "to": [
+     "n12",
+     "runNode"
+    ],
+    "blocking": true,
+    "special": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

@@ -27,6 +27,7 @@ and which edited compute functions were converted to Python 3.
 """
 import ast
 import os
+import re
 
 from . import classmap, py2to3
 
@@ -519,11 +520,67 @@ def import_source(src, filename='network_net.py'):
     ids = {}
     _note_ports(it.master)
     netd = _network(it.master, ids, report)
+    _apply_saved_opacity(netd, _saved_opacities(tree))
     stem = name[:-len('_net.py')] if name.endswith('_net.py') else os.path.splitext(name)[0]
     netd['name'] = stem
     libs = sorted({e['lib'] for e in _all_entries(netd) if e.get('lib') not in (None, '__builtin__')})
     return {'format': 'wewos-net', 'version': 1, 'libraries': libs, 'network': netd,
             'importedFrom': name}, report
+
+
+def _saved_opacities(tree):
+    """The opacity of the viewer objects, from the functions in which Vision
+    saved a viewer's state (loadSavedStates_<viewer>): {object name: opacity}."""
+    out = {}
+
+    def walk(body, ctx):
+        for st in body:
+            if isinstance(st, ast.Assign) and len(st.targets) == 1 and isinstance(st.targets[0], ast.Name):
+                v, name = st.value, st.targets[0].id
+                if isinstance(v, ast.Dict):
+                    ctx['state'] = v
+                elif isinstance(v, ast.Call) and isinstance(v.func, ast.Attribute) and \
+                        v.func.attr == 'FindObjectByName' and v.args and isinstance(v.args[0], ast.Str):
+                    ctx['vars'][name] = v.args[0].s.split('|')[-1]
+            elif isinstance(st, ast.Expr) and isinstance(st.value, ast.Call):
+                f = st.value.func
+                # obj.materials[GL.GL_FRONT].Set(**state) (the back material is not what one sees)
+                if isinstance(f, ast.Attribute) and f.attr == 'Set' and isinstance(f.value, ast.Subscript) \
+                        and isinstance(f.value.value, ast.Attribute) and f.value.value.attr == 'materials' \
+                        and isinstance(f.value.value.value, ast.Name) and ctx.get('state') is not None \
+                        and 'BACK' not in ast.dump(f.value.slice).split('GL_FRONT_AND_BACK')[0]:
+                    obj = ctx['vars'].get(f.value.value.value.id)
+                    for k, val in zip(ctx['state'].keys, ctx['state'].values):
+                        if obj and isinstance(k, ast.Str) and k.s == 'opacity':
+                            try:
+                                o = ast.literal_eval(val)
+                                out[obj] = float(o[0] if isinstance(o, (list, tuple)) else o)
+                            except (ValueError, TypeError, IndexError):
+                                pass
+            for field in ('body', 'orelse', 'finalbody'):
+                if isinstance(getattr(st, field, None), list):
+                    walk(getattr(st, field), ctx)
+
+    for st in tree.body:
+        if isinstance(st, ast.FunctionDef) and st.name.startswith('loadSavedStates_'):
+            walk(st.body, {'vars': {}, 'state': None})
+    return out
+
+
+def _apply_saved_opacity(netd, opacities):
+    """Give a geometry node the opacity its object had in the viewer."""
+    if not opacities:
+        return
+    for e in _all_entries(netd):
+        if e.get('lib') != '3D Visualization' or e.get('special'):
+            continue
+        w = e.get('widgets') or {}
+        for key in (w.get('name'), w.get('geoms'), e.get('name')):
+            if key and key in opacities and opacities[key] < 1 and \
+                    'opacity' in _port_names(e['lib'], e['cls'])[0]:
+                w['opacity'] = round(opacities[key], 3)
+                e['widgets'] = w
+                break
 
 
 def _all_entries(netd):
@@ -644,6 +701,13 @@ def _node_entry(n, ids, report):
     if n.widgets:
         e['widgets'] = {classmap.map_port(inmap, k): v for k, v in n.widgets.items()
                         if '*' not in inmap or k in inmap}
+        known = set(_port_names(lib, cls)[0]) | {d['name'] for d in n.added_in}
+        gone = sorted(k for k in e['widgets'] if known and k not in known)
+        if gone:
+            report.warnings.append('%s: settings of %s not kept (no such input here)'
+                                   % (n.name, ', '.join(gone)))
+            for k in gone:
+                del e['widgets'][k]
     if n.widgetsByIndex:
         report.warnings.append('%s: widget values given by port number were not imported'
                                % n.name)
@@ -664,7 +728,9 @@ def _node_entry(n, ids, report):
         same = lib == 'Standard' or (cls == sym.cls and classmap.family(
             sym.module, sym.lib.name if sym.lib else None) in classmap.SAME_NAMES)
         if same:
-            e['code'] = localize_code(code)
+            ports = [p for p in _port_names(lib, cls)[0] + [d['name'] for d in n.added_in]
+                     if p not in n.deleted]
+            e['code'] = localize_code(fit_signature(code, ports))
             report.code.append(n.name)
         else:
             report.warnings.append('%s: its edited code was written for %s and was not kept'
@@ -688,6 +754,32 @@ def _port_names(lib, cls):
         except Exception:
             _PORTS[lib, cls] = ([], [])
     return _PORTS[lib, cls]
+
+
+def fit_signature(code, ports):
+    """Node code saved by an older Vision may take fewer arguments than the
+    node now has ports (Eval gained importString): its doit is given all the
+    ports, by name, as the engine passes one argument per port."""
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return code
+    fn = next((x for x in tree.body if isinstance(x, ast.FunctionDef) and x.name == 'doit'), None)
+    if fn is None or fn.args.vararg or not fn.body:
+        return code
+    args = [a.arg for a in fn.args.args][1:]
+    if not ports or args == ports or not set(args) <= set(ports):
+        return code
+    lines = code.split('\n')
+    start, end = fn.lineno - 1, fn.body[0].lineno - 1
+    if end <= start:
+        return code
+    header = '\n'.join(lines[start:end])
+    m = re.match(r'(\s*)def\s+doit\s*\(.*?\)\s*:', header, re.S)
+    if m is None:
+        return code
+    lines[start:end] = [m.group(1) + 'def doit(self, %s):' % ', '.join(ports) + header[m.end():]]
+    return '\n'.join(lines)
 
 
 def _note_ports(net):

@@ -1484,7 +1484,8 @@ Output:
         code = """def doit(self, values, bins, normed, patch_antialiased,
 patch_linewidth, patch_edgecolor, patch_facecolor, drawAreaDef):
     self.axes.clear()
-    n, bins, patches = self.axes.hist(values, bins=bins, density=bool(normed))
+    n, bins, patches = self.axes.hist(numpy.ravel(values) if numpy.ndim(values) > 1 else values,
+                   bins=bins, density=bool(normed))
     self.setDrawAreaDef(drawAreaDef)
     if self.axes.patches:
         for p in self.axes.patches:
@@ -2459,7 +2460,7 @@ optional arguements:
     #pseudo color plot of Z
     Qz=z
     cmap = cm.get_cmap(cmap)
-    if x==None or y==None:
+    if x is None or y is None:
         C=self.axes.pcolormesh(Qz,cmap=cmap,shading=shading,alpha=alpha)
     else:
         #a pseudo color plot of Z on the matrices X and Y
@@ -2534,7 +2535,7 @@ optional arguements:
     #pseudo color plot of Z
     Qz=z
     cmap = cm.get_cmap(cmap)
-    if x==None or y==None:
+    if x is None or y is None:
         C=self.axes.pcolor(Qz,cmap=cmap,shading=shading,alpha=alpha)
     else:
         #a pseudo color plot of Z on the matrices X and Y
@@ -2609,7 +2610,7 @@ optional arguements:
     #pseudo color plot of Z
     Qz=z
     cmap = cm.get_cmap(cmap)
-    if x==None or y==None:
+    if x is None or y is None:
         C=self.axes.pcolor_classic(Qz,cmap=cmap,shading=shading,alpha=alpha)
     else:
         #a pseudo color plot of Z on the matrices X and Y
@@ -2722,7 +2723,7 @@ length_colors, cmapval, colors, origin, linewidth, hold, drawAreaDef):
         cmap = cm.get_cmap(cmapval,int(length_colors))
     else:
         cmap=eval("cm.%s" %cmapval)
-    if arraylistx==None or arraylisty==None:
+    if arraylistx is None or arraylisty is None:
         #contour plot of an array Z
         if contour=='default':    
             CS=self.axes.contour(Z,cmap=cmap,linewidths=linewidth,origin=origin,hold=hold)
@@ -3389,7 +3390,7 @@ width  - a scalar that controls the width of the arrows
         code="""def doit(self, u, v, x, y, color, S, width, pivot, units, drawAreaDef):
     self.axes.clear()
     self.setDrawAreaDef(drawAreaDef)
-    if x!=None:
+    if x is not None:
         self.axes.quiver(x,y,u,v,S,pivot=pivot,color=color,width=width,units=units)
     else:
         self.axes.quiver(u,v,S,color=color,width=width,units=units)
@@ -3828,7 +3829,7 @@ input :
         for i in axes_list:
           if not isinstance(i,Subplot):
             plot.figure.delaxes(i)
-    if current_image!=None:
+    if current_image is not None:
          pl=plot.figure.colorbar(current_image,cmap=current_image.cmap,shrink=shrink,extend=extend,orientation=orientation,spacing=spacing,filled=True)  
          if orientation=="vertical":
             plot.figure.axes[0].set_position([0.125, 0.1, 0.62, 0.8])

@@ -1,0 +1,499 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "MatPlotLib",
+  "Standard"
+ ],
+ "network": {
+  "name": "MultiPlot",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "Histogram",
+    "cls": "HistogramNE",
+    "lib": "MatPlotLib",
+    "pos": [
+     389,
+     424
+    ],
+    "label": "Histogram",
+    "widgets": {
+     "bins": 50,
+     "normed": 1,
+     "patch_antialiased": 1,
+     "patch_linewidth": 1,
+     "patch_edgecolor": "black",
+     "patch_facecolor": "green"
+    },
+    "widgetOpts": {
+     "bins": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "patch_linewidth": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "patch_edgecolor": {
+      "autoList": false
+     },
+     "patch_facecolor": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n2",
+    "name": "ReadTable",
+    "cls": "ReadTable",
+    "lib": "Standard",
+    "pos": [
+     40,
+     290
+    ],
+    "label": "ReadTable",
+    "widgets": {
+     "filename": "Data/plot_data.dat",
+     "numOfTopLinesToJump": 0,
+     "numOfBottomLinesToJump": 0,
+     "sep": ",",
+     "datatype": "float"
+    },
+    "widgetOpts": {
+     "filename": {
+      "filetypes": []
+     },
+     "numOfTopLinesToJump": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 360.0,
+      "precision": 2
+     },
+     "numOfBottomLinesToJump": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 360.0,
+      "precision": 2
+     },
+     "datatype": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n3",
+    "name": "Plot",
+    "cls": "PlotNE",
+    "lib": "MatPlotLib",
+    "pos": [
+     722,
+     299
+    ],
+    "label": "Plot",
+    "widgets": {
+     "lineStyle": "solid",
+     "color": "blue",
+     "line_antialiased": 1,
+     "line_linewidth": 1,
+     "solid_joinstyle": "miter",
+     "solid_capstyle": "projecting",
+     "dash_capstyle": "butt",
+     "dash_joinstyle": "miter"
+    },
+    "widgetOpts": {
+     "lineStyle": {
+      "autoList": false
+     },
+     "color": {
+      "autoList": false
+     },
+     "line_linewidth": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "solid_joinstyle": {
+      "autoList": false
+     },
+     "solid_capstyle": {
+      "autoList": false
+     },
+     "dash_capstyle": {
+      "autoList": false
+     },
+     "dash_joinstyle": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n4",
+    "name": "Scatter",
+    "cls": "ScatterNE",
+    "lib": "MatPlotLib",
+    "pos": [
+     722,
+     115
+    ],
+    "label": "Scatter",
+    "widgets": {
+     "s": 145.11,
+     "c": "m",
+     "marker": "octagon",
+     "solid_joinstyle": "miter",
+     "solid_capstyle": "projecting",
+     "dash_capstyle": "butt",
+     "dash_joinstyle": "miter"
+    },
+    "widgetOpts": {
+     "s": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "c": {
+      "autoList": false
+     },
+     "marker": {
+      "autoList": false
+     },
+     "solid_joinstyle": {
+      "autoList": false
+     },
+     "solid_capstyle": {
+      "autoList": false
+     },
+     "dash_capstyle": {
+      "autoList": false
+     },
+     "dash_joinstyle": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n5",
+    "name": "ReadTable",
+    "cls": "ReadTable",
+    "lib": "Standard",
+    "pos": [
+     40,
+     105
+    ],
+    "label": "ReadTable",
+    "widgets": {
+     "filename": "Data/scatter_data.dat",
+     "numOfTopLinesToJump": 0,
+     "numOfBottomLinesToJump": 0,
+     "sep": ",",
+     "datatype": "float"
+    },
+    "widgetOpts": {
+     "filename": {
+      "filetypes": []
+     },
+     "numOfTopLinesToJump": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 360.0,
+      "precision": 2
+     },
+     "numOfBottomLinesToJump": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 360.0,
+      "precision": 2
+     },
+     "datatype": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n6",
+    "name": "MultiPlot",
+    "cls": "MultiPlotNE",
+    "lib": "MatPlotLib",
+    "pos": [
+     1068,
+     279
+    ],
+    "label": "MultiPlot"
+   },
+   {
+    "id": "n7",
+    "name": "ReadTable",
+    "cls": "ReadTable",
+    "lib": "Standard",
+    "pos": [
+     40,
+     452
+    ],
+    "label": "ReadTable",
+    "widgets": {
+     "filename": "Data/histogram_data.dat",
+     "numOfTopLinesToJump": 0,
+     "numOfBottomLinesToJump": 0,
+     "sep": ",",
+     "datatype": "float"
+    },
+    "widgetOpts": {
+     "filename": {
+      "filetypes": []
+     },
+     "numOfTopLinesToJump": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 360.0,
+      "precision": 2
+     },
+     "numOfBottomLinesToJump": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 360.0,
+      "precision": 2
+     },
+     "datatype": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n8",
+    "name": "Index",
+    "cls": "Index",
+    "lib": "Standard",
+    "pos": [
+     389,
+     40
+    ],
+    "label": "Index",
+    "widgets": {
+     "index": 0
+    },
+    "widgetOpts": {
+     "index": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n9",
+    "name": "Index",
+    "cls": "Index",
+    "lib": "Standard",
+    "pos": [
+     389,
+     136
+    ],
+    "label": "Index",
+    "widgets": {
+     "index": 1
+    },
+    "widgetOpts": {
+     "index": {
+      "min": null,
+      "max": 1,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n10",
+    "name": "Index",
+    "cls": "Index",
+    "lib": "Standard",
+    "pos": [
+     389,
+     232
+    ],
+    "label": "Index",
+    "widgets": {
+     "index": 0
+    },
+    "widgetOpts": {
+     "index": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n11",
+    "name": "Index",
+    "cls": "Index",
+    "lib": "Standard",
+    "pos": [
+     389,
+     328
+    ],
+    "label": "Index",
+    "widgets": {
+     "index": 1
+    },
+    "widgetOpts": {
+     "index": {
+      "min": null,
+      "max": 1,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n5",
+     "data"
+    ],
+    "to": [
+     "n8",
+     "data"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n5",
+     "data"
+    ],
+    "to": [
+     "n9",
+     "data"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n8",
+     "data"
+    ],
+    "to": [
+     "n4",
+     "x"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n9",
+     "data"
+    ],
+    "to": [
+     "n4",
+     "y"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n4",
+     "plot"
+    ],
+    "to": [
+     "n6",
+     "multiplot"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n3",
+     "plot"
+    ],
+    "to": [
+     "n6",
+     "multiplot"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n1",
+     "plot"
+    ],
+    "to": [
+     "n6",
+     "multiplot"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n10",
+     "data"
+    ],
+    "to": [
+     "n3",
+     "y"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n2",
+     "data"
+    ],
+    "to": [
+     "n10",
+     "data"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n2",
+     "data"
+    ],
+    "to": [
+     "n11",
+     "data"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n11",
+     "data"
+    ],
+    "to": [
+     "n3",
+     "x"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n7",
+     "data"
+    ],
+    "to": [
+     "n1",
+     "values"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

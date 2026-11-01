@@ -1,0 +1,94 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "Molecules",
+  "3D Visualization"
+ ],
+ "network": {
+  "name": "cpk",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "Read Molecule",
+    "cls": "ReadMolecule",
+    "lib": "Molecules",
+    "pos": [
+     40,
+     40
+    ],
+    "label": "Read Molecule",
+    "widgets": {
+     "filename": "cv.pdb"
+    }
+   },
+   {
+    "id": "n2",
+    "name": "CPK Macro",
+    "cls": "AtomsAsCPK",
+    "lib": "Molecules",
+    "pos": [
+     337,
+     40
+    ],
+    "label": "CPK",
+    "widgets": {
+     "colorBy": "element",
+     "opacity": 1.0,
+     "scale": 1.0
+    },
+    "widgetOpts": {
+     "colorBy": {
+      "autoList": false
+     },
+     "opacity": {
+      "type": "float",
+      "increment": 0.0,
+      "precision": 2
+     },
+     "scale": {
+      "type": "float",
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n3",
+    "name": "Viewer",
+    "cls": "Viewer",
+    "lib": "3D Visualization",
+    "pos": [
+     664,
+     40
+    ],
+    "label": "Viewer"
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n2",
+     "spheres"
+    ],
+    "to": [
+     "n3",
+     "geometries"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n1",
+     "mol"
+    ],
+    "to": [
+     "n2",
+     "atoms"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

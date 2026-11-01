@@ -1,0 +1,123 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "MatPlotLib",
+  "Standard"
+ ],
+ "network": {
+  "name": "Spy2",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "Spy2",
+    "cls": "SpyNE",
+    "lib": "MatPlotLib",
+    "pos": [
+     740,
+     40
+    ],
+    "label": "Spy",
+    "widgets": {
+     "marker": "s",
+     "markersize": 10.0
+    },
+    "widgetOpts": {
+     "marker": {
+      "autoList": false
+     },
+     "markersize": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n2",
+    "name": "ReadTable",
+    "cls": "ReadTable",
+    "lib": "Standard",
+    "pos": [
+     40,
+     40
+    ],
+    "label": "ReadTable",
+    "widgets": {
+     "filename": "Data/spy_data.dat",
+     "numOfTopLinesToJump": 0,
+     "numOfBottomLinesToJump": 0,
+     "sep": ",",
+     "datatype": "float"
+    },
+    "widgetOpts": {
+     "filename": {
+      "filetypes": []
+     },
+     "numOfTopLinesToJump": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 360.0,
+      "precision": 2
+     },
+     "numOfBottomLinesToJump": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 360.0,
+      "precision": 2
+     },
+     "datatype": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n3",
+    "name": "As Type",
+    "cls": "AsType",
+    "lib": "Standard",
+    "pos": [
+     389,
+     40
+    ],
+    "label": "As Type",
+    "widgets": {
+     "dtype": "float16"
+    },
+    "widgetOpts": {
+     "dtype": {
+      "autoList": false
+     }
+    }
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n2",
+     "data"
+    ],
+    "to": [
+     "n3",
+     "inArrayList"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n3",
+     "outArray"
+    ],
+    "to": [
+     "n1",
+     "Z"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

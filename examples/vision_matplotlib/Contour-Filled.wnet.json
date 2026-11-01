@@ -1,0 +1,353 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "MatPlotLib",
+  "Standard"
+ ],
+ "network": {
+  "name": "Contour-Filled",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "Contour",
+    "cls": "ContourNE",
+    "lib": "MatPlotLib",
+    "pos": [
+     740,
+     180
+    ],
+    "label": "Contour",
+    "widgets": {
+     "contour": "filledcontour",
+     "length_colors": "10",
+     "cmap": "jet",
+     "colors": "black",
+     "origin": "upper",
+     "linewidth": 1,
+     "hold": 0
+    },
+    "widgetOpts": {
+     "contour": {
+      "autoList": false
+     },
+     "cmap": {
+      "autoList": false
+     },
+     "colors": {
+      "autoList": false
+     },
+     "origin": {
+      "autoList": false
+     },
+     "linewidth": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n2",
+    "name": "ReadTable",
+    "cls": "ReadTable",
+    "lib": "Standard",
+    "pos": [
+     40,
+     40
+    ],
+    "label": "ReadTable",
+    "widgets": {
+     "filename": "Data/contour_data_1.dat",
+     "numOfTopLinesToJump": 0,
+     "numOfBottomLinesToJump": 0,
+     "sep": ",",
+     "datatype": "float"
+    },
+    "widgetOpts": {
+     "filename": {
+      "filetypes": []
+     },
+     "numOfTopLinesToJump": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 360.0,
+      "precision": 2
+     },
+     "numOfBottomLinesToJump": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 360.0,
+      "precision": 2
+     },
+     "datatype": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n3",
+    "name": "ReadTable",
+    "cls": "ReadTable",
+    "lib": "Standard",
+    "pos": [
+     40,
+     202
+    ],
+    "label": "ReadTable",
+    "widgets": {
+     "filename": "Data/contour_data_2.dat",
+     "numOfTopLinesToJump": 0,
+     "numOfBottomLinesToJump": 0,
+     "sep": ",",
+     "datatype": "float"
+    },
+    "widgetOpts": {
+     "filename": {
+      "filetypes": []
+     },
+     "numOfTopLinesToJump": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 360.0,
+      "precision": 2
+     },
+     "numOfBottomLinesToJump": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 360.0,
+      "precision": 2
+     },
+     "datatype": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n4",
+    "name": "ReadTable",
+    "cls": "ReadTable",
+    "lib": "Standard",
+    "pos": [
+     40,
+     364
+    ],
+    "label": "ReadTable",
+    "widgets": {
+     "filename": "Data/contour_data_3.dat",
+     "numOfTopLinesToJump": 0,
+     "numOfBottomLinesToJump": 0,
+     "sep": ",",
+     "datatype": "float"
+    },
+    "widgetOpts": {
+     "filename": {
+      "filetypes": []
+     },
+     "numOfTopLinesToJump": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 360.0,
+      "precision": 2
+     },
+     "numOfBottomLinesToJump": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 360.0,
+      "precision": 2
+     },
+     "datatype": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n5",
+    "name": "As Type",
+    "cls": "AsType",
+    "lib": "Standard",
+    "pos": [
+     389,
+     106
+    ],
+    "label": "As Type",
+    "widgets": {
+     "dtype": "float16"
+    },
+    "widgetOpts": {
+     "dtype": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n6",
+    "name": "As Type",
+    "cls": "AsType",
+    "lib": "Standard",
+    "pos": [
+     389,
+     202
+    ],
+    "label": "As Type",
+    "widgets": {
+     "dtype": "float16"
+    },
+    "widgetOpts": {
+     "dtype": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n7",
+    "name": "As Type",
+    "cls": "AsType",
+    "lib": "Standard",
+    "pos": [
+     389,
+     298
+    ],
+    "label": "As Type",
+    "widgets": {
+     "dtype": "float16"
+    },
+    "widgetOpts": {
+     "dtype": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n8",
+    "name": "ColorBar",
+    "cls": "ColorBarNE",
+    "lib": "MatPlotLib",
+    "pos": [
+     1106,
+     180
+    ],
+    "label": "ColorBar",
+    "widgets": {
+     "extend": "neither",
+     "orientation": "vertical",
+     "spacing": "uniform",
+     "shrink": 1.0
+    },
+    "widgetOpts": {
+     "extend": {
+      "autoList": false
+     },
+     "orientation": {
+      "autoList": false
+     },
+     "spacing": {
+      "autoList": false
+     },
+     "shrink": {
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n2",
+     "data"
+    ],
+    "to": [
+     "n5",
+     "inArrayList"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n3",
+     "data"
+    ],
+    "to": [
+     "n6",
+     "inArrayList"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n4",
+     "data"
+    ],
+    "to": [
+     "n7",
+     "inArrayList"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n5",
+     "outArray"
+    ],
+    "to": [
+     "n1",
+     "arraylistx"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n6",
+     "outArray"
+    ],
+    "to": [
+     "n1",
+     "arraylisty"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n7",
+     "outArray"
+    ],
+    "to": [
+     "n1",
+     "arraylistz"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n1",
+     "axes"
+    ],
+    "to": [
+     "n8",
+     "plot"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n1",
+     "contour"
+    ],
+    "to": [
+     "n8",
+     "current_image"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

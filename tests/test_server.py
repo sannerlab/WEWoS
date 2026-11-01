@@ -169,3 +169,23 @@ def test_molstar_bundle_served_gzipped():
         check(len(zipped) < len(plain) / 2)
     finally:
         httpd.shutdown()
+
+
+def test_example_groups():
+    httpd, base, tok = _server()
+    try:
+        ex = _get(base + '/api/examples?t=' + tok)['examples']
+        groups = {e['group'] for e in ex}
+        check({'WEWoS', 'Vision examples (MGLTools)', 'Vision matplotlib examples (MGLTools)'} <= groups)
+        files = {e['file'] for e in ex}
+        check('vision/cpk.wnet.json' in files and 'vision_matplotlib/Plot.wnet.json' in files)
+        # a group's data files come along: cpk reads cv.pdb, the plots Data/...
+        r = _post(base + '/api/example?t=' + tok, {'name': 'vision/cpk.wnet.json'})
+        folder = httpd.app.sessions[r['session']].folder
+        check(os.path.isfile(os.path.join(folder, 'cv.pdb')))
+        r = _post(base + '/api/example?t=' + tok, {'name': 'vision_matplotlib/Plot.wnet.json'})
+        check(os.path.isfile(os.path.join(httpd.app.sessions[r['session']].folder, 'Data', 'plot_data.dat')))
+        # only listed examples open
+        check('error' in _post(base + '/api/example?t=' + tok, {'name': 'vision/../../README.md'}))
+    finally:
+        httpd.shutdown()

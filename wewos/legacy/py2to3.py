@@ -95,7 +95,39 @@ def convert_code(code):
     return new, new != code
 
 
+_PIL = ('Image', 'ImageChops', 'ImageColor', 'ImageDraw', 'ImageEnhance', 'ImageFile',
+        'ImageFilter', 'ImageFont', 'ImageOps', 'ImagePalette', 'ImageStat', 'ImageTk')
+
+
+def _none_tests(src):
+    """x == None -> x is None, x != None -> x is not None (outside strings and
+    comments). With Numeric, an array compared to None was False; with numpy
+    it is an array of booleans, and `if a == None:` raises an error."""
+    try:
+        toks = list(tokenize.generate_tokens(io.StringIO(src).readline))
+    except (tokenize.TokenError, IndentationError, SyntaxError):
+        return src
+    edits = []
+    for i, t in enumerate(toks[:-1]):
+        if t.type == tokenize.OP and t.string in ('==', '!=') and \
+                toks[i + 1].type == tokenize.NAME and toks[i + 1].string == 'None':
+            edits.append((t.start, t.end, 'is' if t.string == '==' else 'is not'))
+    if not edits:
+        return src
+    lines = src.split('\n')
+    for (r0, c0), (r1, c1), new in reversed(edits):        # an operator is on one line
+        l = lines[r0 - 1]
+        pre = '' if c0 == 0 or l[c0 - 1] == ' ' else ' '
+        post = '' if c1 < len(l) and l[c1] == ' ' else ' '
+        lines[r0 - 1] = l[:c0] + pre + new + post + l[c1:]
+    return '\n'.join(lines)
+
+
 def _post(src):
+    src = _none_tests(src)
+    # PIL's modules moved into the PIL package (Pillow)
+    src = re.sub(r'^(\s*)import (%s)\s*$' % '|'.join(_PIL), r'\1from PIL import \2', src, flags=re.M)
+    src = re.sub(r'^(\s*)from (%s) import' % '|'.join(_PIL), r'\1from PIL.\2 import', src, flags=re.M)
     # map(None, a, b) is zip_longest in Python 3; 2to3 leaves it alone
     src = re.sub(r'\bmap\(None,\s*', '_zip_longest(', src)
     if '_zip_longest(' in src and 'import zip_longest' not in src:

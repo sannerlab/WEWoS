@@ -1,0 +1,227 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "MatPlotLib"
+ ],
+ "network": {
+  "name": "SaveFig",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "SinFunc",
+    "cls": "SinFunc",
+    "lib": "MatPlotLib",
+    "pos": [
+     40,
+     40
+    ],
+    "label": "SinFunc",
+    "widgets": {
+     "x0": 0.0,
+     "x1": 3.0,
+     "step": 0.01
+    },
+    "widgetOpts": {
+     "x0": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "x1": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "step": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n2",
+    "name": "Plot",
+    "cls": "PlotNE",
+    "lib": "MatPlotLib",
+    "pos": [
+     314,
+     62
+    ],
+    "label": "Plot",
+    "widgets": {
+     "lineStyle": "solid",
+     "color": "black",
+     "line_antialiased": 1,
+     "line_linewidth": 1,
+     "solid_joinstyle": "miter",
+     "solid_capstyle": "projecting",
+     "dash_capstyle": "butt",
+     "dash_joinstyle": "miter"
+    },
+    "widgetOpts": {
+     "lineStyle": {
+      "autoList": false
+     },
+     "color": {
+      "autoList": false
+     },
+     "line_linewidth": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "solid_joinstyle": {
+      "autoList": false
+     },
+     "solid_capstyle": {
+      "autoList": false
+     },
+     "dash_capstyle": {
+      "autoList": false
+     },
+     "dash_joinstyle": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n3",
+    "name": "Figure",
+    "cls": "MPLFigureNE",
+    "lib": "MatPlotLib",
+    "pos": [
+     659,
+     62
+    ],
+    "label": "Figure",
+    "widgets": {
+     "width": 8.125,
+     "height": 6.125,
+     "linewidth": 1,
+     "dpi": 80,
+     "nbRows": 1,
+     "nbColumns": 1,
+     "frameon": 1
+    },
+    "widgetOpts": {
+     "width": {
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "height": {
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "linewidth": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "dpi": {
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "nbRows": {
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "nbColumns": {
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n4",
+    "name": "SaveFig",
+    "cls": "SaveFig",
+    "lib": "MatPlotLib",
+    "pos": [
+     866,
+     62
+    ],
+    "label": "SaveFig",
+    "widgets": {
+     "fname": "plot1.png",
+     "dpi": 80,
+     "facecolor": "w",
+     "edgecolor": "w",
+     "orientation": "portrait",
+     "papertype": "None",
+     "format": "None"
+    },
+    "widgetOpts": {
+     "dpi": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "facecolor": {
+      "autoList": false
+     },
+     "edgecolor": {
+      "autoList": false
+     },
+     "orientation": {
+      "autoList": false
+     },
+     "papertype": {
+      "autoList": false
+     },
+     "format": {
+      "autoList": false
+     }
+    }
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n1",
+     "y"
+    ],
+    "to": [
+     "n2",
+     "y"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n2",
+     "plot"
+    ],
+    "to": [
+     "n3",
+     "plots"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n3",
+     "figure"
+    ],
+    "to": [
+     "n4",
+     "figure"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

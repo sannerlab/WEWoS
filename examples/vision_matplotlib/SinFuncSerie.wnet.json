@@ -1,0 +1,110 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "MatPlotLib",
+  "Standard"
+ ],
+ "network": {
+  "name": "SinFuncSerie",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "Plot",
+    "cls": "PlotNE",
+    "lib": "MatPlotLib",
+    "pos": [
+     597,
+     40
+    ],
+    "label": "Plot",
+    "widgets": {
+     "lineStyle": "solid",
+     "color": "black",
+     "line_antialiased": 1,
+     "line_linewidth": 1,
+     "solid_joinstyle": "miter",
+     "solid_capstyle": "projecting",
+     "dash_capstyle": "butt",
+     "dash_joinstyle": "miter"
+    },
+    "widgetOpts": {
+     "lineStyle": {
+      "autoList": false
+     },
+     "color": {
+      "autoList": false
+     },
+     "line_linewidth": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "solid_joinstyle": {
+      "autoList": false
+     },
+     "solid_capstyle": {
+      "autoList": false
+     },
+     "dash_capstyle": {
+      "autoList": false
+     },
+     "dash_joinstyle": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n2",
+    "name": "SinFuncSerie",
+    "cls": "SinFuncSerie",
+    "lib": "MatPlotLib",
+    "pos": [
+     40,
+     40
+    ],
+    "label": "SinFuncSerie"
+   },
+   {
+    "id": "n3",
+    "name": "iterate",
+    "cls": "Iterate",
+    "lib": "Standard",
+    "pos": [
+     230,
+     40
+    ],
+    "label": "iterate",
+    "widgets": {
+     "stopOnFailure": 0
+    }
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n2",
+     "X"
+    ],
+    "to": [
+     "n3",
+     "listToLoopOver"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n3",
+     "oneItem"
+    ],
+    "to": [
+     "n1",
+     "y"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

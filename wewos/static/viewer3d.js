@@ -154,7 +154,7 @@ const VIEW3D = (() => {
     panel.querySelector('.vhead').addEventListener('click', async e => {
       const a = e.target.dataset && e.target.dataset.a;
       if(!a) return;
-      if(a === 'fit' && rec.be){ rec.be.fit(); setTimeout(() => sendView(rec), 300); }
+      if(a === 'fit' && rec.be){ rec.be.fit(); setTimeout(() => sendView(rec, true), 300); }
       if(a === 'look'){ const l = panel.querySelector('.vlook'); l.hidden = !l.hidden; e.target.classList.toggle('on', !l.hidden); showLook(rec); }
       if(a === 'png' && rec.be){ const url = await rec.be.png(); const l = document.createElement('a');
         l.href = url; l.download = (n ? n.name : 'viewer') + '.png'; l.click(); }
@@ -170,9 +170,17 @@ const VIEW3D = (() => {
         raf = requestAnimationFrame(() => { if(rec.be && div.clientHeight > 0) rec.be.resize(); });
       }).observe(div);
     }
-    let t = null;
-    div.addEventListener('pointerup', () => { clearTimeout(t); t = setTimeout(() => { if(rec.be){ rec.be.interacted(); sendView(rec); } }, 400); });
-    div.addEventListener('wheel', () => { clearTimeout(t); t = setTimeout(() => sendView(rec), 600); }, {passive: true});
+    /* the view is sent when the mouse lets go (and every 300 ms while it
+       drags): it is saved with the network, and it is a redraw for the nodes
+       connected to the Viewer's redraw output (One Redraw -> Grab Image) */
+    let t = null, last = 0;
+    div.addEventListener('pointerup', () => { clearTimeout(t); t = setTimeout(() => { if(rec.be){ rec.be.interacted(); sendView(rec, true); } }, 400); });
+    div.addEventListener('pointermove', e => {
+      if(!e.buttons || !rec.be) return;
+      const now = performance.now();
+      if(now - last > 300){ last = now; sendView(rec, true); }
+    });
+    div.addEventListener('wheel', () => { clearTimeout(t); t = setTimeout(() => sendView(rec, true), 600); }, {passive: true});
     return rec;
   }
   /* layout of the viewers: null (divider), 'vmax' (whole column), 'vfull' (window) */
@@ -266,13 +274,14 @@ const VIEW3D = (() => {
       rec.panel.querySelectorAll('.lookms [data-e]').forEach(el => { el.checked = !!rec.be.effect(el.dataset.e); });
   }
 
-  function sendView(rec){
+  // redraw: the view was moved with the mouse (the Viewer's redraw output fires)
+  function sendView(rec, redraw){
     if(!rec.be) return;
     try {
       const view = rec.be.getView();
       if(!view) return;
       rec.cameras[rec.kind] = view;
-      cb.edit('viewer_view', {node: rec.id, view, renderer: rec.kind});
+      cb.edit('viewer_view', {node: rec.id, view, renderer: rec.kind, redraw: !!redraw});
     } catch(e) {}
   }
 

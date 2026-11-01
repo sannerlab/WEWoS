@@ -1,6 +1,6 @@
 # WEWoS: Vision visual programming on the web
 
-WEWoS ports Vision, the visual programming environment of MGLTools, to the web.
+WEWoS ports Vision, the visual programming environment of MGLTools (first presented as ViPEr in 2002, see [History](#history)), to the web.
 - **Server:** a Python 3 port of the NetworkEditor/Vision engine runs on a local server.
 - **Browser:** draws the network editor and the 3D viewers, which replace DejaVu. Each viewer draws with [3Dmol.js](https://3dmol.csb.pitt.edu) (the default) or [Mol\*](https://molstar.org) (ambient occlusion, shadows, depth of field, illumination), switched in the viewer's header.
 
@@ -28,9 +28,9 @@ To use it from another machine, forward the port: `ssh -L 8767:127.0.0.1:8767 ho
 - **Edit a node's code:** use the panel's *Edit code…* or double-click the node. The compute function's arguments are the input ports.
 - **Add ports:** *Add a port* in the panel adds an input or output port. A Generic node plus your own ports and code is a new node.
 - **Macros:** select nodes, then right-click > *Group into a macro*. Double-click a macro to open its network in a tab. Inside it, connect to port `new` of the input or output node to add a macro port.
-- **3D viewing:** a Viewer node opens a 3D panel, drawn with 3Dmol.js or Mol\* (the menu in the panel's header). Drag the divider under it to make it taller, use ⇕ to give it the whole column, or ⤢ to fill the window (Esc to come back); the splitter left of the column makes it wider. Click an atom or shape and the Viewer's `lastPick` output carries what you clicked to the connected nodes, for example *Picked Atom*.
+- **3D viewing:** a Viewer node opens a 3D panel, drawn with 3Dmol.js or Mol\* (the menu in the panel's header). Drag the divider under it to make it taller, use ⇕ to give it the whole column, or ⤢ to fill the window (Esc to come back); the splitter left of the column makes it wider. Click an atom or shape and the Viewer's `lastPick` output carries what you clicked to the connected nodes, for example *Picked Atom*. Rotating or zooming the view fires its `redraw` output, as DejaVu's redraws did, so a *One Redraw* → *Grab Image* chain follows the view (see *ViPEr paper figure 1*).
 - **Files:** File > Save writes `<name>.wnet.json` in the network's folder. *Open network* reads one back. *Download* gets the network or the whole folder.
-- **Examples:** File > *Open an example…*. *poliovirus capsid* fetches PDB 2PLV, builds a coarse surface of one protomer and draws it 60 times with the file's icosahedral matrices, in a Mol\* viewer (it needs the RCSB the first time; the file is then cached in the network folder).
+- **Examples:** File > *Open an example…*. *poliovirus capsid* fetches PDB 2PLV, builds a coarse surface of one protomer and draws it 60 times with the file's icosahedral matrices, in a Mol\* viewer (it needs the RCSB the first time; the file is then cached in the network folder). Two more groups are the examples that came with MGLTools Vision, converted with the importer (`examples/make_vision_examples.py`): *Vision examples* (cpk, icos, image filters, and *ViPEr paper figure 1*, the network of figure 1 of the 2002 paper, see [History](#history)) and the 44 *Vision matplotlib examples*, with their data files.
 
 ## Libraries
 
@@ -76,7 +76,8 @@ wewos/geom.py             geometry without OpenGL (what DejaVu geometries were t
 wewos/legacy/             py2to3 conversion and the *_net.py importer
 wewos/server.py, session.py, page.py, static/   the web server and page (static/viewer3d.js: the viewer
                           panels; view3dmol.js and viewmolstar.js: the two renderers)
-examples/                 example networks (make_examples.py rebuilds them)
+examples/                 example networks (make_examples.py rebuilds them); vision/ and
+                          vision_matplotlib/: Vision's examples (make_vision_examples.py)
 tests/                    bin/wewos test
 ```
 
@@ -93,6 +94,16 @@ Some things changed:
   - DejaVu textures, volume rendering, stereo and clip planes.
 
 Node code runs on the server with your rights, as it did in Vision. The server listens on 127.0.0.1 only, and the token in the URL keeps other users of the machine out.
+
+## History
+
+Vision began as **ViPEr**, a Visual Programming Environment for Python, written by Michel Sanner, Daniel Stoffler and Arthur Olson in the Molecular Graphics Lab of The Scripps Research Institute. It was presented at the 10th International Python Conference (February 2002), where it received the best paper award:
+
+> Michel F. Sanner, Daniel Stoffler, Arthur J. Olson. *ViPEr, a Visual Programming Environment for Python.* 10th International Python Conference, 2002. <https://legacy.python.org/workshops/2002-02/papers/10/index.htm>
+
+It was later renamed Vision, because of a name conflict at Scripps with VIPER, the Virus Particle Explorer of Charles Brooks's lab, and distributed with MGLTools, with NetworkEditor as its engine.
+
+The paper describes the design WEWoS keeps: nodes that wrap Python functions, ports colored and shaped by data type, any Python object flowing on connections, data-driven breadth-first scheduling, widgets bound to input ports, macros, libraries of nodes (Standard, Imaging, MolKit, symserv), and networks saved as Python code, which is why Vision's `*_net.py` files can be read here. The network of the paper's figure 1 (crambin's MSMS surface, transparent, over its atoms with radii scaled by a dial and colored by their x coordinate, and the viewer's picture grabbed and contour-filtered) runs here as the example *ViPEr paper figure 1*; its icosahedral capsid built with symserv is close to the *icos* example.
 
 ## Licences
 

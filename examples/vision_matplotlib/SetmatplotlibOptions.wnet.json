@@ -1,0 +1,134 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "MatPlotLib"
+ ],
+ "network": {
+  "name": "SetmatplotlibOptions",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "Set Matplotlib options",
+    "cls": "MatPlotLibOptions",
+    "lib": "MatPlotLib",
+    "pos": [
+     40,
+     150
+    ],
+    "label": "Set Matplotlib options",
+    "widgets": {
+     "matplotlibOptions": "{'edgecolor': 'indigo', 'ytick.color': 'darkgreen', 'figpatch_facecolor': 'lightsalmon', 'facecolor': 'gold', 'figpatch_linewidth': 1.0, 'markeredgewidth': 6.888888888888878, 'xtick.color': 'darkgreen', 'gridlinewidth': 4.694444444444437, 'gridlinestyle': '--', 'figpatch_edgecolor': 'white', 'gridcolor': 'firebrick', 'gridOn': 1, 'ytick.labelsize': 19.250000000000046, 'xtick.labelsize': 17.388888888888907, 'linewidth': 5.444444444444439, 'anchor': 'C'}"
+    }
+   },
+   {
+    "id": "n2",
+    "name": "SinFunc",
+    "cls": "SinFunc",
+    "lib": "MatPlotLib",
+    "pos": [
+     40,
+     40
+    ],
+    "label": "SinFunc",
+    "widgets": {
+     "x0": 0.0,
+     "x1": 3.0,
+     "step": 0.01
+    },
+    "widgetOpts": {
+     "x0": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "x1": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "step": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n3",
+    "name": "Plot",
+    "cls": "PlotNE",
+    "lib": "MatPlotLib",
+    "pos": [
+     314,
+     62
+    ],
+    "label": "Plot",
+    "widgets": {
+     "lineStyle": "solid",
+     "color": "black",
+     "line_antialiased": 1,
+     "line_linewidth": 1,
+     "solid_joinstyle": "miter",
+     "solid_capstyle": "projecting",
+     "dash_capstyle": "butt",
+     "dash_joinstyle": "miter"
+    },
+    "widgetOpts": {
+     "lineStyle": {
+      "autoList": false
+     },
+     "color": {
+      "autoList": false
+     },
+     "line_linewidth": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "solid_joinstyle": {
+      "autoList": false
+     },
+     "solid_capstyle": {
+      "autoList": false
+     },
+     "dash_capstyle": {
+      "autoList": false
+     },
+     "dash_joinstyle": {
+      "autoList": false
+     }
+    }
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n2",
+     "y"
+    ],
+    "to": [
+     "n3",
+     "y"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n1",
+     "matplotlibOptions"
+    ],
+    "to": [
+     "n3",
+     "drawAreaDef"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

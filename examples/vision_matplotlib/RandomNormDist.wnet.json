@@ -1,0 +1,101 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "MatPlotLib"
+ ],
+ "network": {
+  "name": "RandomNormDist",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "RandNormDist",
+    "cls": "RandNormDist",
+    "lib": "MatPlotLib",
+    "pos": [
+     40,
+     40
+    ],
+    "label": "RandNormDist",
+    "widgets": {
+     "mu": 100.0,
+     "sigma": 15.0,
+     "npts": 10000
+    },
+    "widgetOpts": {
+     "mu": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "sigma": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "npts": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n2",
+    "name": "Histogram",
+    "cls": "HistogramNE",
+    "lib": "MatPlotLib",
+    "pos": [
+     355,
+     40
+    ],
+    "label": "Histogram",
+    "widgets": {
+     "bins": 10,
+     "normed": 1,
+     "patch_antialiased": 1,
+     "patch_linewidth": 1,
+     "patch_edgecolor": "black",
+     "patch_facecolor": "blue"
+    },
+    "widgetOpts": {
+     "bins": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "patch_linewidth": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "patch_edgecolor": {
+      "autoList": false
+     },
+     "patch_facecolor": {
+      "autoList": false
+     }
+    }
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n1",
+     "data"
+    ],
+    "to": [
+     "n2",
+     "values"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

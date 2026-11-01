@@ -24,6 +24,8 @@ DEJAVU = {
     'GeomContainer': ('3D Visualization', 'GeomContainer', {}, {}),
     'GroupGeomsNE': ('3D Visualization', 'GeomContainer', {'*': 'geoms'}, {'*': 'geomContainer'}),
     'GeomOptions': ('3D Visualization', 'GeomOptions', {}, {}),
+    'ColorMapNE': ('3D Visualization', 'ColorMap', {}, {'mappedColors': 'colors'}),
+    'OneRedraw': ('3D Visualization', 'OneRedraw', {}, {}),
 }
 
 MOLKIT = {
@@ -31,7 +33,8 @@ MOLKIT = {
     'NodeSelector': ('Molecules', 'NodeSelector', {}, {'nodes': 'selection'}),
     'AtomsProperty': ('Molecules', 'AtomsProperty', {}, {}),
     'AssignRadii': ('Molecules', 'AssignRadii', {'molecules': 'atoms'}, {'molecules': 'atoms'}),
-    'AtomsAsCPK': ('Molecules', 'AtomsAsCPK', {}, {}),
+    'AtomsAsCPK': ('Molecules', 'AtomsAsCPK', {}, {'CPK': 'spheres'}),
+    'GetMSMStriangles': ('Molecules', 'GetMSMStriangles', {}, {}),
     'AtomsAsSticks': ('Molecules', 'AtomsAsSticks', {}, {}),
     'AtomsAsMSMS': ('Molecules', 'AtomsAsMSMS', {'probe_radius': 'probeRadius'},
                     {'MSMS': 'surface'}),
@@ -55,7 +58,16 @@ PACKAGES = (
 )
 
 # ports renamed between MGLTools versions, for classes that keep their names
-RENAMES = {('Volume', 'BoundingBox'): ({}, {'geom': 'Grid3DBB'})}
+RENAMES = {('Volume', 'BoundingBox'): ({}, {'geom': 'Grid3DBB'}),
+           # the 2007 TablePlot
+           ('MatPlotLib', 'TablePlotNE'): ({'rowlabels': 'rowLabels', 'columnlabels': 'colLabels',
+                                            'rowcolors': 'rowColors', 'columncolors': 'colColors'}, {})}
+
+# classes Vision dropped (matplotlib removed the functions they called): the
+# class that took their place, with the same ports
+ALIASES = {('MatPlotLib', 'ScatterClassicNE'): 'ScatterNE',
+           ('MatPlotLib', 'PcolorClassicNE'): 'PcolorNE',
+           ('MatPlotLib', 'Spy2NE'): 'SpyNE'}
 
 # libraries whose node classes keep their names here
 SAME_NAMES = {'symserv': 'SymServer', 'volume': 'Volume', 'matplotlib': 'MatPlotLib',
@@ -85,9 +97,10 @@ def lookup(module, cls, libname=None):
     if fam in SAME_NAMES:
         from wewos.engine import get_library
         lib = SAME_NAMES[fam]
-        if cls in get_library(lib).nodeClassFromName:
+        new = ALIASES.get((lib, cls), cls)
+        if new in get_library(lib).nodeClassFromName:
             inmap, outmap = RENAMES.get((lib, cls), ({}, {}))
-            return (lib, cls, inmap, outmap)
+            return (lib, new, inmap, outmap)
         return None
     return None
 

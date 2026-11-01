@@ -1,0 +1,291 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "MatPlotLib"
+ ],
+ "network": {
+  "name": "MergeText",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "RandNormDist",
+    "cls": "RandNormDist",
+    "lib": "MatPlotLib",
+    "pos": [
+     384,
+     40
+    ],
+    "label": "RandNormDist",
+    "widgets": {
+     "mu": 100.0,
+     "sigma": 15.0,
+     "npts": 10000
+    },
+    "widgetOpts": {
+     "mu": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "sigma": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "npts": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n2",
+    "name": "Histogram",
+    "cls": "HistogramNE",
+    "lib": "MatPlotLib",
+    "pos": [
+     699,
+     66
+    ],
+    "label": "Histogram",
+    "widgets": {
+     "bins": 10,
+     "normed": 1,
+     "patch_antialiased": 1,
+     "patch_linewidth": 1,
+     "patch_edgecolor": "black",
+     "patch_facecolor": "blue"
+    },
+    "widgetOpts": {
+     "bins": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "patch_linewidth": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "patch_edgecolor": {
+      "autoList": false
+     },
+     "patch_facecolor": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n3",
+    "name": "Text",
+    "cls": "Text",
+    "lib": "MatPlotLib",
+    "pos": [
+     40,
+     45
+    ],
+    "label": "Text",
+    "widgets": {
+     "posx": 0.583333333333,
+     "posy": 0.902777777778,
+     "textlabel": "BAR MIDDLE",
+     "rotation": 0.0,
+     "horizontalalignment": "center",
+     "verticalalignment": "center"
+    },
+    "widgetOpts": {
+     "posx": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "posy": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "rotation": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "horizontalalignment": {
+      "autoList": false
+     },
+     "verticalalignment": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n4",
+    "name": "MergeText",
+    "cls": "MPLMergeTextNE",
+    "lib": "MatPlotLib",
+    "pos": [
+     384,
+     158
+    ],
+    "label": "MergeText"
+   },
+   {
+    "id": "n5",
+    "name": "Text",
+    "cls": "Text",
+    "lib": "MatPlotLib",
+    "pos": [
+     40,
+     163
+    ],
+    "label": "Text",
+    "widgets": {
+     "posx": 0.419444444444,
+     "posy": 0.65,
+     "textlabel": "BAR LEFT",
+     "rotation": 90.0,
+     "horizontalalignment": "center",
+     "verticalalignment": "top"
+    },
+    "widgetOpts": {
+     "posx": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "posy": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "rotation": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "horizontalalignment": {
+      "autoList": false
+     },
+     "verticalalignment": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n6",
+    "name": "Text",
+    "cls": "Text",
+    "lib": "MatPlotLib",
+    "pos": [
+     40,
+     281
+    ],
+    "label": "Text",
+    "widgets": {
+     "posx": 0.294444444444,
+     "posy": 0.127777777778,
+     "textlabel": "BAR END",
+     "rotation": 45.0,
+     "horizontalalignment": "center",
+     "verticalalignment": "center"
+    },
+    "widgetOpts": {
+     "posx": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "posy": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "rotation": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "horizontalalignment": {
+      "autoList": false
+     },
+     "verticalalignment": {
+      "autoList": false
+     }
+    }
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n1",
+     "data"
+    ],
+    "to": [
+     "n2",
+     "values"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n3",
+     "drawAreaDef"
+    ],
+    "to": [
+     "n4",
+     "textlist"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n4",
+     "drawAreaDef"
+    ],
+    "to": [
+     "n2",
+     "drawAreaDef"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n5",
+     "drawAreaDef"
+    ],
+    "to": [
+     "n4",
+     "textlist"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n6",
+     "drawAreaDef"
+    ],
+    "to": [
+     "n4",
+     "textlist"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

@@ -47,6 +47,9 @@ MAX_UPLOAD = 512 << 20
 
 STATIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
 EXAMPLES = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'examples')
+# titles of the example folders (examples/<folder>/)
+EXAMPLE_GROUPS = {'vision': 'Vision examples (MGLTools)',
+                  'vision_matplotlib': 'Vision matplotlib examples (MGLTools)'}
 DOCS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'docs')
 STATIC_TYPES = {'.js': 'application/javascript', '.css': 'text/css', '.txt': 'text/plain',
                 '.svg': 'image/svg+xml', '.png': 'image/png'}
@@ -179,16 +182,27 @@ class App(object):
         return d
 
     def examples(self):
+        """The example networks: examples/*.wnet.json, then one group per
+        sub-folder holding networks (examples/vision/...)."""
         out = []
-        for f in sorted(os.listdir(EXAMPLES)) if os.path.isdir(EXAMPLES) else []:
-            if f.endswith('.wnet.json'):
-                try:
-                    with open(os.path.join(EXAMPLES, f)) as fh:
-                        d = json.load(fh)
-                    out.append({'file': f, 'name': d['network'].get('name') or f,
-                                'nodes': len(d['network'].get('nodes', []))})
-                except (OSError, ValueError, KeyError):
-                    pass
+        if not os.path.isdir(EXAMPLES):
+            return {'examples': out}
+        groups = [('', 'WEWoS')] + [
+            (d, EXAMPLE_GROUPS.get(d, d)) for d in sorted(os.listdir(EXAMPLES))
+            if os.path.isdir(os.path.join(EXAMPLES, d)) and d != 'data'
+            and any(f.endswith('.wnet.json') for f in os.listdir(os.path.join(EXAMPLES, d)))]
+        for sub, title in groups:
+            folder = os.path.join(EXAMPLES, sub)
+            for f in sorted(os.listdir(folder), key=str.lower):
+                if f.endswith('.wnet.json'):
+                    try:
+                        with open(os.path.join(folder, f)) as fh:
+                            d = json.load(fh)
+                        out.append({'file': sub + '/' + f if sub else f, 'group': title,
+                                    'name': d['network'].get('name') or f,
+                                    'nodes': len(d['network'].get('nodes', []))})
+                    except (OSError, ValueError, KeyError):
+                        pass
         return {'examples': out}
 
     def example(self, name):
@@ -200,10 +214,23 @@ class App(object):
             raise Refused('no example %r' % name)
         with open(os.path.join(EXAMPLES, name)) as fh:
             data = json.load(fh)
-        s = self.new(data['network'].get('name') or name.split('.')[0])
-        src = os.path.join(EXAMPLES, 'data')
-        if os.path.isdir(src):
-            shutil.copytree(src, os.path.join(s.folder, 'data'))
+        s = self.new(data['network'].get('name') or os.path.basename(name).split('.')[0])
+        sub = os.path.dirname(name)
+        if not sub:
+            src = os.path.join(EXAMPLES, 'data')
+            if os.path.isdir(src):
+                shutil.copytree(src, os.path.join(s.folder, 'data'))
+        else:
+            # a group's examples read the files next to them (cv.pdb, Data/...)
+            folder = os.path.join(EXAMPLES, sub)
+            for f in os.listdir(folder):
+                p = os.path.join(folder, f)
+                if f.endswith('.wnet.json'):
+                    continue
+                if os.path.isdir(p):
+                    shutil.copytree(p, os.path.join(s.folder, f))
+                else:
+                    shutil.copy(p, os.path.join(s.folder, f))
         report = s.load(data)
         d = s.state()
         d['report'] = report

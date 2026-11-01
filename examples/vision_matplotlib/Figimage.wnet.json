@@ -1,0 +1,179 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "Standard",
+  "MatPlotLib"
+ ],
+ "network": {
+  "name": "Figimage",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "Image.open(in1)",
+    "cls": "Eval",
+    "lib": "Standard",
+    "pos": [
+     764,
+     40
+    ],
+    "label": "eval",
+    "widgets": {
+     "command": "Image.open(in1)",
+     "importString": ""
+    },
+    "code": "def doit(self, command, importString, in1):\n    from PIL import Image\n    if len(command) == 0:\n        return\n    else:\n        if len(command)>15:\n            self.rename(command[:15]+'...')\n        else:\n            self.rename(command)\n        # in1 is known in the scope of the eval function\n        result = eval(command)\n        self.outputData(result=result)\n"
+   },
+   {
+    "id": "n2",
+    "name": "File Browser",
+    "cls": "FileBrowserNE",
+    "lib": "Standard",
+    "pos": [
+     40,
+     84
+    ],
+    "label": "File Browser",
+    "widgets": {
+     "filename": "Data/image.jpg"
+    },
+    "widgetOpts": {
+     "filename": {
+      "filetypes": [],
+      "title": "Select file"
+     }
+    }
+   },
+   {
+    "id": "n3",
+    "name": "Cast",
+    "cls": "Cast",
+    "lib": "Standard",
+    "pos": [
+     449,
+     84
+    ],
+    "label": "Cast",
+    "widgets": {
+     "newtype": "str"
+    },
+    "widgetOpts": {
+     "newtype": {
+      "choices": [
+       "2Darray",
+       "MPLAxes",
+       "MPLDrawArea",
+       "MPLFigure",
+       "None",
+       "NumericArray",
+       "Old None",
+       "array",
+       "boolean",
+       "colorRGB",
+       "colorfloat3or4",
+       "colorsRGB",
+       "coord2",
+       "coord3",
+       "coordinates3D",
+       "dict",
+       "faceIndices",
+       "float",
+       "image",
+       "indice2",
+       "indice2+",
+       "indice3or4",
+       "instancemat",
+       "int",
+       "list",
+       "normal3",
+       "normals3D",
+       "str",
+       "string",
+       "tkcolor",
+       "triggerIn",
+       "triggerOut",
+       "tuple",
+       "vector"
+      ],
+      "fixedChoices": 0,
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n4",
+    "name": "Figimage",
+    "cls": "FigImageNE",
+    "lib": "MatPlotLib",
+    "pos": [
+     1114,
+     40
+    ],
+    "label": "Figimage",
+    "widgets": {
+     "cmap": "jet",
+     "imaspect": "equal",
+     "interpolation": "bilinear",
+     "origin": "lower",
+     "alpha": 1.0
+    },
+    "widgetOpts": {
+     "cmap": {
+      "autoList": false
+     },
+     "imaspect": {
+      "autoList": false
+     },
+     "interpolation": {
+      "autoList": false
+     },
+     "origin": {
+      "autoList": false
+     },
+     "alpha": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n2",
+     "filename"
+    ],
+    "to": [
+     "n3",
+     "data"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n3",
+     "result"
+    ],
+    "to": [
+     "n1",
+     "in1"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n1",
+     "result"
+    ],
+    "to": [
+     "n4",
+     "data"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

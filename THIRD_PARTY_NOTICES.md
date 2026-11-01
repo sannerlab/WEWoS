@@ -20,6 +20,15 @@ analysis of large biomolecular structures. *Nucleic Acids Research* 49(W1):W431-
 
 ## MGLTools (ported code)
 
+`examples/vision/` and `examples/vision_matplotlib/` are the example networks distributed with
+MGLTools Vision (`Vision/doc/Examples`; Michel Sanner, Daniel Stoffler, Sowjanya Karnati,
+Guillaume Vareille, TSRI), converted by `examples/make_vision_examples.py`, with their data files
+(1crn.pdb, cv.pdb, chain-4.pdb, matplotlib/Data/*.dat), under the MGLTools license.
+`wewos/libs/radii_patterns.py` is MolKit's table of atom radii (Michel F. Sanner, TSRI 2000;
+the radii of MSMS's pdb_to_xyzr), MGLTools license. The "Lena" photograph
+of those examples (lena.jpg) is not redistributed: `image.jpg`, a rendering made with WEWoS,
+takes its place.
+
 `wewos/engine/` (datatypes, ports, nodes, network scheduler, macros, node libraries) is a
 Python 3 port of MGLTools NetworkEditor and Vision, and `wewos/libs/standard.py` of
 Vision/StandardNodes.py. Original authors: Michel Sanner and Daniel Stoffler, The Scripps

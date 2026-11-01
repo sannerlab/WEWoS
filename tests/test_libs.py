@@ -373,3 +373,62 @@ def test_capsid_example_loads():
     eq(v.renderer, 'molstar')
     blur = [x for x in cm.macroNetwork.nodes if x.name == 'UT Blur'][0]
     eq(blur.inputPortByName['Xdim'].widget.get(), 48)
+
+
+def test_vision_examples_run():
+    """Every example converted from MGLTools Vision runs (each in a copy of
+    its group's data); see examples/make_vision_examples.py."""
+    import sys
+    sys.path.insert(0, os.path.join(os.path.dirname(DATA), '..', 'examples'))
+    import make_vision_examples as mve
+    here = os.path.join(os.path.dirname(DATA), '..', 'examples')
+    n = 0
+    for group in ('vision', 'vision_matplotlib'):
+        folder = os.path.join(here, group)
+        for f in sorted(os.listdir(folder)):
+            if f.endswith('.wnet.json'):
+                res = mve.run(os.path.join(folder, f), folder)
+                check(res.startswith('ran'), (f, res))
+                n += 1
+    check(n >= 45, n)
+
+
+def test_viper_figure_nodes():
+    """The nodes the ViPEr paper's figure 1 needs: MolKit radii, property
+    expressions, MSMS with radii and its triangles, CPK with radii and colors,
+    a color map, and One Redraw firing the node on its trigger."""
+    import numpy
+    mk, vz, std = (get_library(x) for x in ('Molecules', '3D Visualization', 'Standard'))
+    rd, ar, ap, ax = (mk.instantiate(label=x) for x in ('Read Molecule', 'Assign Radii',
+                                                         'Extract Atom Property', 'Extract Atom Property'))
+    ms, tri = mk.instantiate(label='MSMS'), mk.instantiate(label='MSMS triang.')
+    cpk, poly, cm = mk.instantiate(label='CPK'), vz.instantiate(label='IndPolygons'), vz.instantiate(label='Color Map')
+    v, one, pr = vz.instantiate(label='Viewer'), vz.instantiate(label='One Redraw'), std.instantiate(label='Pass')
+    n = net(rd, ar, ap, ax, ms, tri, cpk, poly, cm, v, one, pr)
+    rd.inputPortByName['filename'].widget.set(os.path.join(DATA, '1crn.pdb'), run=False)
+    ap.inputPortByName['propertyName'].widget.set('radius', run=False)
+    ax.inputPortByName['propertyName'].widget.set('coords[0]', run=False)
+    for a, b, p1, p2 in ((rd, ar, 'mol', 'atoms'), (ar, ap, 'atoms', 'atoms'), (ar, ax, 'atoms', 'atoms'),
+                         (ar, ms, 'atoms', 'atoms'), (ap, ms, 'propertyValues', 'radii'),
+                         (ms, tri, 'surface', 'MSMS'), (tri, poly, 'vertices', 'coords'),
+                         (tri, poly, 'indices', 'indices'), (tri, poly, 'vnormals', 'vnormals'),
+                         (ax, cm, 'propertyValues', 'values'), (ar, cpk, 'atoms', 'atoms'),
+                         (ap, cpk, 'propertyValues', 'radii'), (cm, cpk, 'colors', 'colors'),
+                         (cpk, v, 'spheres', 'geometries'), (poly, v, 'indexedPolygons', 'geometries'),
+                         (v, one, 'redraw', 'trigger')):
+        n.connectNodes(a, b, p1, p2)
+    n.specialConnectNodes(one, pr, 'trigger', 'runNode')
+    n.run(n.rootNodes)
+    bad = [(x.name, x.status) for x in n.nodes if x.status != 'done' and x is not pr]
+    eq(bad, [])
+    # MolKit's united radii (MSMS's table): N 1.70, CA 2.00, C 1.74 for crambin's first residue
+    r = ar.outputPortByName['radii'].data
+    check(numpy.allclose(r[:3], [1.70, 2.00, 1.74]), r[:4])
+    x = ax.outputPortByName['propertyValues'].data
+    eq(len(x), 327)
+    g = {d['name']: d for d in v.geomsJSON()}
+    eq(g['CPK']['type'], 'spheres')                      # radii given: spheres of those radii
+    check('radii' in g['CPK'] and 'colors' in g['CPK'])
+    check(any(d['type'] == 'mesh' for d in g.values()), list(g))
+    # One Redraw's trigger ran Pass (which stops: nothing feeds its input); never run, it would be idle
+    check(pr.status in ('done', 'stopped'), pr.status)

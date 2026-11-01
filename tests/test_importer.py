@@ -129,3 +129,52 @@ def test_imported_networks_and_library_macros_flow_left_to_right():
     _left_to_right(net, loops_ok=True)
     # saving drops the flag: the positions are WEWoS's from then on
     check('layout' not in fileio.to_dict(net)['network'])
+
+
+def test_old_code_none_tests_pil_imports_and_signatures():
+    from wewos.legacy.importer import fit_signature
+    new, changed = py2to3.convert_code(
+        'def doit(self, x, y):\n    import Image\n    if x==None or y != None:  # x==None\n'
+        '        s = "a == None"\n')
+    check(changed)
+    check('from PIL import Image' in new)
+    check('if x is None or y is not None:  # x==None' in new)       # comments and strings kept
+    check('"a == None"' in new)
+    # an older Eval code takes fewer arguments than the node has ports
+    eq(fit_signature('def doit(self, command, in1):\n    return 1\n', ['command', 'importString', 'in1']),
+       'def doit(self, command, importString, in1):\n    return 1\n')
+    code = 'def doit(self, a, zz):\n    pass\n'                       # not a subset: kept as is
+    eq(fit_signature(code, ['a', 'b']), code)
+
+
+def test_matplotlib_classic_nodes_and_old_port_names():
+    from wewos.legacy import classmap
+    eq(classmap.lookup('Vision.matplotlibNodes', 'ScatterClassicNE')[:2], ('MatPlotLib', 'ScatterNE'))
+    eq(classmap.lookup('Vision.matplotlibNodes', 'Spy2NE')[:2], ('MatPlotLib', 'SpyNE'))
+    lib, cls, inmap, outmap = classmap.lookup('Vision.matplotlibNodes', 'TablePlotNE')
+    eq(classmap.map_port(inmap, 'rowlabels'), 'rowLabels')
+
+
+def test_saved_viewer_opacity_and_unknown_settings():
+    src = ('from DejaVu.VisionInterface.DejaVuNodes import vizlib\n'
+           'from DejaVu.VisionInterface.GeometryNodes import IndexedPolygonsNE\n'
+           'from DejaVu.VisionInterface.DejaVuNodes import ColorMapNE\n'
+           'p = IndexedPolygonsNE(constrkw={}, name="surf", library=vizlib)\n'
+           'masterNet.addNode(p, 10, 10)\n'
+           'p.inputPortByName["geoms"].widget.set("surf", run=False)\n'
+           'c = ColorMapNE(constrkw={}, name="Color Map", library=vizlib)\n'
+           'masterNet.addNode(c, 10, 90)\n'
+           'c.inputPortByName["colorMap"].widget.set({"mini": 0}, run=False)\n'
+           'def loadSavedStates_Viewer_1(self=None, event=None):\n'
+           '    obj = self.vi.FindObjectByName("root|surf")\n'
+           '    if obj:\n'
+           '        state = {"opacity": [0.5], "shininess": [50.0]}\n'
+           '        apply(obj.materials[GL.GL_FRONT].Set, (), state)\n'
+           '        state = {"opacity": [1.0]}\n'
+           '        apply(obj.materials[GL.GL_BACK].Set, (), state)\n')
+    data, report = importer.import_source(src, 'x_net.py')
+    nodes = {e['name']: e for e in data['network']['nodes']}
+    eq(nodes['surf']['widgets']['opacity'], 0.5)           # the front material
+    eq((nodes['Color Map']['lib'], nodes['Color Map']['cls']), ('3D Visualization', 'ColorMap'))
+    check('colorMap' not in (nodes['Color Map'].get('widgets') or {}))
+    check(any('colorMap' in w for w in report.warnings))

@@ -1,0 +1,289 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "Standard",
+  "MatPlotLib"
+ ],
+ "network": {
+  "name": "PcolorMesh",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "ReadTable",
+    "cls": "ReadTable",
+    "lib": "Standard",
+    "pos": [
+     40,
+     364
+    ],
+    "label": "ReadTable",
+    "widgets": {
+     "filename": "Data/pcolormesh_data_3.dat",
+     "numOfTopLinesToJump": 0,
+     "numOfBottomLinesToJump": 0,
+     "sep": ",",
+     "datatype": "float"
+    },
+    "widgetOpts": {
+     "filename": {
+      "filetypes": []
+     },
+     "numOfTopLinesToJump": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 360.0,
+      "precision": 2
+     },
+     "numOfBottomLinesToJump": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 360.0,
+      "precision": 2
+     },
+     "datatype": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n2",
+    "name": "As Type",
+    "cls": "AsType",
+    "lib": "Standard",
+    "pos": [
+     389,
+     298
+    ],
+    "label": "As Type",
+    "widgets": {
+     "dtype": "float16"
+    },
+    "widgetOpts": {
+     "dtype": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n3",
+    "name": "ReadTable",
+    "cls": "ReadTable",
+    "lib": "Standard",
+    "pos": [
+     40,
+     40
+    ],
+    "label": "ReadTable",
+    "widgets": {
+     "filename": "Data/pcolormesh_data_1.dat",
+     "numOfTopLinesToJump": 0,
+     "numOfBottomLinesToJump": 0,
+     "sep": ",",
+     "datatype": "float"
+    },
+    "widgetOpts": {
+     "filename": {
+      "filetypes": []
+     },
+     "numOfTopLinesToJump": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 360.0,
+      "precision": 2
+     },
+     "numOfBottomLinesToJump": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 360.0,
+      "precision": 2
+     },
+     "datatype": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n4",
+    "name": "ReadTable",
+    "cls": "ReadTable",
+    "lib": "Standard",
+    "pos": [
+     40,
+     202
+    ],
+    "label": "ReadTable",
+    "widgets": {
+     "filename": "Data/pcolormesh_data_2.dat",
+     "numOfTopLinesToJump": 0,
+     "numOfBottomLinesToJump": 0,
+     "sep": ",",
+     "datatype": "float"
+    },
+    "widgetOpts": {
+     "filename": {
+      "filetypes": []
+     },
+     "numOfTopLinesToJump": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 360.0,
+      "precision": 2
+     },
+     "numOfBottomLinesToJump": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 360.0,
+      "precision": 2
+     },
+     "datatype": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n5",
+    "name": "As Type",
+    "cls": "AsType",
+    "lib": "Standard",
+    "pos": [
+     389,
+     106
+    ],
+    "label": "As Type",
+    "widgets": {
+     "dtype": "float16"
+    },
+    "widgetOpts": {
+     "dtype": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n6",
+    "name": "As Type",
+    "cls": "AsType",
+    "lib": "Standard",
+    "pos": [
+     389,
+     202
+    ],
+    "label": "As Type",
+    "widgets": {
+     "dtype": "float16"
+    },
+    "widgetOpts": {
+     "dtype": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n7",
+    "name": "PcolorMesh",
+    "cls": "PcolorMeshNE",
+    "lib": "MatPlotLib",
+    "pos": [
+     740,
+     180
+    ],
+    "label": "PcolorMesh",
+    "widgets": {
+     "cmap": "jet",
+     "shading": "faceted",
+     "alpha": 1.0
+    },
+    "widgetOpts": {
+     "cmap": {
+      "autoList": false
+     },
+     "shading": {
+      "autoList": false
+     },
+     "alpha": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n1",
+     "data"
+    ],
+    "to": [
+     "n2",
+     "inArrayList"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n3",
+     "data"
+    ],
+    "to": [
+     "n5",
+     "inArrayList"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n4",
+     "data"
+    ],
+    "to": [
+     "n6",
+     "inArrayList"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n5",
+     "outArray"
+    ],
+    "to": [
+     "n7",
+     "arraylistx"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n6",
+     "outArray"
+    ],
+    "to": [
+     "n7",
+     "arraylisty"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n2",
+     "outArray"
+    ],
+    "to": [
+     "n7",
+     "arraylistz"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

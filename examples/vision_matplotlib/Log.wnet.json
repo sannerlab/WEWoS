@@ -1,0 +1,202 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "MatPlotLib",
+  "Standard"
+ ],
+ "network": {
+  "name": "Log",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "LogCurve",
+    "cls": "LogCurveNE",
+    "lib": "MatPlotLib",
+    "pos": [
+     704,
+     107
+    ],
+    "label": "LogCurve",
+    "widgets": {
+     "logCurve": "logbasex",
+     "basex": 10.0,
+     "basey": 10.0
+    },
+    "widgetOpts": {
+     "logCurve": {
+      "autoList": false
+     },
+     "basex": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "basey": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n2",
+    "name": "ReadTable",
+    "cls": "ReadTable",
+    "lib": "Standard",
+    "pos": [
+     40,
+     68
+    ],
+    "label": "ReadTable",
+    "widgets": {
+     "filename": "Data/log_data.dat",
+     "numOfTopLinesToJump": 0,
+     "numOfBottomLinesToJump": 0,
+     "sep": ",",
+     "datatype": "float"
+    },
+    "widgetOpts": {
+     "filename": {
+      "filetypes": []
+     },
+     "numOfTopLinesToJump": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 360.0,
+      "precision": 2
+     },
+     "numOfBottomLinesToJump": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 360.0,
+      "precision": 2
+     },
+     "datatype": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n3",
+    "name": "Set Matplotlib options",
+    "cls": "MatPlotLibOptions",
+    "lib": "MatPlotLib",
+    "pos": [
+     389,
+     232
+    ],
+    "label": "Set Matplotlib options",
+    "widgets": {
+     "matplotlibOptions": "{'gridOn': 1, 'whichgrid': 'minor'}"
+    }
+   },
+   {
+    "id": "n4",
+    "name": "Index",
+    "cls": "Index",
+    "lib": "Standard",
+    "pos": [
+     389,
+     40
+    ],
+    "label": "Index",
+    "widgets": {
+     "index": 0
+    },
+    "widgetOpts": {
+     "index": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n5",
+    "name": "Index",
+    "cls": "Index",
+    "lib": "Standard",
+    "pos": [
+     389,
+     136
+    ],
+    "label": "Index",
+    "widgets": {
+     "index": 1
+    },
+    "widgetOpts": {
+     "index": {
+      "min": null,
+      "max": 1,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n3",
+     "matplotlibOptions"
+    ],
+    "to": [
+     "n1",
+     "drawAreaDef"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n2",
+     "data"
+    ],
+    "to": [
+     "n4",
+     "data"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n2",
+     "data"
+    ],
+    "to": [
+     "n5",
+     "data"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n4",
+     "data"
+    ],
+    "to": [
+     "n1",
+     "x"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n5",
+     "data"
+    ],
+    "to": [
+     "n1",
+     "y"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

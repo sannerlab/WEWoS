@@ -1,0 +1,191 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "MatPlotLib",
+  "Standard"
+ ],
+ "network": {
+  "name": "ColorBar",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "Contour",
+    "cls": "ContourNE",
+    "lib": "MatPlotLib",
+    "pos": [
+     740,
+     40
+    ],
+    "label": "Contour",
+    "widgets": {
+     "contour": "filledcontour",
+     "length_colors": "10",
+     "cmap": "prism",
+     "colors": "lightsalmon",
+     "origin": "upper",
+     "linewidth": 1,
+     "hold": 0
+    },
+    "widgetOpts": {
+     "contour": {
+      "autoList": false
+     },
+     "cmap": {
+      "autoList": false
+     },
+     "colors": {
+      "autoList": false
+     },
+     "origin": {
+      "autoList": false
+     },
+     "linewidth": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n2",
+    "name": "ReadTable",
+    "cls": "ReadTable",
+    "lib": "Standard",
+    "pos": [
+     40,
+     84
+    ],
+    "label": "ReadTable",
+    "widgets": {
+     "filename": "Data/contour_data_3.dat",
+     "numOfTopLinesToJump": 0,
+     "numOfBottomLinesToJump": 0,
+     "sep": ",",
+     "datatype": "float"
+    },
+    "widgetOpts": {
+     "filename": {
+      "filetypes": []
+     },
+     "numOfTopLinesToJump": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 360.0,
+      "precision": 2
+     },
+     "numOfBottomLinesToJump": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 360.0,
+      "precision": 2
+     },
+     "datatype": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n3",
+    "name": "As Type",
+    "cls": "AsType",
+    "lib": "Standard",
+    "pos": [
+     389,
+     84
+    ],
+    "label": "As Type",
+    "widgets": {
+     "dtype": "float16"
+    },
+    "widgetOpts": {
+     "dtype": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n4",
+    "name": "ColorBar",
+    "cls": "ColorBarNE",
+    "lib": "MatPlotLib",
+    "pos": [
+     1106,
+     40
+    ],
+    "label": "ColorBar",
+    "widgets": {
+     "extend": "neither",
+     "orientation": "vertical",
+     "spacing": "uniform",
+     "shrink": 1.0
+    },
+    "widgetOpts": {
+     "extend": {
+      "autoList": false
+     },
+     "orientation": {
+      "autoList": false
+     },
+     "spacing": {
+      "autoList": false
+     },
+     "shrink": {
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n2",
+     "data"
+    ],
+    "to": [
+     "n3",
+     "inArrayList"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n3",
+     "outArray"
+    ],
+    "to": [
+     "n1",
+     "arraylistz"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n1",
+     "axes"
+    ],
+    "to": [
+     "n4",
+     "plot"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n1",
+     "contour"
+    ],
+    "to": [
+     "n4",
+     "current_image"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

@@ -1,0 +1,659 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "MatPlotLib",
+  "Standard"
+ ],
+ "network": {
+  "name": "Log-semixy",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "LogCurve",
+    "cls": "LogCurveNE",
+    "lib": "MatPlotLib",
+    "pos": [
+     704,
+     201
+    ],
+    "label": "LogCurve",
+    "widgets": {
+     "logCurve": "logbasex",
+     "basex": 10.0,
+     "basey": 10.0
+    },
+    "widgetOpts": {
+     "logCurve": {
+      "autoList": false
+     },
+     "basex": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "basey": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n2",
+    "name": "ReadTable",
+    "cls": "ReadTable",
+    "lib": "Standard",
+    "pos": [
+     40,
+     226
+    ],
+    "label": "ReadTable",
+    "widgets": {
+     "filename": "Data/log_all_data.dat",
+     "numOfTopLinesToJump": 0,
+     "numOfBottomLinesToJump": 0,
+     "sep": ",",
+     "datatype": "float"
+    },
+    "widgetOpts": {
+     "filename": {
+      "filetypes": []
+     },
+     "numOfTopLinesToJump": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 360.0,
+      "precision": 2
+     },
+     "numOfBottomLinesToJump": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 360.0,
+      "precision": 2
+     },
+     "datatype": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n3",
+    "name": "Set Matplotlib options",
+    "cls": "MatPlotLibOptions",
+    "lib": "MatPlotLib",
+    "pos": [
+     389,
+     498
+    ],
+    "label": "Set Matplotlib options",
+    "widgets": {
+     "matplotlibOptions": "{'gridOn': 1, 'whichgrid': 'major'}"
+    }
+   },
+   {
+    "id": "n4",
+    "name": "Index",
+    "cls": "Index",
+    "lib": "Standard",
+    "pos": [
+     389,
+     306
+    ],
+    "label": "Index",
+    "widgets": {
+     "index": 0
+    },
+    "widgetOpts": {
+     "index": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n5",
+    "name": "Index",
+    "cls": "Index",
+    "lib": "Standard",
+    "pos": [
+     389,
+     114
+    ],
+    "label": "Index",
+    "widgets": {
+     "index": 1
+    },
+    "widgetOpts": {
+     "index": {
+      "min": null,
+      "max": 3,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n6",
+    "name": "Semilogx",
+    "cls": "SemilogxNE",
+    "lib": "MatPlotLib",
+    "pos": [
+     704,
+     341
+    ],
+    "label": "Semilogx",
+    "widgets": {
+     "basex": 10.0
+    },
+    "widgetOpts": {
+     "basex": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n7",
+    "name": "Semilogy",
+    "cls": "SemilogyNE",
+    "lib": "MatPlotLib",
+    "pos": [
+     704,
+     459
+    ],
+    "label": "Semilogy",
+    "widgets": {
+     "basey": 10.0
+    },
+    "widgetOpts": {
+     "basey": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n8",
+    "name": "Index",
+    "cls": "Index",
+    "lib": "Standard",
+    "pos": [
+     389,
+     402
+    ],
+    "label": "Index",
+    "widgets": {
+     "index": 2
+    },
+    "widgetOpts": {
+     "index": {
+      "min": null,
+      "max": 3,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n9",
+    "name": "Index",
+    "cls": "Index",
+    "lib": "Standard",
+    "pos": [
+     389,
+     210
+    ],
+    "label": "Index",
+    "widgets": {
+     "index": 3
+    },
+    "widgetOpts": {
+     "index": {
+      "min": null,
+      "max": 3,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n10",
+    "name": "Draw Area",
+    "cls": "MPLDrawAreaNE",
+    "lib": "MatPlotLib",
+    "pos": [
+     389,
+     646
+    ],
+    "label": "Draw Area",
+    "widgets": {
+     "left": 0.1,
+     "bottom": 0.683333333333,
+     "width": 0.8,
+     "height": 0.286111111111,
+     "frameon": 1,
+     "hold": 0,
+     "title": "",
+     "xlabel": "",
+     "ylabel": "Semilogy",
+     "xlimit": "",
+     "ylimit": "",
+     "xticklabels": 1,
+     "yticklabels": 1,
+     "axison": 1,
+     "autoscaleon": 1
+    },
+    "widgetOpts": {
+     "left": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "bottom": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "width": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "height": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n11",
+    "name": "Draw Area",
+    "cls": "MPLDrawAreaNE",
+    "lib": "MatPlotLib",
+    "pos": [
+     389,
+     572
+    ],
+    "label": "Draw Area",
+    "widgets": {
+     "left": 0.1,
+     "bottom": 0.397222222222,
+     "width": 0.8,
+     "height": 0.25,
+     "frameon": 1,
+     "hold": 0,
+     "title": "",
+     "xlabel": "",
+     "ylabel": "Semilogx",
+     "xlimit": "",
+     "ylimit": "",
+     "xticklabels": 1,
+     "yticklabels": 1,
+     "axison": 1,
+     "autoscaleon": 1
+    },
+    "widgetOpts": {
+     "left": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "bottom": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "width": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "height": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n12",
+    "name": "Figure",
+    "cls": "MPLFigureNE",
+    "lib": "MatPlotLib",
+    "pos": [
+     1038,
+     333
+    ],
+    "label": "Figure",
+    "widgets": {
+     "width": 8.125,
+     "height": 6.125,
+     "linewidth": 1,
+     "dpi": 80,
+     "nbRows": 1,
+     "nbColumns": 1,
+     "frameon": 1
+    },
+    "widgetOpts": {
+     "width": {
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "height": {
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "linewidth": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "dpi": {
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "nbRows": {
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "nbColumns": {
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n13",
+    "name": "Draw Area",
+    "cls": "MPLDrawAreaNE",
+    "lib": "MatPlotLib",
+    "pos": [
+     389,
+     40
+    ],
+    "label": "Draw Area",
+    "widgets": {
+     "left": 0.1,
+     "bottom": 0.1,
+     "width": 0.8,
+     "height": 0.25,
+     "frameon": 1,
+     "hold": 0,
+     "title": "",
+     "xlabel": "",
+     "ylabel": "Log",
+     "xlimit": "",
+     "ylimit": "",
+     "xticklabels": 1,
+     "yticklabels": 1,
+     "axison": 1,
+     "autoscaleon": 1
+    },
+    "widgetOpts": {
+     "left": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "bottom": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "width": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "height": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n3",
+     "matplotlibOptions"
+    ],
+    "to": [
+     "n1",
+     "drawAreaDef"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n2",
+     "data"
+    ],
+    "to": [
+     "n4",
+     "data"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n2",
+     "data"
+    ],
+    "to": [
+     "n5",
+     "data"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n4",
+     "data"
+    ],
+    "to": [
+     "n1",
+     "x"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n5",
+     "data"
+    ],
+    "to": [
+     "n1",
+     "y"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n2",
+     "data"
+    ],
+    "to": [
+     "n8",
+     "data"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n2",
+     "data"
+    ],
+    "to": [
+     "n9",
+     "data"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n8",
+     "data"
+    ],
+    "to": [
+     "n7",
+     "y"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n4",
+     "data"
+    ],
+    "to": [
+     "n6",
+     "x"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n4",
+     "data"
+    ],
+    "to": [
+     "n7",
+     "x"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n9",
+     "data"
+    ],
+    "to": [
+     "n6",
+     "y"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n10",
+     "drawAreaDef"
+    ],
+    "to": [
+     "n7",
+     "drawAreaDef"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n11",
+     "drawAreaDef"
+    ],
+    "to": [
+     "n6",
+     "drawAreaDef"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n6",
+     "axes"
+    ],
+    "to": [
+     "n12",
+     "plots"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n7",
+     "axes"
+    ],
+    "to": [
+     "n12",
+     "plots"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n13",
+     "drawAreaDef"
+    ],
+    "to": [
+     "n1",
+     "drawAreaDef"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n1",
+     "axes"
+    ],
+    "to": [
+     "n12",
+     "plots"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n3",
+     "matplotlibOptions"
+    ],
+    "to": [
+     "n7",
+     "drawAreaDef"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n3",
+     "matplotlibOptions"
+    ],
+    "to": [
+     "n6",
+     "drawAreaDef"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

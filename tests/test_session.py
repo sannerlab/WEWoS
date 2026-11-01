@@ -99,3 +99,26 @@ def test_viewer_renderer_edit():
         check(False, 'an unknown renderer was accepted')
     except Exception as e:
         check('pymol' in str(e))
+
+
+def test_view_change_is_a_redraw():
+    """Moving the view on the page fires the Viewer's redraw output, as
+    DejaVu's redraws did in Vision: One Redraw then triggers its node."""
+    from wewos.engine import get_library
+    s = _session()
+    vz, std = get_library('3D Visualization'), get_library('Standard')
+    v, one, pr = vz.instantiate(label='Viewer'), vz.instantiate(label='One Redraw'), std.instantiate(label='Pass')
+    for i, n in enumerate((v, one, pr)):
+        s.net.addNode(n, 40 + 200 * i, 40)
+    s.net.connectNodes(v, one, 'redraw', 'trigger')
+    s.net.connectNodes(v, pr, 'viewer', 'in1')
+    s.net.specialConnectNodes(one, pr, 'trigger', 'runNode')
+    s.run('hardrun')
+    runs = lambda since: [e for e in s.net.bus.since(since)['events']
+                          if e['kind'] == 'node_status' and e.get('node') == pr.id and e.get('status') == 'done']
+    seq = s.net.bus.seq
+    eq(s.edit('viewer_view', {'node': v.id, 'view': [1, 2], 'redraw': True})['redraw'], True)
+    check(runs(seq), 'Pass did not run after the view moved')
+    seq = s.net.bus.seq
+    s.edit('viewer_view', {'node': v.id, 'view': [3, 4]})          # saving the view only
+    eq(runs(seq), [])

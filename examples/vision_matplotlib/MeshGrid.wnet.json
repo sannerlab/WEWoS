@@ -1,0 +1,207 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "MatPlotLib"
+ ],
+ "network": {
+  "name": "MeshGrid",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "MeshGrid",
+    "cls": "MeshGrid",
+    "lib": "MatPlotLib",
+    "pos": [
+     314,
+     84
+    ],
+    "label": "MeshGrid"
+   },
+   {
+    "id": "n2",
+    "name": "SinFunc",
+    "cls": "SinFunc",
+    "lib": "MatPlotLib",
+    "pos": [
+     40,
+     95
+    ],
+    "label": "SinFunc",
+    "widgets": {
+     "x0": 3.0,
+     "x1": 7.0,
+     "step": 0.01
+    },
+    "widgetOpts": {
+     "x0": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "x1": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "step": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n3",
+    "name": "BivariateNormal",
+    "cls": "BivariateNormal",
+    "lib": "MatPlotLib",
+    "pos": [
+     494,
+     84
+    ],
+    "label": "BivariateNormal",
+    "widgets": {
+     "sigmax": 4.43,
+     "sigmay": 4.71,
+     "mux": 5.0,
+     "muy": 5.0,
+     "sigmaxy": 0.0
+    },
+    "widgetOpts": {
+     "sigmax": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "sigmay": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "mux": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "muy": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "sigmaxy": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n4",
+    "name": "Contour",
+    "cls": "ContourNE",
+    "lib": "MatPlotLib",
+    "pos": [
+     706,
+     40
+    ],
+    "label": "Contour",
+    "widgets": {
+     "contour": "default",
+     "length_colors": "10",
+     "cmap": "jet",
+     "colors": "black",
+     "origin": "upper",
+     "linewidth": 1,
+     "hold": 0
+    },
+    "widgetOpts": {
+     "contour": {
+      "autoList": false
+     },
+     "cmap": {
+      "autoList": false
+     },
+     "colors": {
+      "autoList": false
+     },
+     "origin": {
+      "autoList": false
+     },
+     "linewidth": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n2",
+     "x"
+    ],
+    "to": [
+     "n1",
+     "x"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n2",
+     "x"
+    ],
+    "to": [
+     "n1",
+     "y"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n1",
+     "X"
+    ],
+    "to": [
+     "n3",
+     "arraylist1"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n1",
+     "Y"
+    ],
+    "to": [
+     "n3",
+     "arraylist2"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n3",
+     "z"
+    ],
+    "to": [
+     "n4",
+     "arraylistz"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

@@ -1,0 +1,191 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "Standard",
+  "MatPlotLib"
+ ],
+ "network": {
+  "name": "Semilogy",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "ReadTable",
+    "cls": "ReadTable",
+    "lib": "Standard",
+    "pos": [
+     40,
+     64
+    ],
+    "label": "ReadTable",
+    "widgets": {
+     "filename": "Data/semilogy_data.dat",
+     "numOfTopLinesToJump": 0,
+     "numOfBottomLinesToJump": 0,
+     "sep": ",",
+     "datatype": "float"
+    },
+    "widgetOpts": {
+     "filename": {
+      "filetypes": []
+     },
+     "numOfTopLinesToJump": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 360.0,
+      "precision": 2
+     },
+     "numOfBottomLinesToJump": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 360.0,
+      "precision": 2
+     },
+     "datatype": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n2",
+    "name": "Set Matplotlib options",
+    "cls": "MatPlotLibOptions",
+    "lib": "MatPlotLib",
+    "pos": [
+     389,
+     232
+    ],
+    "label": "Set Matplotlib options",
+    "widgets": {
+     "matplotlibOptions": "{'gridcolor': 'black', 'gridOn': 1, 'whichgrid': 'minor', 'gridlinewidth': 0.2499999999999999}"
+    }
+   },
+   {
+    "id": "n3",
+    "name": "Semilogy",
+    "cls": "SemilogyNE",
+    "lib": "MatPlotLib",
+    "pos": [
+     704,
+     114
+    ],
+    "label": "Semilogy",
+    "widgets": {
+     "basey": 10.0
+    },
+    "widgetOpts": {
+     "basey": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n4",
+    "name": "Index",
+    "cls": "Index",
+    "lib": "Standard",
+    "pos": [
+     389,
+     40
+    ],
+    "label": "Index",
+    "widgets": {
+     "index": 0
+    },
+    "widgetOpts": {
+     "index": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n5",
+    "name": "Index",
+    "cls": "Index",
+    "lib": "Standard",
+    "pos": [
+     389,
+     136
+    ],
+    "label": "Index",
+    "widgets": {
+     "index": 1
+    },
+    "widgetOpts": {
+     "index": {
+      "min": null,
+      "max": 1,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n2",
+     "matplotlibOptions"
+    ],
+    "to": [
+     "n3",
+     "drawAreaDef"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n1",
+     "data"
+    ],
+    "to": [
+     "n4",
+     "data"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n1",
+     "data"
+    ],
+    "to": [
+     "n5",
+     "data"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n4",
+     "data"
+    ],
+    "to": [
+     "n3",
+     "x"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n5",
+     "data"
+    ],
+    "to": [
+     "n3",
+     "y"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

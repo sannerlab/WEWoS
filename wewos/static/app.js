@@ -670,7 +670,18 @@ async function examplesDialog(){
   if(d.error) return;
   const box = document.createElement('div');
   box.className = 'fb-list';
+  // one foldable section per group (WEWoS's own examples open)
+  const groups = new Map();
   d.examples.forEach(x => {
+    const g = x.group || 'WEWoS';
+    if(!groups.has(g)){
+      const sec = document.createElement('details');
+      sec.className = 'exgroup';
+      sec.open = groups.size === 0;
+      sec.innerHTML = '<summary></summary>';
+      box.append(sec);
+      groups.set(g, {sec, n: 0});
+    }
     const it = document.createElement('div');
     it.innerHTML = '&#128200; ' + esc(x.name) + '<span class=sz>' + x.nodes + ' nodes</span>';
     it.onclick = async () => {
@@ -678,8 +689,11 @@ async function examplesDialog(){
       const r = await api('api/example', {name: x.file});
       if(!r.error) loadSession(r.session);
     };
-    box.append(it);
+    const gr = groups.get(g);
+    gr.sec.append(it);
+    gr.n++;
   });
+  groups.forEach((gr, g) => { gr.sec.querySelector('summary').textContent = g + ' (' + gr.n + ')'; });
   modal('Examples', box);
 }
 async function newNetwork(){

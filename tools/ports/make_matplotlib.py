@@ -86,8 +86,11 @@ s = s.replace('.figurePatch', '.patch').replace('.axesPatch', '.patch')
 for old, new in (
         ("add_axes(self.axes.get_position(),polar=True,axisbg=axisbg)",
          "add_axes(self.axes.get_position(),polar=True,facecolor=axisbg)"),
+        # Vision's matplotlib flattened the values (numpy.histogram); matplotlib 3
+        # reads a table as one dataset per column (10,000 histograms for a row)
         ("self.axes.hist(values, bins=bins, normed=normed)",
-         "self.axes.hist(values, bins=bins, density=bool(normed))"),
+         "self.axes.hist(numpy.ravel(values) if numpy.ndim(values) > 1 else values,\n"
+         "                   bins=bins, density=bool(normed))"),
         ("self.axes.loglog(x,y,basex=basex)", "self.axes.loglog(x,y,base=basex)"),
         ("self.axes.loglog( x,y,basey=basey)", "self.axes.loglog( x,y,base=basey)"),
         ("self.axes.semilogx(x,y,basex=basex)", "self.axes.semilogx(x,y,base=basex)"),
@@ -99,6 +102,10 @@ for old, new in (
          "self.axes.bar(ind, data[row], width, bottom=yoff,\n"
          "                      color=rowColors[row] if rowColors else None)")):
     s = sub1(s, old, new)
+# x == None compared arrays element by element in Python 2's Numeric days it
+# was False; with numpy it is an array, whose truth value is an error
+s = re.sub(r'\s*==\s*None\b', ' is None', s)
+s = re.sub(r'\s*!=\s*None\b', ' is not None', s)
 # matplotlib.mlab.bivariate_normal was removed (matplotlib 3.1): the same formula
 BIVARIATE = '''def bivariate_normal(X, Y, sigmax=1.0, sigmay=1.0, mux=0.0, muy=0.0, sigmaxy=0.0):
     """Bivariate Gaussian distribution for equal shape X, Y (as the former

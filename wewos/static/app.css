@@ -199,6 +199,9 @@ textarea.w-text{width:100%;min-height:60px;font:11.5px ui-monospace,Menlo,monosp
 .fb-list div:hover{background:var(--hover)}
 .fb-list div.sel{background:var(--accent2)}
 .fb-list .sz{margin-left:auto;color:var(--dim);font-size:11px}
+.fb-list .exgroup>summary{padding:4px 8px;font-weight:600;cursor:pointer;background:var(--panel);
+  border-bottom:1px solid var(--line);position:sticky;top:0}
+.fb-list .exgroup>div{padding-left:18px}
 .report li{margin:2px 0}
 .libtable{width:100%;border-collapse:collapse}
 .libtable td{padding:6px 6px;border-bottom:1px solid var(--line);vertical-align:top}

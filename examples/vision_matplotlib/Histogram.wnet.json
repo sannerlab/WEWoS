@@ -1,0 +1,372 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "MatPlotLib",
+  "Standard"
+ ],
+ "network": {
+  "name": "Histogram",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "Histogram",
+    "cls": "HistogramNE",
+    "lib": "MatPlotLib",
+    "pos": [
+     704,
+     98
+    ],
+    "label": "Histogram",
+    "widgets": {
+     "bins": 50,
+     "normed": 1,
+     "patch_antialiased": 1,
+     "patch_linewidth": 1,
+     "patch_edgecolor": "black",
+     "patch_facecolor": "green"
+    },
+    "widgetOpts": {
+     "bins": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "patch_linewidth": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "patch_edgecolor": {
+      "autoList": false
+     },
+     "patch_facecolor": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n2",
+    "name": "Draw Area",
+    "cls": "MPLDrawAreaNE",
+    "lib": "MatPlotLib",
+    "pos": [
+     389,
+     328
+    ],
+    "label": "Draw Area",
+    "widgets": {
+     "left": 0.1,
+     "bottom": 0.1,
+     "width": 0.8,
+     "height": 0.8,
+     "frameon": 1,
+     "hold": 0,
+     "title": "Figure:",
+     "xlabel": "X",
+     "ylabel": "Y",
+     "xlimit": "",
+     "ylimit": "",
+     "xticklabels": 1,
+     "yticklabels": 1,
+     "axison": 1,
+     "autoscaleon": 1
+    },
+    "widgetOpts": {
+     "left": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "bottom": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "width": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "height": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n3",
+    "name": "ReadTable",
+    "cls": "ReadTable",
+    "lib": "Standard",
+    "pos": [
+     40,
+     140
+    ],
+    "label": "ReadTable",
+    "widgets": {
+     "filename": "Data/histogram_data_1.dat",
+     "numOfTopLinesToJump": 0,
+     "numOfBottomLinesToJump": 0,
+     "sep": ",",
+     "datatype": "float"
+    },
+    "widgetOpts": {
+     "filename": {
+      "filetypes": []
+     },
+     "numOfTopLinesToJump": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 360.0,
+      "precision": 2
+     },
+     "numOfBottomLinesToJump": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 360.0,
+      "precision": 2
+     },
+     "datatype": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n4",
+    "name": "Index",
+    "cls": "Index",
+    "lib": "Standard",
+    "pos": [
+     389,
+     40
+    ],
+    "label": "Index",
+    "widgets": {
+     "index": 0
+    },
+    "widgetOpts": {
+     "index": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n5",
+    "name": "Plot",
+    "cls": "PlotNE",
+    "lib": "MatPlotLib",
+    "pos": [
+     704,
+     238
+    ],
+    "label": "Plot",
+    "widgets": {
+     "lineStyle": "dashed",
+     "color": "red",
+     "line_antialiased": 1,
+     "line_linewidth": 1,
+     "solid_joinstyle": "miter",
+     "solid_capstyle": "projecting",
+     "dash_capstyle": "butt",
+     "dash_joinstyle": "miter"
+    },
+    "widgetOpts": {
+     "lineStyle": {
+      "autoList": false
+     },
+     "color": {
+      "autoList": false
+     },
+     "line_linewidth": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "solid_joinstyle": {
+      "autoList": false
+     },
+     "solid_capstyle": {
+      "autoList": false
+     },
+     "dash_capstyle": {
+      "autoList": false
+     },
+     "dash_joinstyle": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n6",
+    "name": "Index",
+    "cls": "Index",
+    "lib": "Standard",
+    "pos": [
+     389,
+     136
+    ],
+    "label": "Index",
+    "widgets": {
+     "index": 1
+    },
+    "widgetOpts": {
+     "index": {
+      "min": null,
+      "max": 2,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n7",
+    "name": "Index",
+    "cls": "Index",
+    "lib": "Standard",
+    "pos": [
+     389,
+     232
+    ],
+    "label": "Index",
+    "widgets": {
+     "index": 2
+    },
+    "widgetOpts": {
+     "index": {
+      "min": null,
+      "max": 2,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n8",
+    "name": "MultiPlot",
+    "cls": "MultiPlotNE",
+    "lib": "MatPlotLib",
+    "pos": [
+     1050,
+     168
+    ],
+    "label": "MultiPlot"
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n2",
+     "drawAreaDef"
+    ],
+    "to": [
+     "n1",
+     "drawAreaDef"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n3",
+     "data"
+    ],
+    "to": [
+     "n4",
+     "data"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n4",
+     "data"
+    ],
+    "to": [
+     "n1",
+     "values"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n3",
+     "data"
+    ],
+    "to": [
+     "n6",
+     "data"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n3",
+     "data"
+    ],
+    "to": [
+     "n7",
+     "data"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n7",
+     "data"
+    ],
+    "to": [
+     "n5",
+     "x"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n6",
+     "data"
+    ],
+    "to": [
+     "n5",
+     "y"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n1",
+     "plot"
+    ],
+    "to": [
+     "n8",
+     "multiplot"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n5",
+     "plot"
+    ],
+    "to": [
+     "n8",
+     "multiplot"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}
