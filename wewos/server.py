@@ -67,6 +67,7 @@ class App(object):
         self.libconf_path = os.path.join(self.outdir, 'libraries.json')
         self.libconf = self._read_libconf()
         self._startup_libraries()
+        self._nodeinfo = {}            # (library, label) -> node_info()
 
     # ---- libraries: loaded on demand, as in Vision ---------------------------------------
     def _read_libconf(self):
@@ -107,10 +108,38 @@ class App(object):
             k['startup'] = k['name'] in self.libconf['startup']
         return d
 
+    def node_info(self, lib, label):
+        """How a palette node looks before it is added (its label, color and
+        ports, with the widgets shown in the node): the page draws it while
+        it is dragged from the library to the network."""
+        key = (lib, label)
+        d = self._nodeinfo.get(key)
+        if d is None:
+            from .engine.library import get_library
+            from .engine.network import Network
+            net = Network('palette')            # a node gets its ports in a network
+            net.runOnNewData.value = False
+            try:
+                node = get_library(lib).instantiate(label=label)
+                net.addNode(node, 0, 0)
+            except Exception as e:
+                raise Refused('no node %r in %s: %s: %s' % (label, lib, type(e).__name__, e))
+            d = node.describe()
+            try:
+                net.deleteNodes([node])
+            except Exception:
+                pass
+            for k in ('id', 'pos', 'status', 'doc'):
+                d.pop(k, None)
+            d['label'] = d.get('label') or label
+            self._nodeinfo[key] = d
+        return d
+
     def load_library(self, body):
         """Load a library by name, or a module / .py file of the user's
         (remembered in libraries.json for the next sessions)."""
         from .engine import library
+        self._nodeinfo.clear()
         if body.get('module') or body.get('file'):
             src = {k: body[k].strip() for k in ('module', 'file') if body.get(k)}
             try:
@@ -340,6 +369,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._run(app.status)
         if u.path == '/api/libraries':
             return self._run(app.libraries)
+        if u.path == '/api/nodeinfo':
+            return self._run(lambda: app.node_info(g('lib'), g('label')))
         if u.path == '/api/sessions':
             return self._run(app.list_sessions)
         if u.path == '/api/session':

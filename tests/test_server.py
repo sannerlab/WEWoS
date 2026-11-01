@@ -189,3 +189,24 @@ def test_example_groups():
         check('error' in _post(base + '/api/example?t=' + tok, {'name': 'vision/../../README.md'}))
     finally:
         httpd.shutdown()
+
+
+def test_node_info_for_the_palette_drag():
+    # the page draws a palette node while it is dragged: its ports and the
+    # widgets shown in it, as the node will be once added
+    httpd, base, tok = _server()
+    try:
+        d = _get(base + '/api/nodeinfo?lib=Standard&label=Dial&t=' + tok)
+        eq(d['label'], 'Dial')
+        check(d['color'] and 'id' not in d and 'pos' not in d)
+        r = _post(base + '/api/new?t=' + tok, {})
+        a = _post(base + '/api/edit?t=' + tok, {'s': r['session'], 'op': 'add', 'lib': 'Standard',
+                                                 'label': 'Dial', 'pos': [10, 10]})['node']
+        eq([(p['name'], (p.get('widget') or {}).get('master')) for p in d['in']],
+           [(p['name'], (p.get('widget') or {}).get('master')) for p in a['in']])
+        eq([p['name'] for p in d['out']], [p['name'] for p in a['out']])
+        check(d['in'][0]['widget']['master'] == 'node')
+        check(_code(base + '/api/nodeinfo?lib=Standard&label=NoSuchNode&t=' + tok) == 400)
+        check(_code(base + '/api/nodeinfo?lib=Standard&label=Dial') == 403)
+    finally:
+        httpd.shutdown()

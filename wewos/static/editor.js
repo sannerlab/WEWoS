@@ -114,8 +114,16 @@ const ED = (() => {
   function drawNode(n){
     const g = geo[n.id] = layout(n);
     const old = gEls[n.id];
-    const el = S('g', {class: 'node', 'data-id': n.id, transform: `translate(${n.pos[0]},${n.pos[1]})`});
+    const el = nodeShape(n, g);
+    el.setAttribute('transform', `translate(${n.pos[0]},${n.pos[1]})`);
     nodeClasses(el, n);
+    if(old) gNodes.replaceChild(el, old); else gNodes.append(el);
+    gEls[n.id] = el;
+  }
+  // a node's picture; a ghost (a palette node dragged to the network) has no
+  // id and shows its widgets as empty boxes
+  function nodeShape(n, g, ghost){
+    const el = S('g', {class: 'node', 'data-id': n.id});
     const color = n.color || '#9aa4b8';
     el.append(S('rect', {class: 'body', x: 0, y: 0, rx: 6, width: g.w, height: g.h}));
     const head = S('path', {class: 'head', fill: color, opacity: 0.85,
@@ -137,6 +145,12 @@ const ED = (() => {
         s.append(ti);
         const l = S('text', {class: 'plabel', x: 9, y: y + 3.5}); l.textContent = r.p.name;
         el.append(l, s);
+      } else if(ghost){
+        const lw = r.p.widget.label === '' ? 0 : Math.min(tw(r.p.widget.label || r.p.name, 6), 70) + 6;
+        if(lw){ const l = S('text', {class: 'plabel', x: 8, y: y + 3.5}); l.textContent = r.p.widget.label || r.p.name; el.append(l); }
+        const ow = n.out && n.out[i] ? tw(n.out[i].name, 5.8) + 14 : 0;
+        el.append(S('rect', {class: 'wbox', x: 8 + lw, y: y - ROW / 2 + 3, rx: 3, height: ROW - 6,
+                             width: Math.max(20, g.w - 16 - lw - ow)}));
       } else {
         const fo = S('foreignObject', {x: 6, y: y - ROW / 2, width: g.w - 12 - (n.out && n.out[i] ? tw(n.out[i].name, 5.8) + 14 : 0), height: ROW});
         const div = document.createElementNS('http://www.w3.org/1999/xhtml', 'div');
@@ -170,11 +184,12 @@ const ED = (() => {
     if(n.progbar){
       el.append(S('rect', {class: 'prog', x: 0, y: g.h - 4, height: 3, width: g.w * (n.progress || 0)}));
     }
-    const tip = S('title');
-    tip.textContent = n.name + ' (' + (n.lib || '') + ' ' + n.cls + ')' + (n.unsupported ? '\nNOT AVAILABLE: ' + JSON.stringify(n.unsupported) : '');
-    head.append(tip);
-    if(old) gNodes.replaceChild(el, old); else gNodes.append(el);
-    gEls[n.id] = el;
+    if(!ghost){
+      const tip = S('title');
+      tip.textContent = n.name + ' (' + (n.lib || '') + ' ' + n.cls + ')' + (n.unsupported ? '\nNOT AVAILABLE: ' + JSON.stringify(n.unsupported) : '');
+      head.append(tip);
+    }
+    return el;
   }
   function nodeClasses(el, n){
     const c = ['node'];
@@ -456,15 +471,77 @@ const ED = (() => {
       else if(e.key === 'f'){ fit(); }
     });
     // drop a node from the palette
-    svg.addEventListener('dragover', e => { if(e.dataTransfer.types.includes('application/x-wewos-node')) e.preventDefault(); });
+    svg.addEventListener('dragover', e => {
+      if(!e.dataTransfer.types.includes('application/x-wewos-node')) return;
+      e.preventDefault(); e.dataTransfer.dropEffect = 'copy';
+    });
     svg.addEventListener('drop', e => {
       const raw = e.dataTransfer.getData('application/x-wewos-node');
       if(!raw) return;
       e.preventDefault();
       const d = JSON.parse(raw);
       const [x, y] = toWorld(e.clientX, e.clientY);
-      cb.edit('add', {net: NET.id, lib: d.lib, label: d.label, pos: [Math.round(x - 20), Math.round(y - 10)]});
+      cb.edit('add', {net: NET.id, lib: d.lib, label: d.label, pos: [Math.round(x - DROP[0]), Math.round(y - DROP[1])]});
     });
+  }
+
+  /* ------------------------------------------------------------ a palette node being dragged */
+  // The node is drawn under the cursor (the browser's own drag picture is
+  // hidden), at the network's zoom and where it will land: dimmed away from
+  // the network, solid with a dashed outline over it. Until the server has
+  // described its ports (app.js asks when the mouse goes down on the palette
+  // entry) it is an outline with its name.
+  const DROP = [20, 10];                     // the dropped node's corner, up-left of the cursor
+  const NOIMG = new Image();
+  NOIMG.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+  let GHOST = null;                          // {layer, g, d}
+  function ghostStart(d, ev){
+    ghostEnd();
+    try { ev.dataTransfer.setDragImage(NOIMG, 0, 0); } catch(e) {}
+    const layer = S('svg', {id: 'dragghost'}), g = S('g');
+    layer.append(g);
+    document.body.append(layer);
+    GHOST = {layer, g, d};
+    ghostDraw();
+    ghostMove(ev.clientX, ev.clientY, false);
+    document.addEventListener('dragover', ghostOver, true);
+    document.addEventListener('dragleave', ghostLeave, true);
+    document.addEventListener('drop', ghostEnd, true);
+    document.addEventListener('dragend', ghostEnd, true);
+  }
+  function ghostInfo(d, info){
+    if(GHOST && GHOST.d === d){ d.info = info; ghostDraw(); }
+  }
+  function ghostDraw(){
+    const d = GHOST.d, info = d.info || {in: [], out: []};
+    const n = Object.assign({}, info, {label: info.label || d.label, color: info.color || d.color});
+    const el = nodeShape(n, layout(n), true);
+    el.classList.add('ghost');
+    if(!d.info) el.classList.add('pending');
+    GHOST.g.replaceChildren(el);
+  }
+  function ghostMove(x, y, over){
+    const k = view.k;
+    GHOST.g.setAttribute('transform', `translate(${x - DROP[0] * k},${y - DROP[1] * k}) scale(${k})`);
+    GHOST.layer.classList.toggle('over', over);
+    GHOST.layer.style.display = '';
+  }
+  function ghostOver(e){
+    if(GHOST) ghostMove(e.clientX, e.clientY, svg.contains(e.target) && !!NET);
+  }
+  function ghostLeave(e){
+    // out of the window: hide it until the drag comes back
+    if(GHOST && !e.relatedTarget && (e.clientX <= 0 || e.clientY <= 0 ||
+                                     e.clientX >= innerWidth || e.clientY >= innerHeight))
+      GHOST.layer.style.display = 'none';
+  }
+  function ghostEnd(){
+    if(!GHOST) return;
+    GHOST.layer.remove(); GHOST = null;
+    document.removeEventListener('dragover', ghostOver, true);
+    document.removeEventListener('dragleave', ghostLeave, true);
+    document.removeEventListener('drop', ghostEnd, true);
+    document.removeEventListener('dragend', ghostEnd, true);
   }
   function markTargets(nid, io, info){
     svg.querySelectorAll('.port').forEach(p => {
@@ -485,5 +562,5 @@ const ED = (() => {
   function clearTargets(){ svg.querySelectorAll('.port.ok,.port.no').forEach(p => p.classList.remove('ok', 'no')); }
 
   return {init, setTypes, show, current, updateNode, statusOnly, progress, moveNode, removeNode,
-          addConn, removeConn, drawConn, selection, select, fit, center};
+          addConn, removeConn, drawConn, selection, select, fit, center, ghostStart, ghostInfo, ghostEnd};
 })();

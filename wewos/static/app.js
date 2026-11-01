@@ -199,6 +199,7 @@ async function loadLibraries(){
 }
 function applyCatalog(d){
   ST.libs = d.libraries; ST.types = d.types; ST.known = d.known || [];
+  for(const k in NODEINFO) delete NODEINFO[k];
   ED.setTypes(d.types);
   drawPalette($('search').value);
   // redraw the current network: ports of newly known types get their colors
@@ -252,6 +253,18 @@ async function librariesDialog(){
   };
 }
 $('m_libs').onclick = e => { e.stopPropagation(); librariesDialog(); };
+// how a palette node looks (its ports), asked once when the mouse goes down
+// on it, for the picture dragged to the network
+const NODEINFO = {};
+function nodeInfo(lib, label){
+  const k = lib + '\n' + label;
+  if(!NODEINFO[k]){
+    const q = 'api/nodeinfo?lib=' + encodeURIComponent(lib) + '&label=' + encodeURIComponent(label) + '&t=' + encodeURIComponent(T);
+    const forget = () => { delete NODEINFO[k]; return null; };
+    NODEINFO[k] = fetch(q).then(r => r.json()).then(d => d.error ? forget() : d, forget);
+  }
+  return NODEINFO[k];
+}
 const OPENCATS = new Set((() => { try { return JSON.parse(localStorage.getItem('wewos.cats') || '["Standard/Input"]'); } catch(e) { return []; } })());
 function saveCats(){ try { localStorage.setItem('wewos.cats', JSON.stringify([...OPENCATS])); } catch(e) {} }
 function drawPalette(q){
@@ -276,8 +289,13 @@ function drawPalette(q){
         const e = document.createElement('div');
         e.className = 'pnode'; e.textContent = n.label; e.title = n.doc || n.cls;
         e.draggable = true;
+        e.addEventListener('mousedown', () => nodeInfo(lib.name, n.label));
         e.addEventListener('dragstart', ev => {
           ev.dataTransfer.setData('application/x-wewos-node', JSON.stringify({lib: lib.name, label: n.label}));
+          ev.dataTransfer.effectAllowed = 'copy';
+          const d = {lib: lib.name, label: n.label, color: lib.color};
+          ED.ghostStart(d, ev);
+          nodeInfo(lib.name, n.label).then(info => { if(info) ED.ghostInfo(d, info); });
         });
         e.addEventListener('dblclick', () => {
           const [x, y] = ED.center();

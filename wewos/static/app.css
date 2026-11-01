@@ -153,6 +153,13 @@ body.vfull #viewers{position:fixed;inset:0;z-index:25;height:auto !important;bac
 .port.ok{stroke:var(--good);stroke-width:3}
 .port.no{opacity:.25}
 .plabel{font-size:10px;fill:var(--dim);pointer-events:none}
+/* a palette node dragged to the network */
+#dragghost{position:fixed;left:0;top:0;width:100vw;height:100vh;pointer-events:none;z-index:1000;overflow:visible;opacity:.45}
+#dragghost.over{opacity:.9}
+#dragghost .ghost{filter:drop-shadow(0 3px 6px rgba(0,0,0,.3))}
+#dragghost .ghost .body{stroke:var(--accent);stroke-width:1.5;stroke-dasharray:5 3}
+#dragghost .ghost.pending .body{fill-opacity:.5}
+#dragghost .wbox{fill:var(--panel);stroke:var(--nodeline);stroke-width:.8}
 .conn{fill:none;stroke-width:2.6;cursor:pointer}
 .conn.nb{stroke-dasharray:6 4}
 .conn.sel{stroke:var(--sel) !important;stroke-width:4}
