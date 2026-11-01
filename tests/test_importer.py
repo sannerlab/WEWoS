@@ -196,3 +196,17 @@ def test_vision_color_map_keeps_its_ramp():
     eq(fileio.from_dict(net, data), [])
     eq(net.nodes[0].inputPortByName['ramp'].widget.get(),
        {'ramp': [[0.0, 0.0, 1.0, 1.0], [1.0, 0.0, 0.0, 1.0]], 'mini': -3.0, 'maxi': 24.0, 'name': 'cmap'})
+
+
+def test_vision_color_map_legend_connects_to_the_viewer():
+    src = ('from DejaVu.VisionInterface.DejaVuNodes import vizlib\n'
+           'from DejaVu.VisionInterface.DejaVuNodes import ColorMapNE, Viewer\n'
+           'c = ColorMapNE(constrkw={}, name="Color Map", library=vizlib)\n'
+           'masterNet.addNode(c, 10, 10)\n'
+           'v = Viewer(constrkw={}, name="Viewer", library=vizlib)\n'
+           'masterNet.addNode(v, 10, 90)\n'
+           'masterNet.connectNodes(c, v, "legend", "geometries", blocking=True)\n')
+    data, report = importer.import_source(src, 'x_net.py')
+    net = Network('imported')
+    eq(fileio.from_dict(net, data), [])
+    eq([(c.port1.name, c.port2.name) for c in net.connections], [('legend', 'geometries')])

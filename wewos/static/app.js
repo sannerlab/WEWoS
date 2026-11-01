@@ -834,6 +834,7 @@ VIEW3D.init($('viewers'), {
   find: id => findNode(id)[1],
   edit: (op, a) => edit(op, a),
   status,
+  menu: (ev, items) => menu(ev, items),
 });
 (async function start(){
   await loadLibraries();

@@ -90,6 +90,15 @@ const V3DU = {
     for(const c of count.values()) if(c !== 2) return false;
     return true;
   },
+  // the color of a ramp at f in 0..1, interpolated between its entries (as the server maps values)
+  rampAt(ramp, f){
+    if(ramp.length === 1) return ramp[0].slice();
+    const x = Math.max(0, Math.min(1, f)) * (ramp.length - 1), i = Math.min(Math.floor(x), ramp.length - 2), t = x - i;
+    return [0, 1, 2, 3].map(j => {
+      const a = ramp[i][j] == null ? 1 : ramp[i][j], b = ramp[i + 1][j] == null ? 1 : ramp[i + 1][j];
+      return a * (1 - t) + b * t;
+    });
+  },
   // a segment takes the color of its first vertex
   segmentColors(seg, cols){
     if(!cols) return null;
@@ -143,10 +152,12 @@ const VIEW3D = (() => {
         '<label><input type=checkbox data-e=' + k + '> ' + esc(lab) + '</label>').join('') +
       '<span class=dim title="Mol*\'s settings: the sliders button in its view">more: Mol*\'s settings button (sliders) in the view</span>' +
       '</span></div>' +
-      '<div class=vbox></div><div class=vpick></div>';
+      '<div class=vbox><div class=vrender></div><div class=vlegends></div></div><div class=vpick></div>';
     box.append(panel);
-    const div = panel.querySelector('.vbox');
-    const rec = {panel, div, id, be: null, kind: null, geoms: new Map(), pickEl: panel.querySelector('.vpick'),
+    // the renderer draws in .vrender; color map legends are drawn above it, in .vlegends
+    const vbox = panel.querySelector('.vbox'), div = panel.querySelector('.vrender');
+    const rec = {panel, vbox, div, layer: panel.querySelector('.vlegends'), id, be: null, kind: null,
+                 geoms: new Map(), legends: new Map(), legendOpts: {}, pickEl: panel.querySelector('.vpick'),
                  rendering: Object.assign({}, RENDERING), canvas: null, cameras: {}, pending: Promise.resolve()};
     V[id] = rec;
     lookControls(rec);
@@ -157,9 +168,9 @@ const VIEW3D = (() => {
       if(!a) return;
       if(a === 'fit' && rec.be){ rec.be.fit(); setTimeout(() => sendView(rec, true), 300); }
       if(a === 'look'){ const l = panel.querySelector('.vlook'); l.hidden = !l.hidden; e.target.classList.toggle('on', !l.hidden); showLook(rec); }
-      if(a === 'png' && rec.be){ const url = await rec.be.png(); const l = document.createElement('a');
+      if(a === 'png' && rec.be){ const url = await pngWithLegends(rec); const l = document.createElement('a');
         l.href = url; l.download = (n ? n.name : 'viewer') + '.png'; l.click(); }
-      if(a === 'fold'){ div.hidden = !div.hidden; panel.classList.toggle('folded', div.hidden); }
+      if(a === 'fold'){ vbox.hidden = !vbox.hidden; panel.classList.toggle('folded', vbox.hidden); }
       if(a === 'max') setLayout(document.getElementById('center').classList.contains('vmax') ? null : 'vmax');
       if(a === 'full') setLayout(document.body.classList.contains('vfull') ? null : 'vfull');
     });
@@ -168,7 +179,7 @@ const VIEW3D = (() => {
       let raf = 0;
       new ResizeObserver(() => {
         cancelAnimationFrame(raf);
-        raf = requestAnimationFrame(() => { if(rec.be && div.clientHeight > 0) rec.be.resize(); });
+        raf = requestAnimationFrame(() => { if(rec.be && div.clientHeight > 0) rec.be.resize(); rec.legends.forEach(L => placeLegend(rec, L)); });
       }).observe(div);
     }
     /* the view is sent when the mouse lets go (and every 300 ms while it
@@ -216,9 +227,22 @@ const VIEW3D = (() => {
     if(rec.be.ready) rec.be.ready.then(() => showLook(rec), () => {});
     return rec.be;
   }
+  // a geometry: a color map legend goes to the layer above the view, the rest to the renderer
+  const isLegend = g => g && g.type === 'legend';
+  function put(rec, g){
+    rec.geoms.set(g.name, g);
+    if(isLegend(g)) setLegend(rec, g);
+    else rec.be.set(g);
+  }
+  function drop(rec, name){
+    const g = rec.geoms.get(name);
+    rec.geoms.delete(name);
+    if(isLegend(g)) removeLegend(rec, name);
+    else if(rec.be) rec.be.remove(name);
+  }
   // draw everything the viewer has with the current renderer (after creating it)
   async function redraw(rec){
-    rec.geoms.forEach(g => rec.be.set(g));
+    rec.geoms.forEach(g => { if(isLegend(g)) setLegend(rec, g); else rec.be.set(g); });
     const cam = rec.cameras[rec.kind];
     if(cam && rec.geoms.size) rec.be.setView(cam);
     await rec.be.flush();
@@ -276,6 +300,177 @@ const VIEW3D = (() => {
   }
 
   // redraw: the view was moved with the mouse (the Viewer's redraw output fires)
+  /* ---- color map legends (DejaVu's ColorMapLegend), over the 3D view ----
+     A legend geometry (from a Color Map node's legend output) is drawn on a
+     canvas in the layer above the view: the ramp, its range (or the color
+     map's labels) and its name. Drag it to move it; right-click it for its
+     orientation, number of labels, size, title and frame. Its place and look
+     are kept by the Viewer node (viewer_legend), as fractions of the view. */
+  const LEGEND = {vertical: true, labels: 5, size: 1, title: true, frame: true};
+  const legendOpts = (rec, name) => Object.assign({}, LEGEND, rec.legendOpts[name] || {});
+  function fmtNum(v){
+    if(v === 0) return '0';
+    const a = Math.abs(v);
+    return (a >= 1e4 || a < 1e-2) ? v.toExponential(2) : String(+v.toPrecision(4));
+  }
+  function setLegend(rec, g){
+    let L = rec.legends.get(g.name);
+    if(!g.visible){ if(L) removeLegend(rec, g.name); return; }
+    if(!L){
+      const el = document.createElement('canvas');
+      el.className = 'vlegend';
+      rec.layer.append(el);
+      L = {el, g, left: 0, top: 0, w: 0, h: 0};
+      rec.legends.set(g.name, L);
+      legendEvents(rec, L);
+    }
+    L.g = g;
+    drawLegend(rec, L);
+    placeLegend(rec, L);
+  }
+  function removeLegend(rec, name){
+    const L = rec.legends.get(name);
+    if(L){ L.el.remove(); rec.legends.delete(name); }
+  }
+  function drawLegend(rec, L){
+    const g = L.g, o = legendOpts(rec, g.name), s = Math.max(0.5, Math.min(2.5, o.size || 1));
+    const dark = V3DU.isDark(), fg = dark ? '#e6eaf2' : '#1b2333', back = dark ? 'rgba(21,25,34,0.72)' : 'rgba(255,255,255,0.78)';
+    const font = Math.round(11 * s), pad = Math.round(6 * s), tick = Math.round(4 * s);
+    const ramp = g.ramp && g.ramp.length ? g.ramp : [[0, 0, 0, 1], [1, 1, 1, 1]];
+    const n = g.labels && g.labels.length ? g.labels.length : Math.max(2, o.labels | 0);
+    const texts = g.labels && g.labels.length ? g.labels.map(String)
+      : Array.from({length: n}, (_, k) => fmtNum(g.mini + (g.maxi - g.mini) * k / (n - 1)));
+    const meas = document.createElement('canvas').getContext('2d');
+    meas.font = font + 'px system-ui, sans-serif';
+    const tw = texts.map(t => meas.measureText(t).width), maxW = Math.max(...tw);
+    meas.font = '600 ' + font + 'px system-ui, sans-serif';
+    const title = o.title && g.title ? g.title : '', titleW = title ? meas.measureText(title).width : 0;
+    const titleH = title ? font + Math.round(4 * s) : 0;
+    let W, H, bx, by, bw, bh;
+    if(o.vertical){
+      bw = Math.round(14 * s); bh = Math.round(150 * s);
+      W = Math.ceil(Math.max(pad + bw + tick + 3 + maxW + pad, titleW + 2 * pad));
+      H = Math.ceil(pad + titleH + font / 2 + bh + font / 2 + pad);
+      bx = pad; by = pad + titleH + font / 2;
+    } else {
+      bw = Math.round(180 * s); bh = Math.round(12 * s);
+      const half = Math.max(tw[0], tw[tw.length - 1]) / 2;
+      W = Math.ceil(Math.max(bw + 2 * Math.max(pad, half + 2), titleW + 2 * pad));
+      H = Math.ceil(pad + titleH + bh + tick + 2 + font + pad);
+      bx = (W - bw) / 2; by = pad + titleH;
+    }
+    const dpr = window.devicePixelRatio || 1, cv = L.el;
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    cv.style.width = W + 'px'; cv.style.height = H + 'px';
+    const c = cv.getContext('2d');
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.clearRect(0, 0, W, H);
+    if(o.frame){
+      c.fillStyle = back; c.strokeStyle = dark ? 'rgba(230,234,242,0.35)' : 'rgba(27,35,51,0.3)'; c.lineWidth = 1;
+      const r = 5;
+      c.beginPath(); c.moveTo(r, 0.5); c.arcTo(W - 0.5, 0.5, W - 0.5, H - 0.5, r); c.arcTo(W - 0.5, H - 0.5, 0.5, H - 0.5, r);
+      c.arcTo(0.5, H - 0.5, 0.5, 0.5, r); c.arcTo(0.5, 0.5, W - 0.5, 0.5, r); c.closePath(); c.fill(); c.stroke();
+    }
+    // the bar: a checkerboard under transparent colors, high values at the top (or the right)
+    const sq = Math.max(3, Math.round(bh < bw ? bh / 2 : bw / 2));
+    for(let x = 0; x < bw; x += sq) for(let y = 0; y < bh; y += sq){
+      c.fillStyle = ((x + y) / sq) % 2 ? '#c8c8c8' : '#ffffff'; c.fillRect(bx + x, by + y, Math.min(sq, bw - x), Math.min(sq, bh - y));
+    }
+    const len = o.vertical ? bh : bw;
+    for(let p = 0; p < len; p++){
+      const col = V3DU.rampAt(ramp, p / Math.max(1, len - 1));      // interpolated, as the colors are
+      c.fillStyle = 'rgba(' + Math.round(col[0] * 255) + ',' + Math.round(col[1] * 255) + ',' + Math.round(col[2] * 255) + ',' + (col[3] == null ? 1 : col[3]) + ')';
+      if(o.vertical) c.fillRect(bx, by + bh - 1 - p, bw, 1); else c.fillRect(bx + p, by, 1, bh);
+    }
+    c.strokeStyle = fg; c.lineWidth = 1; c.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
+    // ticks and labels
+    c.fillStyle = fg; c.font = font + 'px system-ui, sans-serif';
+    texts.forEach((t, k) => {
+      const f = n === 1 ? 0 : k / (n - 1);
+      c.beginPath();
+      if(o.vertical){
+        const y = by + bh - f * bh;
+        c.moveTo(bx + bw, y); c.lineTo(bx + bw + tick, y); c.stroke();
+        c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillText(t, bx + bw + tick + 3, y);
+      } else {
+        const x = bx + f * bw;
+        c.moveTo(x, by + bh); c.lineTo(x, by + bh + tick); c.stroke();
+        c.textAlign = 'center'; c.textBaseline = 'top'; c.fillText(t, x, by + bh + tick + 2);
+      }
+    });
+    if(title){
+      c.font = '600 ' + font + 'px system-ui, sans-serif'; c.textBaseline = 'top';
+      c.textAlign = o.vertical ? 'left' : 'center';
+      c.fillText(title, o.vertical ? pad : W / 2, pad);
+    }
+    L.w = W; L.h = H;
+  }
+  // its corner, in fractions of the view (default: the top right)
+  function placeLegend(rec, L){
+    const o = legendOpts(rec, L.g.name), W = rec.vbox.clientWidth, H = rec.vbox.clientHeight;
+    if(!W || !H) return;
+    const fx = o.x == null ? (W - L.w - 12) / W : o.x, fy = o.y == null ? 12 / H : o.y;
+    L.left = Math.max(0, Math.min(W - L.w, fx * W));
+    L.top = Math.max(0, Math.min(H - L.h, fy * H));
+    L.el.style.left = L.left + 'px'; L.el.style.top = L.top + 'px';
+  }
+  function saveLegend(rec, name, opts){
+    rec.legendOpts[name] = opts;
+    cb.edit('viewer_legend', {node: rec.id, name, opts});
+  }
+  function legendEvents(rec, L){
+    const el = L.el;
+    el.addEventListener('pointerdown', e => {
+      if(e.button !== 0) return;
+      e.preventDefault(); e.stopPropagation();
+      el.setPointerCapture(e.pointerId);
+      const x0 = e.clientX - L.left, y0 = e.clientY - L.top, W = rec.vbox.clientWidth, H = rec.vbox.clientHeight;
+      const move = ev => {
+        L.left = Math.max(0, Math.min(W - L.w, ev.clientX - x0));
+        L.top = Math.max(0, Math.min(H - L.h, ev.clientY - y0));
+        el.style.left = L.left + 'px'; el.style.top = L.top + 'px';
+      };
+      const up = () => {
+        el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up);
+        saveLegend(rec, L.g.name, Object.assign(legendOpts(rec, L.g.name), {x: L.left / W, y: L.top / H}));
+      };
+      el.addEventListener('pointermove', move); el.addEventListener('pointerup', up);
+    });
+    el.addEventListener('contextmenu', e => {
+      e.preventDefault(); e.stopPropagation();
+      if(!cb.menu) return;
+      const name = L.g.name, o = legendOpts(rec, name);
+      const set = ch => { saveLegend(rec, name, Object.assign(o, ch)); drawLegend(rec, L); placeLegend(rec, L); };
+      const custom = L.g.labels && L.g.labels.length;
+      cb.menu(e, [
+        [(o.vertical ? '✓ ' : '') + 'Vertical', () => set({vertical: true})],
+        [(!o.vertical ? '✓ ' : '') + 'Horizontal', () => set({vertical: false})],
+        '-',
+        ['More numbers (' + o.labels + ')', () => set({labels: o.labels + 1}), custom || o.labels >= 11],
+        ['Fewer numbers', () => set({labels: o.labels - 1}), custom || o.labels <= 2],
+        ['Larger', () => set({size: +(o.size + 0.25).toFixed(2)}), o.size >= 2.5],
+        ['Smaller', () => set({size: +(o.size - 0.25).toFixed(2)}), o.size <= 0.5],
+        [(o.title ? '✓ ' : '') + 'Title', () => set({title: !o.title})],
+        [(o.frame ? '✓ ' : '') + 'Frame', () => set({frame: !o.frame})],
+        '-',
+        ['Back to the corner', () => { delete rec.legendOpts[name]; cb.edit('viewer_legend', {node: rec.id, name, opts: null}); drawLegend(rec, L); placeLegend(rec, L); }],
+      ]);
+    });
+  }
+  // the renderer's picture with the legends drawn on it (Grab Image, the camera button)
+  async function pngWithLegends(rec){
+    const url = await rec.be.png();
+    if(!rec.legends.size) return url;
+    const img = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ko; i.src = url; });
+    const cv = document.createElement('canvas');
+    cv.width = img.width; cv.height = img.height;
+    const c = cv.getContext('2d');
+    c.drawImage(img, 0, 0);
+    const sx = img.width / (rec.vbox.clientWidth || img.width), sy = img.height / (rec.vbox.clientHeight || img.height);
+    rec.legends.forEach(L => c.drawImage(L.el, L.left * sx, L.top * sy, L.w * sx, L.h * sy));
+    return cv.toDataURL('image/png');
+  }
+
   function sendView(rec, redraw){
     if(!rec.be) return;
     try {
@@ -297,7 +492,7 @@ const VIEW3D = (() => {
     const d = await cb.edit('viewer_geoms', {node: rec.id, names});
     if(!d || d.error) return;
     if(!rec.be) makeBackend(rec, rec.kind || '3dmol');
-    d.geoms.forEach(g => { rec.geoms.set(g.name, g); rec.be.set(g); });
+    d.geoms.forEach(g => put(rec, g));
     await rec.be.flush();
   }
 
@@ -309,7 +504,9 @@ const VIEW3D = (() => {
     rec.canvas = d.molstar || null;
     rec.cameras = Object.assign({}, d.cameras || {}, d.camera ? {'3dmol': d.camera} : {});
     const kind = BACKENDS[d.renderer] ? d.renderer : '3dmol';
-    if(rec.be){ rec.geoms.forEach((g, name) => rec.be.remove(name)); if(rec.kind !== kind){ rec.be.dispose(); rec.be = null; } }
+    rec.legendOpts = Object.assign({}, d.legends || {});
+    [...rec.legends.keys()].forEach(name => removeLegend(rec, name));
+    if(rec.be){ rec.geoms.forEach((g, name) => { if(!isLegend(g)) rec.be.remove(name); }); if(rec.kind !== kind){ rec.be.dispose(); rec.be = null; } }
     if(!rec.be) makeBackend(rec, kind);
     else { rec.be.setRendering(rec.rendering); if(rec.be.setCanvas) rec.be.setCanvas(rec.canvas); }
     rec.geoms = new Map(d.geoms.map(g => [g.name, g]));
@@ -367,9 +564,9 @@ const VIEW3D = (() => {
       // a Grab Image node asks for the picture a viewer shows (once what
       // the viewer is still fetching is drawn)
       const rec = V[e.viewer];
-      if(!rec || !rec.be || rec.div.hidden) return;
+      if(!rec || !rec.be || rec.vbox.hidden) return;
       try { await rec.pending; } catch(err) {}
-      cb.edit('viewer_snapshot', {node: e.viewer, request: e.request, png: await rec.be.png()});
+      cb.edit('viewer_snapshot', {node: e.viewer, request: e.request, png: await pngWithLegends(rec)});
     },
     viewerEvent(e){
       if(e.op === 'add') ensure(e.node);
@@ -395,7 +592,7 @@ const VIEW3D = (() => {
       // drawing is chained, so a snapshot can wait for what is pending
       rec.pending = rec.pending.then(async () => {
         if(!rec.be) makeBackend(rec, rec.kind || '3dmol');
-        (e.removed || []).forEach(n => { rec.geoms.delete(n); rec.be.remove(n); });
+        (e.removed || []).forEach(n => drop(rec, n));
         if(names.length) await fetchAndDraw(rec, names);
         else await rec.be.flush();
       }).catch(err => status('viewer: ' + esc(err.message)));
@@ -407,7 +604,7 @@ const VIEW3D = (() => {
       rec.panel.remove(); delete V[id];
     },
     resize(){ Object.values(V).forEach(r => { if(r.be) r.be.resize(); }); },
-    theme(){ Object.values(V).forEach(r => { if(r.be) r.be.background(bg()); }); },
+    theme(){ Object.values(V).forEach(r => { if(r.be) r.be.background(bg()); r.legends.forEach(L => { drawLegend(r, L); placeLegend(r, L); }); }); },
     viewers: V,
   };
 })();

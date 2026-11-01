@@ -113,6 +113,7 @@ def spheres_colormap():
     n.connectNodes(cm, sp, 'colors', 'colors')
     n.connectNodes(sp, v, 'spheres', 'geometries')
     n.connectNodes(ax, v, 'axis', 'geometries')
+    n.connectNodes(cm, v, 'legend', 'geometries')        # the color bar, over the view
     save(n, 'spheres_colormap')
 
 

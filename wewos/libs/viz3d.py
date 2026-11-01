@@ -325,7 +325,9 @@ straight line), start from a preset (rgb, rwb, grey, rainbow and MGLTools'
 color maps), give it a min and max, undo, and read or write Vision colormap
 files. mini and maxi, when connected, override the ramp's own range; without
 either, the range of the values is used. The colors have an alpha when the
-ramp has some transparency."""
+ramp has some transparency. Connect the legend output to a Viewer to show
+the color bar and its range over the 3D view (drag it there to move it,
+right-click it for its orientation, labels and size)."""
 
     def __init__(self, name='Color Map', **kw):
         kw['name'] = name
@@ -338,9 +340,27 @@ ramp has some transparency."""
         self.widgetDescr['ramp'] = {'class': 'NEColorMap', 'master': 'node', 'initialValue': 'rgb',
                                     'labelCfg': {'text': 'ramp'}}
         self.outputPortsDescr.append(datatype='colorfloat3or4(0)', name='colors')
+        self.outputPortsDescr.append(datatype='geom', name='legend')
+        self.legend = None
         self.setFunction("""def doit(self, values, ramp, mini, maxi):
-    self.outputData(colors=colormap(values, ramp, mini, maxi))
+    self.outputData(colors=colormap(values, ramp, mini, maxi), legend=self.makeLegend(values, ramp, mini, maxi))
 """)
+
+    def makeLegend(self, values, ramp, mini, maxi):
+        """The legend geometry: the ramp and the range actually used."""
+        from wewos.colormaps import normalize
+        cols, rlo, rhi = ramp_of(ramp)
+        v = numpy.asarray(values if values is not None else [], 'f').ravel()
+        lo = mini if mini is not None else (rlo if rlo is not None else (float(v.min()) if v.size else 0.))
+        hi = maxi if maxi is not None else (rhi if rhi is not None else (float(v.max()) if v.size else 1.))
+        cm = normalize(ramp)
+        title = cm if isinstance(cm, str) else (cm.get('name') or '')
+        labels = None if isinstance(cm, str) else cm.get('labels')
+        name = self.name.replace(' ', '_') + '_legend'
+        if self.legend is None:
+            self.legend = G.ColorMapLegend(name)
+        self.legend.Set(name=name, ramp=cols, mini=lo, maxi=hi, title=title, labels=labels)
+        return self.legend
 
 
 _RAMPS = {
@@ -499,6 +519,7 @@ saved too."""
         self.renderer = RENDERERS[0]
         self.cameras = {}           # renderer -> its camera (3Dmol's is self.camera)
         self.molstarCanvas = None   # Mol*'s rendering settings, when changed
+        self.legends = {}           # color map legend name -> place and look on the page
         self.inputPortsDescr.append(name='geometries', datatype='geom', required=False,
                                     singleConnection=False)
         self.outputPortsDescr.append(datatype='None', name='lastPick')
@@ -558,7 +579,8 @@ saved too."""
         return {'viewer': self.id, 'name': self.name, 'geoms': self.geomsJSON(),
                 'camera': self.camera, 'background': self.background,
                 'rendering': dict(self.rendering), 'renderer': self.renderer,
-                'cameras': dict(self.cameras), 'molstar': self.molstarCanvas}
+                'cameras': dict(self.cameras), 'molstar': self.molstarCanvas,
+                'legends': dict(self.legends)}
 
     def setView(self, view, renderer='3dmol'):
         if renderer in (None, '3dmol'):
@@ -567,6 +589,18 @@ saved too."""
             self.cameras[renderer] = view
         else:
             raise ValueError('unknown renderer %r (one of %s)' % (renderer, ', '.join(RENDERERS)))
+
+    def setLegend(self, name, opts):
+        """Place and look of a color map legend on the page: x, y (its corner,
+        in fractions of the view), vertical, labels (how many numbers), size,
+        title, frame. None forgets them (the legend goes back to its corner)."""
+        if opts is None:
+            self.legends.pop(name, None)
+        elif isinstance(opts, dict):
+            keep = {'x', 'y', 'vertical', 'labels', 'size', 'title', 'frame'}
+            self.legends[name] = {k: v for k, v in opts.items() if k in keep}
+        else:
+            raise ValueError('legend settings are a dict')
 
     def setRenderer(self, renderer):
         """Draw with '3dmol' or 'molstar'."""
@@ -684,6 +718,8 @@ saved too."""
             st['cameras'] = dict(self.cameras)
         if self.molstarCanvas:
             st['molstar'] = self.molstarCanvas
+        if self.legends:
+            st['legends'] = dict(self.legends)
         return st
 
     def setStateFromSaving(self, st):
@@ -692,6 +728,7 @@ saved too."""
         self.renderer = st.get('renderer') if st.get('renderer') in RENDERERS else RENDERERS[0]
         self.cameras = {k: v for k, v in (st.get('cameras') or {}).items() if k in RENDERERS}
         self.molstarCanvas = st.get('molstar') or None
+        self.legends = dict(st.get('legends') or {})
         self.rendering = dict(RENDERING)
         self.rendering.update({k: v for k, v in (st.get('rendering') or {}).items()
                                if k in RENDERING})

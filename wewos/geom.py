@@ -449,6 +449,32 @@ def Axis(name=None, center=(0, 0, 0), length=10.0, radius=0.3):
     return g
 
 
+class ColorMapLegend(Geom):
+    """The legend of a color map, drawn by the viewer over its 3D view (as
+    DejaVu's ColorMapLegend): the ramp, the range of values it spans, a title
+    (the color map's name) and, when the color map has them, its labels. Its
+    place and look (orientation, number of labels, size, frame) are set in
+    the viewer and kept by the Viewer node."""
+    kind = 'legend'
+
+    def __init__(self, name=None, ramp=None, mini=0.0, maxi=1.0, title='', labels=None, **kw):
+        self.ramp, self.mini, self.maxi = ramp if ramp is not None else [], mini, maxi
+        self.title, self.labels = title, labels
+        Geom.__init__(self, name, **kw)
+
+    def _set(self, kw):
+        for k in ('ramp', 'mini', 'maxi', 'title', 'labels'):
+            if k in kw:
+                setattr(self, k, kw.pop(k))
+
+    def _json(self, d):
+        d['ramp'] = [[round(float(x), 4) for x in c] for c in numpy.asarray(self.ramp, 'f').tolist()]
+        d['mini'], d['maxi'] = float(self.mini), float(self.maxi)
+        d['title'] = self.title or ''
+        if self.labels:
+            d['labels'] = [str(x) for x in self.labels]
+
+
 class MolRep(Geom):
     """A molecule drawn by 3Dmol.js itself: its atoms as PDB text and the
     representations to show (cartoon, stick, sphere, line, surface...).

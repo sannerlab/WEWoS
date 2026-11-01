@@ -451,6 +451,11 @@ class Session(object):
         except OSError as e:
             raise Refused('cannot read %s: %s' % (path, e))
 
+    def _op_viewer_legend(self, a):
+        v = self._viewer(a['node'])
+        v.setLegend(a['name'], a.get('opts'))
+        return {'legends': dict(v.legends)}
+
     def _op_viewer_renderer(self, a):
         v = self._viewer(a['node'])
         v.setRenderer(a.get('renderer'))

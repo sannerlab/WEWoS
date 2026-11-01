@@ -459,7 +459,7 @@ const W = (() => {
     const g = cv.getContext('2d'), W = cv.width, H = cv.height, s = Math.max(4, Math.round(H / 2));
     for(let x = 0; x < W; x += s) for(let y = 0; y < H; y += s){ g.fillStyle = ((x + y) / s) % 2 ? '#c8c8c8' : '#fff'; g.fillRect(x, y, s, s); }
     if(!ramp || !ramp.length) return;
-    for(let x = 0; x < W; x++){ g.fillStyle = cmCss(ramp[Math.min(ramp.length - 1, Math.floor(x / W * ramp.length))]); g.fillRect(x, 0, 1, H); }
+    for(let x = 0; x < W; x++){ g.fillStyle = cmCss(V3DU.rampAt(ramp, x / Math.max(1, W - 1))); g.fillRect(x, 0, 1, H); }
   }
   function resampleRamp(ramp, n){
     const out = [];

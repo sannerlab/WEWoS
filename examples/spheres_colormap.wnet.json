@@ -85,11 +85,6 @@
     "label": "Color Map",
     "widgets": {
      "ramp": "rainbow"
-    },
-    "widgetOpts": {
-     "ramp": {
-      "autoList": false
-     }
     }
    },
    {
@@ -193,6 +188,17 @@
     "from": [
      "n5",
      "axis"
+    ],
+    "to": [
+     "n6",
+     "geometries"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n4",
+     "legend"
     ],
     "to": [
      "n6",

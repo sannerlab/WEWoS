@@ -131,3 +131,14 @@ def test_colormap_file_edit():
     check(out['path'].endswith('mine_map.py') and os.path.isfile(out['path']))
     back = s.edit('colormap_file', {'action': 'read', 'path': 'mine_map.py'})['colorMap']
     eq(back, {'ramp': [[0.0, 0.0, 1.0, 1.0], [1.0, 0.0, 0.0, 0.5]], 'mini': 1.0, 'maxi': 2.0, 'name': 'mine'})
+
+
+def test_viewer_legend_edit():
+    s = _session()
+    _example(s, 'spheres_colormap.wnet.json')
+    s.run('hardrun')
+    v = _viewer(s)
+    name = [g['name'] for g in v.geomsJSON() if g['type'] == 'legend'][0]
+    out = s.edit('viewer_legend', {'node': v.id, 'name': name, 'opts': {'x': 0.5, 'y': 0.5, 'size': 1.5}})
+    eq(out['legends'][name], {'x': 0.5, 'y': 0.5, 'size': 1.5})
+    eq(v.sceneState()['legends'][name]['size'], 1.5)

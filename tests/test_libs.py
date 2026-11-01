@@ -475,3 +475,26 @@ def test_color_map_node_takes_an_edited_ramp():
     cm.inputPortByName['ramp'].widget.set({'ramp': [[0, 1, 0, 1], [1, 0, 1, 1]], 'name': 'gm'}, run=False)
     n.run(n.rootNodes)
     eq(cm.outputPortByName['colors'].data.tolist(), [[0, 1, 0], [1, 0, 1]])
+
+
+def test_color_map_legend():
+    from wewos.engine import fileio
+    vz, std = get_library('3D Visualization'), get_library('Standard')
+    ev, cm, v = std.instantiate(label='eval'), vz.instantiate(label='Color Map'), vz.instantiate(label='Viewer')
+    n = net(ev, cm, v)
+    ev.inputPorts[0].widget.set('[2, 5, 9]', run=False)
+    n.connectNodes(ev, cm, 'result', 'values')
+    n.connectNodes(cm, v, 'legend', 'geometries')
+    cm.inputPortByName['ramp'].widget.set({'ramp': [[0, 0, 1, 1], [1, 0, 0, 1]], 'name': 'temp', 'maxi': 20}, run=False)
+    n.run(n.rootNodes)
+    g = v.geomsJSON()[0]
+    eq((g['type'], g['title'], g['mini'], g['maxi'], len(g['ramp'])), ('legend', 'temp', 2.0, 20.0, 2))
+    # its place and look are kept by the viewer, with the network
+    v.setLegend(g['name'], {'x': 0.1, 'y': 0.8, 'vertical': False, 'labels': 3, 'junk': 1})
+    eq(v.legends[g['name']], {'x': 0.1, 'y': 0.8, 'vertical': False, 'labels': 3})
+    n2 = Network('copy')
+    fileio.from_dict(n2, fileio.to_dict(n))
+    v2 = [x for x in n2.nodes if x.__class__.__name__ == 'Viewer'][0]
+    eq(v2.legends, v.legends)
+    v.setLegend(g['name'], None)
+    eq(v.legends, {})
