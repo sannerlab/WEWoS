@@ -142,3 +142,18 @@ def test_viewer_legend_edit():
     out = s.edit('viewer_legend', {'node': v.id, 'name': name, 'opts': {'x': 0.5, 'y': 0.5, 'size': 1.5}})
     eq(out['legends'][name], {'x': 0.5, 'y': 0.5, 'size': 1.5})
     eq(v.sceneState()['legends'][name]['size'], 1.5)
+
+
+def test_file_browser_relative_folder_is_in_the_network_folder():
+    # a widget's relative file name (cartoonMovie/x.png) is in the network's
+    # folder: the file browser opens there, not in the server's directory
+    from wewos.session import list_dir
+    base = outdir('filebrowser')
+    os.makedirs(os.path.join(base, 'cartoonMovie'), exist_ok=True)
+    open(os.path.join(base, 'cartoonMovie', 'frame0.png'), 'w').close()
+    d = list_dir('cartoonMovie', base)
+    eq(d['path'], os.path.join(os.path.abspath(base), 'cartoonMovie'))
+    eq([e['name'] for e in d['entries']], ['frame0.png'])
+    d = list_dir('cartoonMovie/frame0.png', base)          # a file: its folder
+    eq(d['path'], os.path.join(os.path.abspath(base), 'cartoonMovie'))
+    eq(list_dir('', base)['path'], os.path.abspath(base))

@@ -1,0 +1,396 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "Imaging",
+  "Standard"
+ ],
+ "network": {
+  "name": "cartoon2b: the indexMax macro",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "Read Image",
+    "cls": "ReadImage",
+    "lib": "Imaging",
+    "pos": [
+     1156,
+     41
+    ],
+    "label": "Read Image",
+    "unbound": [
+     "filename"
+    ]
+   },
+   {
+    "id": "n2",
+    "name": "Scale",
+    "cls": "ResizeImage",
+    "lib": "Imaging",
+    "pos": [
+     1351,
+     41
+    ],
+    "label": "Scale",
+    "widgets": {
+     "scale": 1.0,
+     "filter": "NEAREST"
+    },
+    "widgetOpts": {
+     "scale": {
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "filter": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n3",
+    "name": "Show Image",
+    "cls": "ShowImage",
+    "lib": "Imaging",
+    "pos": [
+     1701,
+     41
+    ],
+    "label": "Show Image"
+   },
+   {
+    "id": "n4",
+    "name": "ThumbWheelInt",
+    "cls": "ThumbWheelIntNE",
+    "lib": "Standard",
+    "pos": [
+     631,
+     43
+    ],
+    "label": "ThumbWheelInt",
+    "widgets": {
+     "thumbwheel": 73
+    },
+    "widgetOpts": {
+     "thumbwheel": {
+      "min": 0,
+      "max": 100,
+      "increment": 0.0,
+      "oneTurn": 30.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n5",
+    "name": "DialInt",
+    "cls": "DialIntNE",
+    "lib": "Standard",
+    "pos": [
+     40,
+     170
+    ],
+    "label": "DialInt",
+    "widgets": {
+     "dial": 0
+    },
+    "widgetOpts": {
+     "dial": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n6",
+    "name": "Index",
+    "cls": "Index",
+    "lib": "Standard",
+    "pos": [
+     976,
+     40
+    ],
+    "label": "Index",
+    "unbound": [
+     "index"
+    ]
+   },
+   {
+    "id": "n7",
+    "name": "indexMax",
+    "cls": "MacroNode",
+    "lib": "__builtin__",
+    "pos": [
+     412,
+     66
+    ],
+    "macro": {
+     "name": "indexMax",
+     "nodes": [
+      {
+       "id": "n8",
+       "special": "ipNode",
+       "pos": [
+        40,
+        40
+       ]
+      },
+      {
+       "id": "n9",
+       "special": "opNode",
+       "pos": [
+        935,
+        77
+       ]
+      },
+      {
+       "id": "n10",
+       "name": "len",
+       "cls": "Len",
+       "lib": "Standard",
+       "pos": [
+        223,
+        72
+       ],
+       "label": "len"
+      },
+      {
+       "id": "n11",
+       "name": "sub",
+       "cls": "Operator2",
+       "lib": "Standard",
+       "pos": [
+        574,
+        99
+       ],
+       "label": "Op2",
+       "widgets": {
+        "operation": "sub",
+        "applyToElements": 0
+       },
+       "widgetOpts": {
+        "operation": {
+         "master": "node",
+         "choices": [
+          "lt",
+          "le",
+          "eq",
+          "ne",
+          "ge",
+          "gt",
+          "is_",
+          "is_not",
+          "add",
+          "and",
+          "div",
+          "floordiv",
+          "lshift",
+          "mod",
+          "mul",
+          "or",
+          "pow",
+          "rshift",
+          "sub",
+          "truediv",
+          "xor",
+          "concat",
+          "contains",
+          "countOf",
+          "delitem",
+          "getitem",
+          "indexOf",
+          "repeat"
+         ],
+         "fixedChoices": true,
+         "autoList": false,
+         "entryfield_entry_width": 8,
+         "labelGridCfg": {
+          "sticky": "w"
+         },
+         "widgetGridCfg": {
+          "sticky": "w",
+          "columnspan": 2
+         },
+         "selectioncommand": "<bound method NetworkNode.rename of <wewos.libs.standard.Operator2 object at 0x7a54a49f2d10>>"
+        },
+        "applyToElements": {
+         "master": "node",
+         "labelGridCfg": {
+          "sticky": "w",
+          "columnspan": 2
+         },
+         "widgetGridCfg": {
+          "sticky": "w"
+         }
+        }
+       }
+      },
+      {
+       "id": "n12",
+       "name": "-1",
+       "cls": "Eval",
+       "lib": "Standard",
+       "pos": [
+        223,
+        146
+       ],
+       "label": "eval",
+       "widgets": {
+        "command": "1",
+        "importString": ""
+       }
+      }
+     ],
+     "connections": [
+      {
+       "from": [
+        "n11",
+        "result"
+       ],
+       "to": [
+        "n9",
+        1
+       ],
+       "blocking": true
+      },
+      {
+       "from": [
+        "n8",
+        1
+       ],
+       "to": [
+        "n10",
+        "in1"
+       ],
+       "blocking": true
+      },
+      {
+       "from": [
+        "n10",
+        "length"
+       ],
+       "to": [
+        "n11",
+        "data1"
+       ],
+       "blocking": true
+      },
+      {
+       "from": [
+        "n12",
+        "result"
+       ],
+       "to": [
+        "n11",
+        "data2"
+       ],
+       "blocking": true
+      }
+     ]
+    }
+   },
+   {
+    "id": "n17",
+    "name": "Entry",
+    "cls": "Filelist",
+    "lib": "Standard",
+    "pos": [
+     40,
+     58
+    ],
+    "label": "Filelist",
+    "widgets": {
+     "directory": ".",
+     "match_str": "cartoonMovie/*.png"
+    },
+    "widgetOpts": {
+     "directory": {
+      "title": "Select directory"
+     }
+    }
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n1",
+     "image"
+    ],
+    "to": [
+     "n2",
+     "image"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n2",
+     "scaledImage"
+    ],
+    "to": [
+     "n3",
+     "image"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n4",
+     "value"
+    ],
+    "to": [
+     "n6",
+     "index"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n6",
+     "data"
+    ],
+    "to": [
+     "n1",
+     "filename"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n7",
+     "sub_result"
+    ],
+    "to": [
+     "n4",
+     "maxi"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n17",
+     "filelist"
+    ],
+    "to": [
+     "n6",
+     "data"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n17",
+     "filelist"
+    ],
+    "to": [
+     "n7",
+     "len_in1"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

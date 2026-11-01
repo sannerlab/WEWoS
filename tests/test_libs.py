@@ -498,3 +498,38 @@ def test_color_map_legend():
     eq(v2.legends, v.legends)
     v.setLegend(g['name'], None)
     eq(v.legends, {})
+
+
+def test_geometry_state_color_and_theme_lines():
+    # a color kept with the network is set first; colors given to the node win
+    from wewos import geom as G
+    from wewos.engine import get_library
+    viz = get_library('3D Visualization')
+    net = Network('t')
+    net.runOnNewData.value = False
+    s = viz.instantiate(label='Spheres')
+    net.addNode(s, 0, 0)
+    s.setStateFromSaving({'geomState': {'color': [1.0, 0.5, 0.0]}})
+    s.update({'vertices': [[0., 0., 0.]]})
+    eq(list(s.geom.color), [1.0, 0.5, 0.0])
+    s.update({'vertices': [[0., 0., 0.]], 'colors': [[0., 0., 1.]]})
+    eq(list(s.geom.color), [0.0, 0.0, 1.0])
+    eq(s.getStateForSaving(), {'geomState': {'color': [1.0, 0.5, 0.0]}})
+    # lines given no color are drawn in the page's theme color
+    ln = G.IndexedPolylines('box', vertices=[[0., 0., 0.], [1., 0., 0.]], faces=[[0, 1]])
+    check(ln.to_json().get('defaultColor') is True)
+    ln.Set(colors=[[1., 0., 0.]])
+    check('defaultColor' not in ln.to_json())
+
+
+def test_filter_image_waits_for_a_filter():
+    from PIL import Image
+    from wewos.engine import get_library
+    net = Network('t')
+    net.runOnNewData.value = False
+    f = get_library('Imaging').instantiate(label='Filter Image')
+    net.addNode(f, 0, 0)
+    stat = f.dynamicComputeFunction(f, Image.new('RGB', (8, 8)), None)       # no filter yet: nothing, no error
+    check(stat is None)
+    f.dynamicComputeFunction(f, Image.new('RGB', (8, 8)), 'CONTOUR')
+    eq(f.outputPortByName['image'].data.size, (8, 8))

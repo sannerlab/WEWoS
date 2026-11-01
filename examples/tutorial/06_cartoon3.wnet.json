@@ -1,0 +1,176 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "Standard",
+  "Imaging"
+ ],
+ "network": {
+  "name": "cartoon3: sort the list with call method",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "iterate",
+    "cls": "Iterate",
+    "lib": "Standard",
+    "pos": [
+     769,
+     40
+    ],
+    "label": "iterate",
+    "widgets": {
+     "stopOnFailure": 0
+    }
+   },
+   {
+    "id": "n2",
+    "name": "Read Image",
+    "cls": "ReadImage",
+    "lib": "Imaging",
+    "pos": [
+     1136,
+     40
+    ],
+    "label": "Read Image",
+    "unbound": [
+     "filename"
+    ]
+   },
+   {
+    "id": "n3",
+    "name": "Scale",
+    "cls": "ResizeImage",
+    "lib": "Imaging",
+    "pos": [
+     1331,
+     40
+    ],
+    "label": "Scale",
+    "widgets": {
+     "scale": 1.0,
+     "filter": "NEAREST"
+    },
+    "widgetOpts": {
+     "scale": {
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "filter": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n4",
+    "name": "Show Image",
+    "cls": "ShowImage",
+    "lib": "Imaging",
+    "pos": [
+     1681,
+     40
+    ],
+    "label": "Show Image"
+   },
+   {
+    "id": "n5",
+    "name": "call method",
+    "cls": "CallMethod",
+    "lib": "Standard",
+    "pos": [
+     412,
+     40
+    ],
+    "label": "call method",
+    "widgets": {
+     "signature": "sort"
+    },
+    "widgetOpts": {
+     "signature": {
+      "master": "node",
+      "width": 16,
+      "callback": "<bound method CallMethod.myCallback of <wewos.libs.standard.CallMethod object at 0x7a54a4addb90>>"
+     }
+    }
+   },
+   {
+    "id": "n6",
+    "name": "Entry",
+    "cls": "Filelist",
+    "lib": "Standard",
+    "pos": [
+     40,
+     40
+    ],
+    "label": "Filelist",
+    "widgets": {
+     "directory": ".",
+     "match_str": "cartoonMovie/*.png"
+    },
+    "widgetOpts": {
+     "directory": {
+      "title": "Select directory"
+     }
+    }
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n1",
+     "oneItem"
+    ],
+    "to": [
+     "n2",
+     "filename"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n2",
+     "image"
+    ],
+    "to": [
+     "n3",
+     "image"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n3",
+     "scaledImage"
+    ],
+    "to": [
+     "n4",
+     "image"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n5",
+     "objects"
+    ],
+    "to": [
+     "n1",
+     "listToLoopOver"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n6",
+     "filelist"
+    ],
+    "to": [
+     "n5",
+     "objects"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

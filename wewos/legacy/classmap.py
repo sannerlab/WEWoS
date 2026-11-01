@@ -105,6 +105,12 @@ def lookup(module, cls, libname=None):
     return None
 
 
+# ports a library macro's user added to an inner node that the single node
+# replacing the macro does not have: kept by name (the connection is reported
+# as not made) instead of falling on the catch-all port
+_NOT_CAUGHT = ('parent',)
+
+
 def map_port(pmap, name):
     if name in pmap:
         return pmap[name]
@@ -112,5 +118,7 @@ def map_port(pmap, name):
         for p in sorted(pmap.get('**ports', ()), key=len, reverse=True):
             if name == p or name.endswith('_' + p):
                 return p
+        if any(name == p or name.endswith('_' + p) for p in _NOT_CAUGHT):
+            return name
         return pmap['*']
     return name

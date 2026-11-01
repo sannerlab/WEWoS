@@ -284,7 +284,7 @@
           params.line_groups = lg;
           params.group_colors = {};
           groups.forEach((gi, k) => { params.group_colors[gi] = k; });
-        } else params.color = hex(g.color);
+        } else params.color = hex(g.type === 'lines' ? V3DU.lineColor(g) : g.color);
         b.primitives({ref, opacity: alpha}).lines(params);
       } else if(g.type === 'mesh'){
         const cols = dec(g.colors);

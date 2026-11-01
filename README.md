@@ -18,12 +18,20 @@ bin/wewos test             # the test suite
 
 To use it from another machine, forward the port: `ssh -L 8767:127.0.0.1:8767 host`, then open the printed URL locally.
 
+## Documentation
+
+The page's **Docs** button opens the documentation (`docs/*.html`, served by the server at `/docs/`; the files also open directly in a browser). It has the guide to the page, the reference, and **tutorials** that follow the Vision tutorial of MGLTools 1.5.3 (Michel Sanner and Guillaume Vareille, 2008) step by step: a first network, an image viewer, a movie player with iterate and file lists, macros, a poliovirus capsid from one protomer, an icosahedral cage, and volumes (a CT scan, isosurfaces colored by radius, a capsid map cut open, a molecule blurred into a map). Their networks and data are the example group *Vision tutorial (MGLTools 1.5.3)*.
+
+- `docs/src/<page>.html` holds each page's content; `python3 docs/build_docs.py` wraps it in the layout (navigation, previous/next, footer) and checks images and links, as ADapt's docs do.
+- `bin/wewos-python docs/make_screenshots.py [scene ...]` remakes every picture in `docs/img/` from WEWoS itself, in a headless Chrome.
+- `bin/wewos-python examples/make_tutorial_examples.py [--check]` rebuilds `examples/tutorial/` from the tutorial's networks and data.
+
 ## Using it
 
 - **Add nodes:** drag them from the palette, or double-click a palette entry. While you drag, the node is drawn under the cursor, with its ports and widgets, at the network's zoom and where it will land.
 - **Connect:** drag from an **output** (the right edge of a node) to an **input** (the left edge). Compatible ports light up while you drag.
 - **Widgets:** an input with a widget shows it on its row in the node, or in the parameter column on the right. To feed it from another node instead, right-click the widget and choose *Unbind (show the port)*: the input becomes a port you can connect (right-click the port, *Rebind widget*, to get the widget back). Changing a widget runs the node's subtree when *run on change* is checked.
-- **Number widgets:** scroll over one (mouse wheel or two-finger trackpad) or drag its ⇄ handle to change the value. Shift gives finer steps and Alt/Option coarser ones.
+- **Number widgets:** scroll over one (mouse wheel or two-finger trackpad) or drag its ⇄ handle to change the value. Shift gives finer steps and Alt/Option coarser ones. Right-click one and choose *Options…* to set its minimum, maximum, step, one turn and precision (Vision's option panel).
 - **Run:** **Run** runs the nodes that have new data, as Vision's run did. **Run all** runs every node. **Pause** and **Stop** act after the current node.
 - **Edit a node's code:** use the panel's *Edit code…* or double-click the node. The compute function's arguments are the input ports.
 - **Add ports:** *Add a port* in the panel adds an input or output port. A Generic node plus your own ports and code is a new node.
@@ -31,7 +39,7 @@ To use it from another machine, forward the port: `ssh -L 8767:127.0.0.1:8767 ho
 - **Layout:** the network is in the upper left, the node parameters in a column on its right, and the 3D viewers and image panels in a row under the network, from left to right. Drag the divider above that row to share the height with the network, use ⇕ to give the viewers the network's height too, or ⤢ to fill the window (Esc to come back); the splitter left of the parameter column sets its width. The sizes are remembered in the browser.
 - **3D viewing:** a Viewer node opens a 3D panel, drawn with 3Dmol.js or Mol\* (the menu in the panel's header). Click an atom or shape and the Viewer's `lastPick` output carries what you clicked to the connected nodes, for example *Picked Atom*. Rotating or zooming the view fires its `redraw` output, as DejaVu's redraws did, so a *One Redraw* → *Grab Image* chain follows the view (see *ViPEr paper figure 1*).
 - **Files:** File > Save writes `<name>.wnet.json` in the network's folder. *Open network* reads one back. *Download* gets the network or the whole folder.
-- **Examples:** File > *Open an example…*. *poliovirus capsid* fetches PDB 2PLV, builds a coarse surface of one protomer and draws it 60 times with the file's icosahedral matrices, in a Mol\* viewer (it needs the RCSB the first time; the file is then cached in the network folder). Two more groups are the examples that came with MGLTools Vision, converted with the importer (`examples/make_vision_examples.py`): *Vision examples* (cpk, icos, image filters, and *ViPEr paper figure 1*, the network of figure 1 of the 2002 paper, see [History](#history)) and the 44 *Vision matplotlib examples*, with their data files.
+- **Examples:** File > *Open an example…*. *poliovirus capsid* fetches PDB 2PLV, builds a coarse surface of one protomer and draws it 60 times with the file's icosahedral matrices, in a Mol\* viewer (it needs the RCSB the first time; the file is then cached in the network folder). The group *Vision tutorial (MGLTools 1.5.3)* holds the networks of the tutorials in the documentation and the tutorial's data (`examples/make_tutorial_examples.py`), with *start here*, an empty network whose folder has the data. Two more groups are the examples that came with MGLTools Vision, converted with the importer (`examples/make_vision_examples.py`): *Vision examples* (cpk, icos, image filters, and *ViPEr paper figure 1*, the network of figure 1 of the 2002 paper, see [History](#history)) and the 44 *Vision matplotlib examples*, with their data files.
 
 ## Libraries
 
@@ -78,7 +86,9 @@ wewos/legacy/             py2to3 conversion and the *_net.py importer
 wewos/server.py, session.py, page.py, static/   the web server and page (static/viewer3d.js: the viewer
                           panels; view3dmol.js and viewmolstar.js: the two renderers)
 examples/                 example networks (make_examples.py rebuilds them); vision/ and
-                          vision_matplotlib/: Vision's examples (make_vision_examples.py)
+                          vision_matplotlib/: Vision's examples (make_vision_examples.py);
+                          tutorial/: the Vision tutorial's networks and data (make_tutorial_examples.py)
+docs/                     the documentation: src/ (page contents), build_docs.py, make_screenshots.py, img/
 tests/                    bin/wewos test
 ```
 

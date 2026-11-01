@@ -401,10 +401,11 @@ syntax 'molkit': chains:residues:atoms as in MolKit, e.g. 'A:1to10:CA'."""
 
 class AtomsProperty(NetworkNode):
     """Extract a property of the atoms (coords, radii, element, name,
-resname, resnum, chain, bfactor, occupancy, charge, index)."""
+resname, resnum, chain, bfactor, occupancy, charge, index); coords[0] is the
+x coordinate of each atom (coords[1] y, coords[2] z), as in MolKit."""
 
-    PROPS = ['coords', 'radii', 'element', 'name', 'resname', 'resnum', 'chain',
-             'bfactor', 'occupancy', 'charge', 'index', 'serial']
+    PROPS = ['coords', 'coords[0]', 'coords[1]', 'coords[2]', 'radii', 'element', 'name',
+             'resname', 'resnum', 'chain', 'bfactor', 'occupancy', 'charge', 'index', 'serial']
 
     def __init__(self, name='Extract Atom Property', **kw):
         kw['name'] = name

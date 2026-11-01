@@ -48,7 +48,8 @@ MAX_UPLOAD = 512 << 20
 STATIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
 EXAMPLES = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'examples')
 # titles of the example folders (examples/<folder>/)
-EXAMPLE_GROUPS = {'vision': 'Vision examples (MGLTools)',
+EXAMPLE_GROUPS = {'tutorial': 'Vision tutorial (MGLTools 1.5.3)',
+                  'vision': 'Vision examples (MGLTools)',
                   'vision_matplotlib': 'Vision matplotlib examples (MGLTools)'}
 DOCS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'docs')
 STATIC_TYPES = {'.js': 'application/javascript', '.css': 'text/css', '.txt': 'text/plain',

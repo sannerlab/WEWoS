@@ -1,0 +1,87 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "Imaging"
+ ],
+ "network": {
+  "name": "cartoon0: an image viewer",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "Show Image",
+    "cls": "ShowImage",
+    "lib": "Imaging",
+    "pos": [
+     741,
+     40
+    ],
+    "label": "Show Image"
+   },
+   {
+    "id": "n2",
+    "name": "Scale",
+    "cls": "ResizeImage",
+    "lib": "Imaging",
+    "pos": [
+     391,
+     40
+    ],
+    "label": "Scale",
+    "widgets": {
+     "scale": 1.0,
+     "filter": "NEAREST"
+    },
+    "widgetOpts": {
+     "scale": {
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "filter": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n3",
+    "name": "Read Image",
+    "cls": "ReadImage",
+    "lib": "Imaging",
+    "pos": [
+     40,
+     40
+    ],
+    "label": "Read Image",
+    "widgets": {
+     "filename": "cartoonMovie/crnCartoon0000.png"
+    }
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n3",
+     "image"
+    ],
+    "to": [
+     "n2",
+     "image"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n2",
+     "scaledImage"
+    ],
+    "to": [
+     "n1",
+     "image"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

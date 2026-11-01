@@ -144,6 +144,15 @@
       "increment": 0.0,
       "precision": 2
      }
+    },
+    "state": {
+     "geomState": {
+      "color": [
+       0.0338,
+       0.6812,
+       1.0
+      ]
+     }
     }
    },
    {

@@ -1,0 +1,185 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "Imaging",
+  "Standard"
+ ],
+ "network": {
+  "name": "cartoon1: iterate over a range",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "Show Image",
+    "cls": "ShowImage",
+    "lib": "Imaging",
+    "pos": [
+     1605,
+     40
+    ],
+    "label": "Show Image"
+   },
+   {
+    "id": "n2",
+    "name": "Scale",
+    "cls": "ResizeImage",
+    "lib": "Imaging",
+    "pos": [
+     1256,
+     40
+    ],
+    "label": "Scale",
+    "widgets": {
+     "scale": 1.0,
+     "filter": "NEAREST"
+    },
+    "widgetOpts": {
+     "scale": {
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "filter": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n3",
+    "name": "Read Image",
+    "cls": "ReadImage",
+    "lib": "Imaging",
+    "pos": [
+     1060,
+     40
+    ],
+    "label": "Read Image",
+    "unbound": [
+     "filename"
+    ]
+   },
+   {
+    "id": "n4",
+    "name": "Filename",
+    "cls": "Filename",
+    "lib": "Standard",
+    "pos": [
+     716,
+     40
+    ],
+    "label": "Filename",
+    "widgets": {
+     "format": "cartoonMovie/crnCartoon%04d.png"
+    }
+   },
+   {
+    "id": "n5",
+    "name": "iterate",
+    "cls": "Iterate",
+    "lib": "Standard",
+    "pos": [
+     349,
+     40
+    ],
+    "label": "iterate",
+    "widgets": {
+     "stopOnFailure": 0
+    }
+   },
+   {
+    "id": "n6",
+    "name": "range",
+    "cls": "Range",
+    "lib": "Standard",
+    "pos": [
+     40,
+     40
+    ],
+    "label": "range",
+    "widgets": {
+     "fromInd": 0,
+     "toInd": 99,
+     "step": 1
+    },
+    "widgetOpts": {
+     "fromInd": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "toInd": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "step": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n3",
+     "image"
+    ],
+    "to": [
+     "n2",
+     "image"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n2",
+     "scaledImage"
+    ],
+    "to": [
+     "n1",
+     "image"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n4",
+     "filename"
+    ],
+    "to": [
+     "n3",
+     "filename"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n5",
+     "iter"
+    ],
+    "to": [
+     "n4",
+     "number"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n6",
+     "data"
+    ],
+    "to": [
+     "n5",
+     "listToLoopOver"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

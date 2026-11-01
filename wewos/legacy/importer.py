@@ -140,6 +140,7 @@ class NodeRec(object):
         self.frozen = False
         self.special = None           # 'ipNode' / 'opNode' inside a user macro
         self.inner = {}               # library macro inner nodes by index
+        self.innerChanges = []        # nodes or connections added/deleted inside a library macro
         self.ports_seen_in = set()
         self.ports_seen_out = set()
         self.added_in = []            # addInputPort(...) calls (user-added ports)
@@ -214,6 +215,11 @@ class _InnerNodes(object):
     def __getattr__(self, name):
         if name.startswith('__'):
             raise AttributeError(name)
+        if name in ('addNode', 'connectNodes', 'deleteConnection', 'deleteNodes'):
+            def change(*a, **k):
+                self.node.innerChanges.append(name)
+                return Rec('macroNetwork.%s()' % name)
+            return change
         return Rec('macroNetwork.%s' % name)
 
 
@@ -529,9 +535,11 @@ def import_source(src, filename='network_net.py'):
 
 
 def _saved_opacities(tree):
-    """The opacity of the viewer objects, from the functions in which Vision
-    saved a viewer's state (loadSavedStates_<viewer>): {object name: opacity}."""
-    out = {}
+    """The opacity and color of the viewer objects, from the functions in
+    which Vision saved a viewer's state (loadSavedStates_<viewer>):
+    {object name: opacity} and {object name: [r, g, b]} (a single diffuse
+    color; per-vertex colors come from the network)."""
+    out, colors = {}, {}
 
     def walk(body, ctx):
         for st in body:
@@ -557,6 +565,13 @@ def _saved_opacities(tree):
                                 out[obj] = float(o[0] if isinstance(o, (list, tuple)) else o)
                             except (ValueError, TypeError, IndexError):
                                 pass
+                        elif obj and isinstance(k, ast.Str) and k.s == 'diffuse':
+                            try:
+                                d = ast.literal_eval(val)
+                                if len(d) == 1 and len(d[0]) >= 3:
+                                    colors[obj] = [round(float(x), 4) for x in d[0][:3]]
+                            except (ValueError, TypeError, IndexError):
+                                pass
             for field in ('body', 'orelse', 'finalbody'):
                 if isinstance(getattr(st, field, None), list):
                     walk(getattr(st, field), ctx)
@@ -564,23 +579,35 @@ def _saved_opacities(tree):
     for st in tree.body:
         if isinstance(st, ast.FunctionDef) and st.name.startswith('loadSavedStates_'):
             walk(st.body, {'vars': {}, 'state': None})
-    return out
+    return out, colors
 
 
-def _apply_saved_opacity(netd, opacities):
-    """Give a geometry node the opacity its object had in the viewer."""
-    if not opacities:
+def _apply_saved_opacity(netd, saved):
+    """Give a geometry node the opacity and color its object had in the viewer."""
+    opacities, colors = saved
+    if not opacities and not colors:
         return
+    from wewos.engine import get_library
+    from wewos.libs.viz3d import GeometryNode
     for e in _all_entries(netd):
-        if e.get('lib') != '3D Visualization' or e.get('special'):
+        if e.get('special') or not e.get('lib') or e.get('lib') == '__builtin__':
             continue
         w = e.get('widgets') or {}
         for key in (w.get('name'), w.get('geoms'), e.get('name')):
-            if key and key in opacities and opacities[key] < 1 and \
-                    'opacity' in _port_names(e['lib'], e['cls'])[0]:
+            if e['lib'] == '3D Visualization' and key and key in opacities and opacities[key] < 1 \
+                    and 'opacity' in _port_names(e['lib'], e['cls'])[0]:
                 w['opacity'] = round(opacities[key], 3)
                 e['widgets'] = w
                 break
+        try:
+            klass = get_library(e['lib']).nodeClassFromName.get(e.get('cls'))
+        except Exception:
+            klass = None
+        if klass is not None and issubclass(klass, GeometryNode):
+            for key in (w.get('name'), w.get('geoms'), e.get('name')):
+                if key and key in colors:
+                    e.setdefault('state', {}).setdefault('geomState', {})['color'] = colors[key]
+                    break
 
 
 def _all_entries(netd):
@@ -608,6 +635,7 @@ def _network(net, ids, report):
         report.nodes += 1
     # macro input/output node ports, created by connections to 'new'
     ip_names, op_names = [], []
+    renamed = ({}, {})   # Vision's name of a macro port -> ours, when an inner port was renamed
     for (n1, n2, p1, p2, blocking, special) in net.connections:
         if id(n1) not in ids or id(n2) not in ids:
             report.warnings.append('connection %s -> %s: a node was not created'
@@ -623,6 +651,7 @@ def _network(net, ids, report):
             if p1 in ('new', 0):
                 pname = n2.name.replace(' ', '_') + '_' + str(_mapped(maps, n2, p2, 'in'))
                 ip_names.append(pname)
+                renamed[0][n2.name.replace(' ', '_') + '_' + str(p2)] = pname
                 a[1] = len(ip_names)
             else:
                 a[1] = ip_names.index(p1) + 1 if p1 in ip_names else p1
@@ -632,6 +661,7 @@ def _network(net, ids, report):
             if p2 in ('new', 0):
                 pname = n1.name.replace(' ', '_') + '_' + str(_mapped(maps, n1, p1, 'out'))
                 op_names.append(pname)
+                renamed[1][n1.name.replace(' ', '_') + '_' + str(p1)] = pname
                 b[1] = len(op_names)
             else:
                 b[1] = op_names.index(p2) + 1 if p2 in op_names else p2
@@ -640,7 +670,10 @@ def _network(net, ids, report):
         conns.append({'from': a, 'to': b, 'blocking': bool(blocking)})
         report.connections += 1
     # Vision drew data flowing down; WEWoS lays the network out again on loading
-    return {'nodes': nodes, 'connections': conns, 'layout': 'vision'}
+    out = {'nodes': nodes, 'connections': conns, 'layout': 'vision'}
+    if net.macro is not None:
+        out['_renamed'] = tuple({k: v for k, v in r.items() if k != v} for r in renamed)
+    return out
 
 
 def localize_code(code):
@@ -668,6 +701,8 @@ def _node_entry(n, ids, report):
     if sym.cls == 'MacroNode' and sym.module == 'NetworkEditor.macros':
         e.update(lib='__builtin__', cls='MacroNode')
         e['macro'] = _network(n.macroNetwork, ids, report)
+        # its ports are named after the inner ports: follow their renames
+        inmap, outmap = e['macro'].pop('_renamed', ({}, {}))
         return e, inmap, outmap
     target = classmap.lookup(sym.module, sym.cls, sym.lib.name if sym.lib else None)
     code = None
@@ -711,6 +746,12 @@ def _node_entry(n, ids, report):
     if n.widgetsByIndex:
         report.warnings.append('%s: widget values given by port number were not imported'
                                % n.name)
+    if n.innerChanges:
+        kinds = {'addNode': 'added nodes', 'connectNodes': 'added connections',
+                 'deleteConnection': 'deleted connections', 'deleteNodes': 'deleted nodes'}
+        report.warnings.append('%s: changes made inside the library macro %s (%s) were not '
+                               'imported; it is the library\'s macro' % (n.name, sym.cls, ', '.join(
+                                   kinds[k] for k in sorted(set(n.innerChanges)))))
     if n.inner:
         from wewos.engine import get_library
         from wewos.engine.macros import MacroNode

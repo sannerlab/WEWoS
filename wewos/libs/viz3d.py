@@ -51,6 +51,15 @@ class GeometryNode(NetworkNode):
         kw['name'] = name
         NetworkNode.__init__(self, **kw)
         self.geom = None
+        # options kept with the network and set on the geometry before the
+        # inputs (Vision kept them in the viewer's saved state, e.g. a color)
+        self.geomState = {}
+
+    def getStateForSaving(self):
+        return {'geomState': dict(self.geomState)} if self.geomState else {}
+
+    def setStateFromSaving(self, state):
+        self.geomState = dict((state or {}).get('geomState') or {})
 
     def _commonPorts(self):
         ip = self.inputPortsDescr
@@ -74,6 +83,12 @@ class GeometryNode(NetworkNode):
     def update(self, kw, name=None, instanceMatrices=None, geomOptions=None, parent=None):
         g = self.getGeom(name)
         kw = {k: v for k, v in kw.items() if v is not None}
+        if self.geomState:
+            st = dict(self.geomState)
+            if any(k in kw or k in (geomOptions or {}) for k in ('colors', 'color', 'materials')):
+                for k in ('colors', 'color', 'materials'):
+                    st.pop(k, None)
+            kw = dict(st, **kw)
         if instanceMatrices is not None:
             kw['instanceMatrices'] = G.instance_list(instanceMatrices)
         if geomOptions:
@@ -280,23 +295,31 @@ class GeomContainer(GeometryNode):
 
 class GeomOptions(NetworkNode):
     """Set options on a geometry (DejaVu Set keywords, e.g.
-{'opacity': 0.5, 'visible': True, 'wireframe': True, 'colors': (1, 0, 0)})."""
+{'opacity': 0.5, 'visible': True, 'wireframe': True, 'colors': (1, 0, 0)}).
+
+The options are set on the geometry given to the geom input, which is passed
+on; they are also sent out as a dict (the geomOptions output, as in Vision),
+for the geomOptions input of a geometry node."""
 
     def __init__(self, name='Set Geom Options', **kw):
         kw['name'] = name
         NetworkNode.__init__(self, **kw)
-        self.inputPortsDescr.append(datatype='geom', name='geom')
+        self.inputPortsDescr.append(datatype='geom', name='geom', required=False)
         self.inputPortsDescr.append(datatype='None', name='geomOptions', required=False)
         self.widgetDescr['geomOptions'] = {'class': 'NEEntry', 'master': 'node',
                                            'initialValue': "{'opacity': 1.0}",
                                            'labelCfg': {'text': 'options'}}
         self.outputPortsDescr.append(datatype='geom', name='geom')
+        self.outputPortsDescr.append(datatype='dict', name='geomOptions')
         self.setFunction("""def doit(self, geom, geomOptions):
     import ast
     opts = ast.literal_eval(geomOptions) if isinstance(geomOptions, str) else geomOptions
-    for g in G.flatten(geom):
-        g.Set(**(opts or {}))
-    self.outputData(geom=geom)
+    opts = dict(opts or {})
+    if geom is not None:
+        for g in G.flatten(geom):
+            g.Set(**opts)
+        self.outputData(geom=geom)
+    self.outputData(geomOptions=opts)
 """)
 
 

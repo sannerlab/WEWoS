@@ -4325,6 +4325,10 @@ def set_box(geom, pt1, pt2, crystal=None):
     edges = [(0, 1), (2, 3), (4, 5), (6, 7), (0, 2), (1, 3), (4, 6), (5, 7),
              (0, 4), (1, 5), (2, 6), (3, 7)]
     geom.Set(vertices=v, faces=edges)
+    # what a DejaVu Box has, for the nodes reading the box (FillMapWithBox)
+    lo, hi = v.min(axis=0), v.max(axis=0)
+    geom.center = [float(x) for x in (lo + hi) * 0.5]
+    geom.xside, geom.yside, geom.zside = (float(x) for x in hi - lo)
     return geom
 
 

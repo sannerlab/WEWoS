@@ -29,6 +29,9 @@ const V3DU = {
     const t = document.documentElement.dataset.theme;
     return t === 'dark' || (!t && matchMedia('(prefers-color-scheme: dark)').matches);
   },
+  // a lines geometry given no color: DejaVu's light grey on the dark theme,
+  // a dark grey on the light one (light grey lines vanish on white)
+  lineColor(g){ return g.defaultColor ? (V3DU.isDark() ? [0.8, 0.8, 0.8] : [0.3, 0.33, 0.4]) : g.color; },
   dec(o){
     if(!o) return null;
     const bin = atob(o.b64);
@@ -604,7 +607,16 @@ const VIEW3D = (() => {
       rec.panel.remove(); delete V[id];
     },
     resize(){ Object.values(V).forEach(r => { if(r.be) r.be.resize(); }); },
-    theme(){ Object.values(V).forEach(r => { if(r.be) r.be.background(bg()); r.legends.forEach(L => { drawLegend(r, L); placeLegend(r, L); }); }); },
+    theme(){ Object.values(V).forEach(r => {
+      if(r.be){
+        r.be.background(bg());
+        // lines drawn in the theme's default color
+        let any = false;
+        r.geoms.forEach(g => { if(g.defaultColor && g.type === 'lines'){ r.be.set(g); any = true; } });
+        if(any) r.be.flush();
+      }
+      r.legends.forEach(L => { drawLegend(r, L); placeLegend(r, L); });
+    }); },
     viewers: V,
   };
 })();

@@ -1,0 +1,492 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "Volume",
+  "3D Visualization",
+  "SymServer",
+  "Standard"
+ ],
+ "network": {
+  "name": "regioncapsid: a capsid map cut open",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "ReadCCP4",
+    "cls": "ReadCCP4file",
+    "lib": "Volume",
+    "pos": [
+     40,
+     70
+    ],
+    "label": "ReadCCP4",
+    "widgets": {
+     "filename": "nwv2.ccp4",
+     "normalize": 1
+    }
+   },
+   {
+    "id": "n2",
+    "name": "Isocontour",
+    "cls": "Isocontour",
+    "lib": "Volume",
+    "pos": [
+     1063,
+     48
+    ],
+    "label": "UT-Isocontour",
+    "widgets": {
+     "isovalue": 1.0,
+     "calculatesignatures": 0,
+     "verbosity": 0
+    },
+    "widgetOpts": {
+     "isovalue": {
+      "type": "float",
+      "min": -1.3103089332580566,
+      "max": 4.282169818878174,
+      "precision": 3,
+      "showLabel": 1
+     },
+     "calculatesignatures": {
+      "text": "Calculate signatures",
+      "command": "<bound method Isocontour.calculateSignatures of <wewos.libs.volume.Isocontour object at 0x7a54a4b4d3d0>>",
+      "labelGridCfg": {
+       "sticky": "we"
+      }
+     },
+     "verbosity": {
+      "type": "int",
+      "min": 0,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 5,
+      "precision": 2,
+      "width": 60,
+      "height": 20,
+      "showLabel": 1
+     }
+    }
+   },
+   {
+    "id": "n3",
+    "name": "indexedPolygons",
+    "cls": "IndexedPolygons",
+    "lib": "3D Visualization",
+    "pos": [
+     1598,
+     40
+    ],
+    "label": "IndPolygons",
+    "widgets": {
+     "opacity": 1.0
+    },
+    "widgetOpts": {
+     "opacity": {
+      "type": "float",
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n4",
+    "name": "Viewer",
+    "cls": "Viewer",
+    "lib": "3D Visualization",
+    "pos": [
+     1898,
+     40
+    ],
+    "label": "Viewer"
+   },
+   {
+    "id": "n5",
+    "name": "RegionBox",
+    "cls": "RegionBox",
+    "lib": "Volume",
+    "pos": [
+     349,
+     64
+    ],
+    "label": "RegionBox",
+    "widgets": {
+     "placement": "FrontI"
+    },
+    "widgetOpts": {
+     "placement": {
+      "choices": [
+       "FrontI",
+       "FrontII",
+       "FrontIII",
+       "FrontIV",
+       "BackI",
+       "BackII",
+       "BackIII",
+       "BackIV",
+       "Front Half",
+       "Back Half",
+       "Right Half",
+       "Left Half"
+      ],
+      "fixedChoices": 0,
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n6",
+    "name": "radialColoring",
+    "cls": "MacroNode",
+    "lib": "__builtin__",
+    "pos": [
+     1258,
+     78
+    ],
+    "macro": {
+     "name": "radialColoring",
+     "nodes": [
+      {
+       "id": "n7",
+       "special": "ipNode",
+       "pos": [
+        40,
+        40
+       ]
+      },
+      {
+       "id": "n8",
+       "special": "opNode",
+       "pos": [
+        918,
+        66
+       ]
+      },
+      {
+       "id": "n9",
+       "name": "DistanceToPoint",
+       "cls": "DistanceToPoint",
+       "lib": "SymServer",
+       "pos": [
+        391,
+        88
+       ],
+       "label": "DistanceToPoint"
+      },
+      {
+       "id": "n10",
+       "name": "(0,0,0)",
+       "cls": "Eval",
+       "lib": "Standard",
+       "pos": [
+        40,
+        136
+       ],
+       "label": "eval",
+       "widgets": {
+        "command": "(0,0,0)",
+        "importString": ""
+       }
+      },
+      {
+       "id": "n11",
+       "name": "Color Map",
+       "cls": "ColorMap",
+       "lib": "3D Visualization",
+       "pos": [
+        603,
+        88
+       ],
+       "label": "Color Map",
+       "widgets": {
+        "ramp": {
+         "ramp": [
+          [
+           0.0,
+           0.0,
+           1.0,
+           1.0
+          ],
+          [
+           0.0,
+           0.26667,
+           1.0,
+           1.0
+          ],
+          [
+           0.0,
+           0.53333,
+           1.0,
+           1.0
+          ],
+          [
+           0.0,
+           0.8,
+           1.0,
+           1.0
+          ],
+          [
+           0.0,
+           1.0,
+           0.93333,
+           1.0
+          ],
+          [
+           0.0,
+           1.0,
+           0.66667,
+           1.0
+          ],
+          [
+           0.0,
+           1.0,
+           0.4,
+           1.0
+          ],
+          [
+           0.0,
+           1.0,
+           0.13333,
+           1.0
+          ],
+          [
+           0.13333,
+           1.0,
+           0.0,
+           1.0
+          ],
+          [
+           0.4,
+           1.0,
+           0.0,
+           1.0
+          ],
+          [
+           0.66667,
+           1.0,
+           0.0,
+           1.0
+          ],
+          [
+           0.93333,
+           1.0,
+           0.0,
+           1.0
+          ],
+          [
+           1.0,
+           0.8,
+           0.0,
+           1.0
+          ],
+          [
+           1.0,
+           0.53333,
+           0.0,
+           1.0
+          ],
+          [
+           1.0,
+           0.26667,
+           0.0,
+           1.0
+          ],
+          [
+           1.0,
+           0.0,
+           0.0,
+           1.0
+          ]
+         ],
+         "mini": 38.65771029188789,
+         "maxi": 213.87293515277182,
+         "name": "cmap"
+        }
+       }
+      }
+     ],
+     "connections": [
+      {
+       "from": [
+        "n11",
+        "colors"
+       ],
+       "to": [
+        "n8",
+        1
+       ],
+       "blocking": true
+      },
+      {
+       "from": [
+        "n7",
+        1
+       ],
+       "to": [
+        "n9",
+        "coords"
+       ],
+       "blocking": true
+      },
+      {
+       "from": [
+        "n10",
+        "result"
+       ],
+       "to": [
+        "n9",
+        "point"
+       ],
+       "blocking": true
+      },
+      {
+       "from": [
+        "n9",
+        "dist"
+       ],
+       "to": [
+        "n11",
+        "values"
+       ],
+       "blocking": true
+      }
+     ]
+    }
+   },
+   {
+    "id": "n16",
+    "name": "FillMapWithBox",
+    "cls": "FillMapWithBox",
+    "lib": "Volume",
+    "pos": [
+     688,
+     57
+    ],
+    "label": "FillMapWithBox",
+    "widgets": {
+     "fillValue": 0.0
+    },
+    "widgetOpts": {
+     "fillValue": {
+      "min": null,
+      "max": null,
+      "precision": 2
+     }
+    }
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n2",
+     "normals"
+    ],
+    "to": [
+     "n3",
+     "vnormals"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n2",
+     "indices"
+    ],
+    "to": [
+     "n3",
+     "indices"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n2",
+     "coords"
+    ],
+    "to": [
+     "n3",
+     "coords"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n3",
+     "indexedPolygons"
+    ],
+    "to": [
+     "n4",
+     "geometries"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n1",
+     "grid"
+    ],
+    "to": [
+     "n5",
+     "grid"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n2",
+     "coords"
+    ],
+    "to": [
+     "n6",
+     "DistanceToPoint_coords"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n5",
+     "geom"
+    ],
+    "to": [
+     "n16",
+     "Box"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n1",
+     "grid"
+    ],
+    "to": [
+     "n16",
+     "grid3D"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n16",
+     "filledMap"
+    ],
+    "to": [
+     "n2",
+     "grid3D"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n6",
+     "Color_Map_colors"
+    ],
+    "to": [
+     "n3",
+     "colors"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

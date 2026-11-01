@@ -1,0 +1,418 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "3D Visualization",
+  "Volume"
+ ],
+ "network": {
+  "name": "headandslice: a CT scan, isosurface and slices",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "Viewer",
+    "cls": "Viewer",
+    "lib": "3D Visualization",
+    "pos": [
+     964,
+     396
+    ],
+    "label": "Viewer"
+   },
+   {
+    "id": "n2",
+    "name": "OrthoSliceZ",
+    "cls": "OrthoSlice",
+    "lib": "Volume",
+    "pos": [
+     626,
+     40
+    ],
+    "label": "OrthoSlice",
+    "widgets": {
+     "axis": "z",
+     "sliceNumber": 29,
+     "ramp": "rgb",
+     "opacity": 1.0
+    },
+    "widgetOpts": {
+     "axis": {
+      "autoList": false
+     },
+     "sliceNumber": {
+      "master": "Panel_0",
+      "max": 63,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "ramp": {
+      "autoList": false
+     },
+     "opacity": {
+      "type": "float",
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n3",
+    "name": "OrthoSliceY",
+    "cls": "OrthoSlice",
+    "lib": "Volume",
+    "pos": [
+     626,
+     268
+    ],
+    "label": "OrthoSlice",
+    "widgets": {
+     "axis": "y",
+     "sliceNumber": 20,
+     "ramp": "rgb",
+     "opacity": 1.0
+    },
+    "widgetOpts": {
+     "axis": {
+      "autoList": false
+     },
+     "sliceNumber": {
+      "master": "Panel_0",
+      "max": 63,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "ramp": {
+      "autoList": false
+     },
+     "opacity": {
+      "type": "float",
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n4",
+    "name": "Grid3DBB",
+    "cls": "BoundingBox",
+    "lib": "Volume",
+    "pos": [
+     349,
+     453
+    ],
+    "label": "GridBB"
+   },
+   {
+    "id": "n5",
+    "name": "ReadAnyMap",
+    "cls": "ReadAnyMap",
+    "lib": "Volume",
+    "pos": [
+     40,
+     340
+    ],
+    "label": "ReadAnyMap",
+    "widgets": {
+     "filename": "ct_head.rawiv",
+     "format": "auto",
+     "normalize": 1
+    },
+    "widgetOpts": {
+     "format": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n6",
+    "name": "OrthoSliceX",
+    "cls": "OrthoSlice",
+    "lib": "Volume",
+    "pos": [
+     626,
+     496
+    ],
+    "label": "OrthoSlice",
+    "widgets": {
+     "axis": "x",
+     "sliceNumber": 18,
+     "ramp": "rgb",
+     "opacity": 1.0
+    },
+    "widgetOpts": {
+     "axis": {
+      "autoList": false
+     },
+     "sliceNumber": {
+      "master": "Panel_0",
+      "max": 63,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "ramp": {
+      "autoList": false
+     },
+     "opacity": {
+      "type": "float",
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n7",
+    "name": "UT-Isocontour",
+    "cls": "Isocontour",
+    "lib": "Volume",
+    "pos": [
+     349,
+     637
+    ],
+    "label": "UT-Isocontour",
+    "widgets": {
+     "isovalue": 65.4823529412,
+     "calculatesignatures": 1,
+     "verbosity": 0
+    },
+    "widgetOpts": {
+     "isovalue": {
+      "type": "float",
+      "min": 0.0,
+      "max": 253.0,
+      "precision": 3,
+      "showLabel": 1
+     },
+     "calculatesignatures": {
+      "text": "Calculate signatures",
+      "command": "<bound method Isocontour.calculateSignatures of <wewos.libs.volume.Isocontour object at 0x7a54a40f8590>>",
+      "labelGridCfg": {
+       "sticky": "we"
+      }
+     },
+     "verbosity": {
+      "type": "int",
+      "min": 0,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 5,
+      "precision": 2,
+      "width": 60,
+      "height": 20,
+      "showLabel": 1
+     }
+    }
+   },
+   {
+    "id": "n8",
+    "name": "indexedPolygons",
+    "cls": "IndexedPolygons",
+    "lib": "3D Visualization",
+    "pos": [
+     626,
+     724
+    ],
+    "label": "IndPolygons",
+    "widgets": {
+     "opacity": 1.0
+    },
+    "widgetOpts": {
+     "opacity": {
+      "type": "float",
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n2",
+     "OrthoSlice"
+    ],
+    "to": [
+     "n1",
+     "geometries"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n3",
+     "OrthoSlice"
+    ],
+    "to": [
+     "n1",
+     "geometries"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n4",
+     "Grid3DBB"
+    ],
+    "to": [
+     "n1",
+     "geometries"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n5",
+     "grid"
+    ],
+    "to": [
+     "n4",
+     "grid"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n5",
+     "grid"
+    ],
+    "to": [
+     "n3",
+     "grid"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n5",
+     "grid"
+    ],
+    "to": [
+     "n2",
+     "grid"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n5",
+     "grid"
+    ],
+    "to": [
+     "n6",
+     "grid"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n6",
+     "OrthoSlice"
+    ],
+    "to": [
+     "n1",
+     "geometries"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n5",
+     "grid"
+    ],
+    "to": [
+     "n7",
+     "grid3D"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n4",
+     "Grid3DBB"
+    ],
+    "to": [
+     "n3",
+     "parent"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n4",
+     "Grid3DBB"
+    ],
+    "to": [
+     "n2",
+     "parent"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n4",
+     "Grid3DBB"
+    ],
+    "to": [
+     "n6",
+     "parent"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n7",
+     "coords"
+    ],
+    "to": [
+     "n8",
+     "coords"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n7",
+     "indices"
+    ],
+    "to": [
+     "n8",
+     "indices"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n7",
+     "normals"
+    ],
+    "to": [
+     "n8",
+     "vnormals"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n8",
+     "indexedPolygons"
+    ],
+    "to": [
+     "n1",
+     "geometries"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n4",
+     "Grid3DBB"
+    ],
+    "to": [
+     "n8",
+     "parent"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

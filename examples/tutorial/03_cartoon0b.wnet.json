@@ -1,0 +1,146 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "Imaging",
+  "Standard"
+ ],
+ "network": {
+  "name": "cartoon0b: a file name from a dial",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "Show Image",
+    "cls": "ShowImage",
+    "lib": "Imaging",
+    "pos": [
+     1239,
+     40
+    ],
+    "label": "Show Image"
+   },
+   {
+    "id": "n2",
+    "name": "Scale",
+    "cls": "ResizeImage",
+    "lib": "Imaging",
+    "pos": [
+     889,
+     40
+    ],
+    "label": "Scale",
+    "widgets": {
+     "scale": 1.0,
+     "filter": "NEAREST"
+    },
+    "widgetOpts": {
+     "scale": {
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "filter": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n3",
+    "name": "Read Image",
+    "cls": "ReadImage",
+    "lib": "Imaging",
+    "pos": [
+     693,
+     40
+    ],
+    "label": "Read Image",
+    "unbound": [
+     "filename"
+    ]
+   },
+   {
+    "id": "n4",
+    "name": "Filename",
+    "cls": "Filename",
+    "lib": "Standard",
+    "pos": [
+     349,
+     40
+    ],
+    "label": "Filename",
+    "widgets": {
+     "format": "cartoonMovie/crnCartoon%04d.png"
+    }
+   },
+   {
+    "id": "n5",
+    "name": "DialInt",
+    "cls": "DialIntNE",
+    "lib": "Standard",
+    "pos": [
+     40,
+     62
+    ],
+    "label": "DialInt",
+    "widgets": {
+     "dial": 6
+    },
+    "widgetOpts": {
+     "dial": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n3",
+     "image"
+    ],
+    "to": [
+     "n2",
+     "image"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n2",
+     "scaledImage"
+    ],
+    "to": [
+     "n1",
+     "image"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n4",
+     "filename"
+    ],
+    "to": [
+     "n3",
+     "filename"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n5",
+     "value"
+    ],
+    "to": [
+     "n4",
+     "number"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

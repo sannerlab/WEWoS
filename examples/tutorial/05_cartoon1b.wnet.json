@@ -1,0 +1,145 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "Imaging",
+  "Standard"
+ ],
+ "network": {
+  "name": "cartoon1b: iterate over a file list",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "Show Image",
+    "cls": "ShowImage",
+    "lib": "Imaging",
+    "pos": [
+     1324,
+     40
+    ],
+    "label": "Show Image"
+   },
+   {
+    "id": "n2",
+    "name": "Scale",
+    "cls": "ResizeImage",
+    "lib": "Imaging",
+    "pos": [
+     974,
+     40
+    ],
+    "label": "Scale",
+    "widgets": {
+     "scale": 1.0,
+     "filter": "NEAREST"
+    },
+    "widgetOpts": {
+     "scale": {
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "filter": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n3",
+    "name": "Read Image",
+    "cls": "ReadImage",
+    "lib": "Imaging",
+    "pos": [
+     779,
+     40
+    ],
+    "label": "Read Image",
+    "unbound": [
+     "filename"
+    ]
+   },
+   {
+    "id": "n4",
+    "name": "iterate",
+    "cls": "Iterate",
+    "lib": "Standard",
+    "pos": [
+     412,
+     40
+    ],
+    "label": "iterate",
+    "widgets": {
+     "stopOnFailure": 0
+    }
+   },
+   {
+    "id": "n5",
+    "name": "Filelist",
+    "cls": "Filelist",
+    "lib": "Standard",
+    "pos": [
+     40,
+     40
+    ],
+    "label": "Filelist",
+    "widgets": {
+     "directory": "cartoonMovie",
+     "match_str": "crnCartoon*png"
+    },
+    "widgetOpts": {
+     "directory": {
+      "title": "Select directory"
+     }
+    },
+    "code": "def doit(self, directory, match_str ):\n    import glob, os\n    if directory is not None:\n        cwd = os.getcwd()\n        os.chdir(directory)\n    try:\n        values = glob.glob(match_str)\n        values.sort()\n        filenames = [ os.path.join(directory, x) for x in values ]\n        self.outputData(filelist=filenames)\n    finally:\n        if directory is not None:\n            os.chdir(cwd)\n"
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n3",
+     "image"
+    ],
+    "to": [
+     "n2",
+     "image"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n2",
+     "scaledImage"
+    ],
+    "to": [
+     "n1",
+     "image"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n4",
+     "oneItem"
+    ],
+    "to": [
+     "n3",
+     "filename"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n5",
+     "filelist"
+    ],
+    "to": [
+     "n4",
+     "listToLoopOver"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

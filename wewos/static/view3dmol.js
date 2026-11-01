@@ -169,8 +169,9 @@
         const p = dec(g.vertices), seg = dec(g.segments), cols = dec(g.colors);
         const ns = seg.length / 2;
         o.pts = sample(p);
-        byColor(ns, V3DU.segmentColors(seg, cols), g.color).forEach(([color, idx]) => {
-          const sh = v.addShape({color, alpha, clickable: !!click, callback: click});
+        byColor(ns, V3DU.segmentColors(seg, cols), V3DU.lineColor(g)).forEach(([color, idx]) => {
+          // 3Dmol draws a shape's lines only in a wireframe shape
+          const sh = v.addShape({color, alpha, wireframe: true, linewidth: 1.5, clickable: !!click, callback: click});
           idx.forEach(i => sh.addLine({start: vec(p, seg[2 * i]), end: vec(p, seg[2 * i + 1])}));
           o.shapes.push(sh);
         });

@@ -210,3 +210,85 @@ def test_vision_color_map_legend_connects_to_the_viewer():
     net = Network('imported')
     eq(fileio.from_dict(net, data), [])
     eq([(c.port1.name, c.port2.name) for c in net.connections], [('legend', 'geometries')])
+
+
+def test_saved_viewer_color_goes_to_the_geometry_node():
+    # Vision kept an object's diffuse color in the viewer's saved state
+    src = ('from DejaVu.VisionInterface.DejaVuNodes import vizlib\n'
+           'from DejaVu.VisionInterface.GeometryNodes import Spheres\n'
+           's = Spheres(constrkw={}, name="cageVertices", library=vizlib)\n'
+           'masterNet.addNode(s, 10, 10)\n'
+           'def loadSavedStates_Viewer_1(self=None, event=None):\n'
+           '    obj = self.vi.FindObjectByName("root|cageVertices")\n'
+           '    if obj:\n'
+           '        state = {"opacity": [1.0], "diffuse": [[1.0, 0.42, 0.69, 1.0]]}\n'
+           '        apply(obj.materials[GL.GL_FRONT].Set, (), state)\n')
+    data, report = importer.import_source(src, 'x_net.py')
+    e = data['network']['nodes'][0]
+    eq(e['state'], {'geomState': {'color': [1.0, 0.42, 0.69]}})
+    net = Network('imported')
+    eq(fileio.from_dict(net, data), [])
+    n = net.nodes[0]
+    eq(n.geomState, {'color': [1.0, 0.42, 0.69]})
+    eq(n.getStateForSaving(), {'geomState': {'color': [1.0, 0.42, 0.69]}})
+
+
+def test_user_macro_port_follows_a_renamed_inner_port():
+    # ColorMapNE's mappedColors is colors here: the macro port named after it follows
+    src = ('from NetworkEditor.macros import MacroNode\n'
+           'from DejaVu.VisionInterface.DejaVuNodes import vizlib, ColorMapNE\n'
+           'from DejaVu.VisionInterface.GeometryNodes import IndexedPolygonsNE\n'
+           'm = MacroNode(name="radialColoring")\n'
+           'masterNet.addNode(m, 10, 10)\n'
+           'c = ColorMapNE(constrkw={}, name="Color Map", library=vizlib)\n'
+           'm.macroNetwork.addNode(c, 10, 10)\n'
+           'op = m.macroNetwork.opNode\n'
+           'm.macroNetwork.connectNodes(c, op, "mappedColors", "new", blocking=True)\n'
+           'p = IndexedPolygonsNE(constrkw={}, name="surf", library=vizlib)\n'
+           'masterNet.addNode(p, 200, 10)\n'
+           'masterNet.connectNodes(m, p, "Color_Map_mappedColors", "colors", blocking=True)\n')
+    data, report = importer.import_source(src, 'x_net.py')
+    net = Network('imported')
+    eq(fileio.from_dict(net, data), [])
+    eq([(c.port1.name, c.port2.name) for c in net.connections], [('Color_Map_colors', 'colors')])
+
+
+def test_changes_inside_a_library_macro_are_reported():
+    src = ('from symserv.VisionInterface.SymservNodes import symlib, Icos1, SymTransNE\n'
+           'from MolKit.VisionInterface.MolKitNodes import molkitlib, LinesMacro\n'
+           'i = Icos1(constrkw={}, name="Icosahedral1", library=symlib)\n'
+           'masterNet.addNode(i, 10, 10)\n'
+           't = SymTransNE(constrkw={}, name="Translate", library=symlib)\n'
+           'i.macroNetwork.addNode(t, 10, 10)\n'
+           'i.macroNetwork.deleteConnection(i.macroNetwork.nodes[2], "outMatrices", i.macroNetwork.nodes[3], "matrices")\n'
+           'l = LinesMacro(constrkw={}, name="Lines Macro", library=molkitlib)\n'
+           'masterNet.addNode(l, 10, 90)\n'
+           'masterNet.connectNodes(i, l, "Merge_outMatrices", "IndexedPolylines_parent", blocking=True)\n')
+    data, report = importer.import_source(src, 'x_net.py')
+    check(any('Icosahedral1' in w and 'added nodes' in w and 'deleted connections' in w
+              for w in report.warnings))
+    # a geometry parent port is not the Lines node's atoms: not connected, reported on loading
+    c = data['network']['connections'][0]
+    eq(c['to'][1], 'IndexedPolylines_parent')
+    net = Network('imported')
+    probs = fileio.from_dict(net, data)
+    check(len(probs) == 1 and 'IndexedPolylines_parent' in probs[0])
+
+
+def test_vision_geom_options_node_sends_a_dict():
+    # Vision's Set Geom Options outputs a dict for a geometry's geomOptions input
+    src = ('from DejaVu.VisionInterface.DejaVuNodes import vizlib, GeomOptions\n'
+           'from DejaVu.VisionInterface.GeometryNodes import IndexedPolygonsNE\n'
+           'o = GeomOptions(constrkw={}, name="Set Geom Options", library=vizlib)\n'
+           'masterNet.addNode(o, 10, 10)\n'
+           'o.inputPortByName["geomOptions"].widget.set({"frontPolyMode": "line"}, run=False)\n'
+           'p = IndexedPolygonsNE(constrkw={}, name="surf", library=vizlib)\n'
+           'masterNet.addNode(p, 200, 10)\n'
+           'masterNet.connectNodes(o, p, "geomOptions", "geomOptions", blocking=True)\n')
+    data, report = importer.import_source(src, 'x_net.py')
+    net = Network('imported')
+    eq(fileio.from_dict(net, data), [])
+    o = net.nodes[0]
+    net.run([o])
+    eq(o.outputPortByName['geomOptions'].data, {'frontPolyMode': 'line'})
+    eq(o.status, 'done')                     # no geometry given: only the dict goes out

@@ -238,3 +238,5 @@ textarea.w-text{width:100%;min-height:60px;font:11.5px ui-monospace,Menlo,monosp
 .libtable td:nth-child(2),.libtable td:nth-child(3){white-space:nowrap;width:1%}
 [hidden]{display:none !important}
 body.drag #canvaswrap{outline:3px dashed var(--accent);outline-offset:-6px}
+.wopts td{padding:3px 8px 3px 0}
+.wopts input{width:12em}

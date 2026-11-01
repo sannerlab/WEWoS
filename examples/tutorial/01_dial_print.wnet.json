@@ -1,0 +1,59 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "Standard"
+ ],
+ "network": {
+  "name": "dial and print",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "Dial",
+    "cls": "DialNE",
+    "lib": "Standard",
+    "pos": [
+     40,
+     40
+    ],
+    "label": "Dial",
+    "widgets": {
+     "dial": 0.0
+    },
+    "widgetOpts": {
+     "dial": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n2",
+    "name": "print",
+    "cls": "Print",
+    "lib": "Standard",
+    "pos": [
+     330,
+     60
+    ],
+    "label": "print"
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n1",
+     "value"
+    ],
+    "to": [
+     "n2",
+     "in1"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

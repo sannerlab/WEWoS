@@ -281,8 +281,8 @@ class ImageFilter(NetworkNode):
         
         code = """def doit(self, image, filter):
     from PIL import ImageFilter
-    if filter is not '' and image:
-        op = eval('ImageFilter.'+filter)
+    if filter and image:
+        op = getattr(ImageFilter, filter)
         self.outputData(image= image.filter(op))\n"""
 
         self.setFunction(code)

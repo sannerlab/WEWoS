@@ -1,0 +1,286 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "Molecules",
+  "3D Visualization",
+  "SymServer"
+ ],
+ "network": {
+  "name": "mol2plv: poliovirus with icosahedral symmetry",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "Read Molecule",
+    "cls": "ReadMolecule",
+    "lib": "Molecules",
+    "pos": [
+     30,
+     40
+    ],
+    "label": "Read Molecule",
+    "widgets": {
+     "filename": "2plv.pdb"
+    }
+   },
+   {
+    "id": "n2",
+    "name": "Select",
+    "cls": "NodeSelector",
+    "lib": "Molecules",
+    "pos": [
+     300,
+     40
+    ],
+    "label": "Select",
+    "widgets": {
+     "selectionString": "name CA C N",
+     "syntax": "prody"
+    },
+    "widgetOpts": {
+     "syntax": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n3",
+    "name": "Extract Atom Property",
+    "cls": "AtomsProperty",
+    "lib": "Molecules",
+    "pos": [
+     560,
+     160
+    ],
+    "label": "Extract Atom Property",
+    "widgets": {
+     "propertyName": "coords[0]"
+    },
+    "widgetOpts": {
+     "propertyName": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n4",
+    "name": "Color Map",
+    "cls": "ColorMap",
+    "lib": "3D Visualization",
+    "pos": [
+     820,
+     160
+    ],
+    "label": "Color Map",
+    "widgets": {
+     "ramp": "rgb"
+    }
+   },
+   {
+    "id": "n5",
+    "name": "Icosahedral1",
+    "cls": "Icos1",
+    "lib": "SymServer",
+    "pos": [
+     820,
+     330
+    ],
+    "label": "Icosahedral1",
+    "innerWidgets": {
+     "2": {
+      "vector": [
+       0.0,
+       0.5254928807219159,
+       0.8507979973592923
+      ],
+      "point": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "identity": 1
+     },
+     "3": {
+      "vector": [
+       0.5773502691896258,
+       0.5773502691896258,
+       0.5773502691896258
+      ],
+      "point": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "identity": 1
+     },
+     "4": {
+      "vector": [
+       1.0,
+       0.0,
+       0.0
+      ],
+      "point": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "identity": 1
+     },
+     "5": {
+      "vector": [
+       0.0,
+       0.0,
+       1.0
+      ],
+      "point": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "identity": 0
+     },
+     "6": {
+      "vector": [
+       0.0,
+       1.0,
+       0.0
+      ],
+      "point": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "identity": 0
+     }
+    }
+   },
+   {
+    "id": "n22",
+    "name": "Lines",
+    "cls": "AtomsAsLines",
+    "lib": "Molecules",
+    "pos": [
+     1100,
+     40
+    ],
+    "label": "Lines",
+    "widgets": {
+     "colorBy": "element",
+     "opacity": 1.0
+    },
+    "widgetOpts": {
+     "colorBy": {
+      "autoList": false
+     },
+     "opacity": {
+      "type": "float",
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n23",
+    "name": "Viewer",
+    "cls": "Viewer",
+    "lib": "3D Visualization",
+    "pos": [
+     1360,
+     120
+    ],
+    "label": "Viewer"
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n1",
+     "mol"
+    ],
+    "to": [
+     "n2",
+     "nodes"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n2",
+     "selection"
+    ],
+    "to": [
+     "n22",
+     "atoms"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n2",
+     "selection"
+    ],
+    "to": [
+     "n3",
+     "atoms"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n3",
+     "propertyValues"
+    ],
+    "to": [
+     "n4",
+     "values"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n4",
+     "colors"
+    ],
+    "to": [
+     "n22",
+     "colors"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n5",
+     "Merge_outMatrices"
+    ],
+    "to": [
+     "n22",
+     "instanceMatrices"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n22",
+     "lines"
+    ],
+    "to": [
+     "n23",
+     "geometries"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n4",
+     "legend"
+    ],
+    "to": [
+     "n23",
+     "geometries"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

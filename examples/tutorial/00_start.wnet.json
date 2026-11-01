@@ -1,0 +1,11 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [],
+ "network": {
+  "name": "start here (an empty network with the tutorial data)",
+  "nodes": [],
+  "connections": [],
+  "runOnNewData": true
+ }
+}

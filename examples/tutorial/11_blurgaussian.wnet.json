@@ -1,0 +1,337 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "Molecules",
+  "3D Visualization",
+  "Volume"
+ ],
+ "network": {
+  "name": "blurgaussian: a molecule blurred into a map",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "Read Molecule",
+    "cls": "ReadMolecule",
+    "lib": "Molecules",
+    "pos": [
+     40,
+     155
+    ],
+    "label": "Read Molecule",
+    "widgets": {
+     "filename": "nomegav1AS.pdb"
+    }
+   },
+   {
+    "id": "n2",
+    "name": "Lines Macro",
+    "cls": "AtomsAsLines",
+    "lib": "Molecules",
+    "pos": [
+     337,
+     186
+    ],
+    "label": "Lines",
+    "widgets": {
+     "colorBy": "element",
+     "opacity": 1.0
+    },
+    "widgetOpts": {
+     "colorBy": {
+      "autoList": false
+     },
+     "opacity": {
+      "type": "float",
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n3",
+    "name": "Viewer",
+    "cls": "Viewer",
+    "lib": "3D Visualization",
+    "pos": [
+     1463,
+     132
+    ],
+    "label": "Viewer"
+   },
+   {
+    "id": "n4",
+    "name": "Select Nodes",
+    "cls": "NodeSelector",
+    "lib": "Molecules",
+    "pos": [
+     337,
+     90
+    ],
+    "label": "Select",
+    "widgets": {
+     "selectionString": "",
+     "syntax": "prody"
+    },
+    "widgetOpts": {
+     "syntax": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n5",
+    "name": "Gaussians Mask",
+    "cls": "GaussiansMask",
+    "lib": "Volume",
+    "pos": [
+     682,
+     101
+    ],
+    "label": "Gaussians Blur",
+    "widgets": {
+     "box": 0,
+     "apix": 3.0,
+     "res": 3.0,
+     "solv": 0
+    },
+    "widgetOpts": {
+     "box": {
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "apix": {
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "res": {
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n6",
+    "name": "Grid3DBB",
+    "cls": "BoundingBox",
+    "lib": "Volume",
+    "pos": [
+     886,
+     158
+    ],
+    "label": "GridBB"
+   },
+   {
+    "id": "n7",
+    "name": "Isocontour",
+    "cls": "Isocontour",
+    "lib": "Volume",
+    "pos": [
+     886,
+     40
+    ],
+    "label": "UT-Isocontour",
+    "widgets": {
+     "isovalue": 5.33950792832,
+     "calculatesignatures": 0,
+     "verbosity": 0
+    },
+    "widgetOpts": {
+     "isovalue": {
+      "type": "float",
+      "min": -0.17206455767154694,
+      "max": 10.733881950378418,
+      "precision": 3,
+      "showLabel": 1
+     },
+     "calculatesignatures": {
+      "text": "Calculate signatures",
+      "command": "<bound method Isocontour.calculateSignatures of <wewos.libs.volume.Isocontour object at 0x7a54a4c7b110>>",
+      "labelGridCfg": {
+       "sticky": "we"
+      }
+     },
+     "verbosity": {
+      "type": "int",
+      "min": 0,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 5,
+      "precision": 2,
+      "width": 60,
+      "height": 20,
+      "showLabel": 1
+     }
+    }
+   },
+   {
+    "id": "n8",
+    "name": "indexedPolygons",
+    "cls": "IndexedPolygons",
+    "lib": "3D Visualization",
+    "pos": [
+     1163,
+     52
+    ],
+    "label": "IndPolygons",
+    "widgets": {
+     "opacity": 0.877
+    },
+    "widgetOpts": {
+     "opacity": {
+      "type": "float",
+      "increment": 0.0,
+      "precision": 2
+     }
+    },
+    "state": {
+     "geomState": {
+      "color": [
+       1.0,
+       0.5834,
+       0.1269
+      ]
+     }
+    }
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n1",
+     "mol"
+    ],
+    "to": [
+     "n2",
+     "atoms"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n2",
+     "lines"
+    ],
+    "to": [
+     "n3",
+     "geometries"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n1",
+     "mol"
+    ],
+    "to": [
+     "n4",
+     "nodes"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n4",
+     "selection"
+    ],
+    "to": [
+     "n5",
+     "atoms"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n5",
+     "maskGrid"
+    ],
+    "to": [
+     "n6",
+     "grid"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n7",
+     "normals"
+    ],
+    "to": [
+     "n8",
+     "vnormals"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n7",
+     "indices"
+    ],
+    "to": [
+     "n8",
+     "indices"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n7",
+     "coords"
+    ],
+    "to": [
+     "n8",
+     "coords"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n5",
+     "maskGrid"
+    ],
+    "to": [
+     "n7",
+     "grid3D"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n8",
+     "indexedPolygons"
+    ],
+    "to": [
+     "n3",
+     "geometries"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n6",
+     "Grid3DBB"
+    ],
+    "to": [
+     "n3",
+     "geometries"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n6",
+     "Grid3DBB"
+    ],
+    "to": [
+     "n8",
+     "parent"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

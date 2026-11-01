@@ -600,8 +600,12 @@ class Session(object):
 
 
 def list_dir(path, base):
-    """Files and folders of a directory for the file browser widget."""
-    path = os.path.abspath(os.path.expanduser(path or base))
+    """Files and folders of a directory for the file browser widget. A
+    relative path is in the network's folder (base), as the nodes read it."""
+    path = os.path.expanduser(path or base)
+    if not os.path.isabs(path):
+        path = os.path.join(base, path)
+    path = os.path.abspath(path)
     if not os.path.isdir(path):
         path = os.path.dirname(path)
     if not os.path.isdir(path):

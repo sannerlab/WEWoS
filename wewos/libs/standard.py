@@ -2173,7 +2173,7 @@ def doit(self, objects, attr):
                 
         if attr:
             if self.inputPorts[0].singleConnection:
-                attrs = string.split(attr, '.')
+                attrs = attr.split('.')
                 result = reduce( getattr, [objects]+attrs )
                 self.outputData(attrs=result)
             else:
@@ -2188,7 +2188,7 @@ def doit(self, objects, attr):
         #            if attr is None or attr=='':
                     if attr=='':
                         continue
-                    attrs = string.split(attr, '.')
+                    attrs = attr.split('.')
                     result = reduce( getattr, [obj]+attrs )
                     if type(result) == list:
                         results.extend( result )
@@ -2397,7 +2397,7 @@ Example
             if arg[0]=='%':
                 if len(arg)==1:
                    arg = '%in',i
-                l = string.find(arg[1:], '[')
+                l = arg[1:].find('[')
                 if l == -1:
                     shortName = arg[1:]
                 else:
@@ -2413,7 +2413,7 @@ Example
                 raise RuntimeError('Positional argument specified '+\
                 'after named argument!')
             # ??? looking for indices ???
-            l = string.find(arg, '[')
+            l = arg.find('[')
             if l == -1:
                 shortName = arg
             else:
@@ -2462,7 +2462,7 @@ Example
 
         self.newCode = self.newCode + """):\n"""
 
-        codeNoSig = self.sourceCode[string.find(self.sourceCode,'\n')+1:]
+        codeNoSig = self.sourceCode[self.sourceCode.find('\n')+1:]
         self.newCode = self.newCode + codeNoSig
         
         # check this out DUDE ! self modifying code

@@ -72,6 +72,7 @@ class Geom(object):
         self.children = []
         self.vertices = numpy.zeros((0, 3), 'f')
         self.color = list(DEFAULT_COLOR)
+        self.colorSet = False         # False: drawn in the page's default (lines follow the theme)
         self.colors = None
         self.opacity = 1.0
         self.visible = True
@@ -92,6 +93,7 @@ class Geom(object):
             if key in kw:
                 c = kw.pop(key)
                 if c is not None:
+                    self.colorSet = True
                     one, many = _colors(c, len(self.vertices))
                     if one is not None:
                         self.color, self.colors = one, None
@@ -167,6 +169,8 @@ class Geom(object):
 
     def _color_json(self, d, n, ninst=None):
         d['color'] = self.color
+        if not self.colorSet and self.colors is None:
+            d['defaultColor'] = True
         if self.colors is not None:
             c = numpy.asarray(self.colors, 'f')
             k = self._ninst() if ninst is None else ninst

@@ -353,7 +353,7 @@ function widgetCtx(nid, port, compact){
     key: nid + ':' + port,
     colormapFile: (action, path, colorMap) => edit('colormap_file', {action, path, colorMap}),
     change: (value, runIt) => edit('set_widget', {node: nid, port, value, run: runIt && ST.auto}),
-    pickFile: (kind, cur, opts) => filePicker(kind, cur, opts),
+    pickFile: (kind, cur, opts) => filePicker(kind, cur, Object.assign({relative: true}, opts)),
     upload: () => uploadFile(),
   };
 }
@@ -453,7 +453,37 @@ function widgetMenuItems(n, p){
     ['Show in the node', () => edit('widget_opts', {node: n.id, port: p.name, opts: {master: 'node'}}), p.widget.master === 'node'],
     ['Show in the panel only', () => edit('widget_opts', {node: n.id, port: p.name, opts: {master: 'ParamPanel'}}), p.widget.master !== 'node'],
     ['Unbind (show the port)', () => edit('unbind', {node: n.id, port: p.name}), p.widget.locked],
-  ];
+  ].concat(p.widget.kind === 'number' ? [['Options\u2026', () => widgetOptions(n, p)]] : []);
+}
+// a number widget's options: Vision's option panel (min, max, step, one turn, precision)
+function widgetOptions(n, p){
+  const o = p.widget.options || {};
+  const fields = [['min', 'minimum', 'none'], ['max', 'maximum', 'none'],
+                  ['increment', 'step', '0: any value'], ['oneTurn', 'one turn', 'change for one turn of a dial']]
+    .concat(o.type === 'int' ? [] : [['precision', 'digits shown', '']]);
+  const box = document.createElement('div');
+  box.innerHTML = '<p class=dim>The widget of <b>' + esc(n.name) + '</b>, input <b>' + esc(p.name) +
+    '</b>. Leave the minimum or maximum empty for none.</p><table class=wopts>' +
+    fields.map(([k, label, ph]) => '<tr><td>' + label + '</td><td><input data-k="' + k + '" value="' +
+      (o[k] == null ? '' : esc(String(o[k]))) + '" placeholder="' + esc(ph) + '" spellcheck=false></td></tr>').join('') +
+    '</table><p id=wo_err class=bad></p><div class=btns style="display:flex;gap:6px">' +
+    '<button class=primary id=wo_ok>OK</button><button id=wo_cancel>Cancel</button></div>';
+  modal('Widget options', box);
+  box.querySelector('#wo_cancel').onclick = closeModal;
+  box.querySelector('#wo_ok').onclick = async () => {
+    const opts = {};
+    for(const inp of box.querySelectorAll('input[data-k]')){
+      const k = inp.dataset.k, t = inp.value.trim();
+      if(t === ''){ if(k === 'min' || k === 'max') opts[k] = null; continue; }
+      const v = Number(t);
+      if(!isFinite(v)){ box.querySelector('#wo_err').textContent = 'not a number: ' + t; return; }
+      opts[k] = v;
+    }
+    if(opts.min != null && opts.max != null && opts.min > opts.max){
+      box.querySelector('#wo_err').textContent = 'the minimum is larger than the maximum'; return; }
+    const d = await edit('widget_opts', {node: n.id, port: p.name, opts});
+    if(!d.error) closeModal();
+  };
 }
 function widgetMenu(n, p, ev){ menu(ev, widgetMenuItems(n, p)); }
 // right-click on a widget shown in a node: its menu, then the node's
@@ -529,8 +559,11 @@ function filePicker(kind, current, opts){
       (kind === 'file' ? '<button id=f_upload>Upload from this computer&hellip;</button>' : '') + '</div>';
     modal(opts.title || (kind === 'dir' ? 'Choose a folder' : 'Choose a file'), box);
     modalCancel = () => resolve(null);
-    const done = v => { modalCancel = null; $('modal').hidden = true; resolve(v); };
     let session = '';
+    // a widget's file inside the network's folder is given relative to it,
+    // as nodes read it (and as Vision networks kept their file names)
+    const rel = v => (opts.relative && v && session && v.startsWith(session + '/')) ? v.slice(session.length + 1) : v;
+    const done = v => { modalCancel = null; $('modal').hidden = true; resolve(rel(v)); };
     async function go(d){
       const r = await api('api/files?s=' + encodeURIComponent(ST.sid) + '&dir=' + encodeURIComponent(d || ''));
       if(r.error) return;

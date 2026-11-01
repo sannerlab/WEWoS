@@ -1,0 +1,475 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "Volume",
+  "3D Visualization",
+  "SymServer",
+  "Standard"
+ ],
+ "network": {
+  "name": "isorad: an isosurface colored by radius",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "Isocontour",
+    "cls": "Isocontour",
+    "lib": "Volume",
+    "pos": [
+     349,
+     474
+    ],
+    "label": "UT-Isocontour",
+    "widgets": {
+     "isovalue": -0.131374078638,
+     "calculatesignatures": 1,
+     "verbosity": 0
+    },
+    "widgetOpts": {
+     "isovalue": {
+      "type": "float",
+      "min": -7.583447456359863,
+      "max": 5.085077285766602,
+      "precision": 3,
+      "showLabel": 1
+     },
+     "calculatesignatures": {
+      "text": "Calculate signatures",
+      "command": "<bound method Isocontour.calculateSignatures of <wewos.libs.volume.Isocontour object at 0x7a54a4a10f10>>",
+      "labelGridCfg": {
+       "sticky": "we"
+      }
+     },
+     "verbosity": {
+      "type": "int",
+      "min": 0,
+      "max": null,
+      "increment": 0.0,
+      "oneTurn": 5,
+      "precision": 2,
+      "width": 60,
+      "height": 20,
+      "showLabel": 1
+     }
+    }
+   },
+   {
+    "id": "n2",
+    "name": "indexedPolygons",
+    "cls": "IndexedPolygons",
+    "lib": "3D Visualization",
+    "pos": [
+     1274,
+     374
+    ],
+    "label": "IndPolygons",
+    "widgets": {
+     "opacity": 1.0
+    },
+    "widgetOpts": {
+     "opacity": {
+      "type": "float",
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n3",
+    "name": "Grid3DBB",
+    "cls": "BoundingBox",
+    "lib": "Volume",
+    "pos": [
+     349,
+     40
+    ],
+    "label": "GridBB"
+   },
+   {
+    "id": "n4",
+    "name": "DistanceToPoint",
+    "cls": "DistanceToPoint",
+    "lib": "SymServer",
+    "pos": [
+     700,
+     510
+    ],
+    "label": "DistanceToPoint"
+   },
+   {
+    "id": "n5",
+    "name": "[0,0,0]",
+    "cls": "Eval",
+    "lib": "Standard",
+    "pos": [
+     349,
+     592
+    ],
+    "label": "eval",
+    "widgets": {
+     "command": "[0,0,0]",
+     "importString": ""
+    }
+   },
+   {
+    "id": "n6",
+    "name": "ReadCCP4",
+    "cls": "ReadCCP4file",
+    "lib": "Volume",
+    "pos": [
+     40,
+     187
+    ],
+    "label": "ReadCCP4",
+    "widgets": {
+     "filename": "lig.ccp4",
+     "normalize": 1
+    }
+   },
+   {
+    "id": "n7",
+    "name": "Color Map",
+    "cls": "ColorMap",
+    "lib": "3D Visualization",
+    "pos": [
+     912,
+     405
+    ],
+    "label": "Color Map",
+    "widgets": {
+     "ramp": {
+      "ramp": [
+       [
+        0.0,
+        0.0,
+        1.0,
+        1.0
+       ],
+       [
+        0.0,
+        0.26667,
+        1.0,
+        1.0
+       ],
+       [
+        0.0,
+        0.53333,
+        1.0,
+        1.0
+       ],
+       [
+        0.0,
+        0.8,
+        1.0,
+        1.0
+       ],
+       [
+        0.0,
+        1.0,
+        0.93333,
+        1.0
+       ],
+       [
+        0.0,
+        1.0,
+        0.66667,
+        1.0
+       ],
+       [
+        0.0,
+        1.0,
+        0.4,
+        1.0
+       ],
+       [
+        0.0,
+        1.0,
+        0.13333,
+        1.0
+       ],
+       [
+        0.13333,
+        1.0,
+        0.0,
+        1.0
+       ],
+       [
+        0.4,
+        1.0,
+        0.0,
+        1.0
+       ],
+       [
+        0.66667,
+        1.0,
+        0.0,
+        1.0
+       ],
+       [
+        0.93333,
+        1.0,
+        0.0,
+        1.0
+       ],
+       [
+        1.0,
+        0.8,
+        0.0,
+        1.0
+       ],
+       [
+        1.0,
+        0.53333,
+        0.0,
+        1.0
+       ],
+       [
+        1.0,
+        0.26667,
+        0.0,
+        1.0
+       ],
+       [
+        1.0,
+        0.0,
+        0.0,
+        1.0
+       ]
+      ],
+      "mini": 153.47560501003863,
+      "maxi": 288.12698700984026,
+      "name": "cmap"
+     }
+    }
+   },
+   {
+    "id": "n8",
+    "name": "Set Geom Options",
+    "cls": "GeomOptions",
+    "lib": "3D Visualization",
+    "pos": [
+     912,
+     309
+    ],
+    "label": "Set Geom Options",
+    "widgets": {
+     "geomOptions": "{'frontPolyMode': 'line'}"
+    }
+   },
+   {
+    "id": "n9",
+    "name": "Viewer",
+    "cls": "Viewer",
+    "lib": "3D Visualization",
+    "pos": [
+     1574,
+     266
+    ],
+    "label": "Viewer"
+   },
+   {
+    "id": "n10",
+    "name": "OrthoSlice",
+    "cls": "OrthoSlice",
+    "lib": "Volume",
+    "pos": [
+     349,
+     224
+    ],
+    "label": "OrthoSlice",
+    "widgets": {
+     "axis": "z",
+     "sliceNumber": 12,
+     "ramp": "rgb",
+     "opacity": 1.0
+    },
+    "widgetOpts": {
+     "axis": {
+      "autoList": false
+     },
+     "sliceNumber": {
+      "max": 58,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "ramp": {
+      "autoList": false
+     },
+     "opacity": {
+      "type": "float",
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n1",
+     "coords"
+    ],
+    "to": [
+     "n2",
+     "coords"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n1",
+     "indices"
+    ],
+    "to": [
+     "n2",
+     "indices"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n1",
+     "normals"
+    ],
+    "to": [
+     "n2",
+     "vnormals"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n1",
+     "coords"
+    ],
+    "to": [
+     "n4",
+     "coords"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n5",
+     "result"
+    ],
+    "to": [
+     "n4",
+     "point"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n6",
+     "grid"
+    ],
+    "to": [
+     "n3",
+     "grid"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n6",
+     "grid"
+    ],
+    "to": [
+     "n1",
+     "grid3D"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n4",
+     "dist"
+    ],
+    "to": [
+     "n7",
+     "values"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n7",
+     "colors"
+    ],
+    "to": [
+     "n2",
+     "colors"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n8",
+     "geomOptions"
+    ],
+    "to": [
+     "n2",
+     "geomOptions"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n3",
+     "Grid3DBB"
+    ],
+    "to": [
+     "n9",
+     "geometries"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n7",
+     "legend"
+    ],
+    "to": [
+     "n9",
+     "geometries"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n2",
+     "indexedPolygons"
+    ],
+    "to": [
+     "n9",
+     "geometries"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n6",
+     "grid"
+    ],
+    "to": [
+     "n10",
+     "grid"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n10",
+     "OrthoSlice"
+    ],
+    "to": [
+     "n9",
+     "geometries"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

@@ -1,0 +1,70 @@
+<h1>WEWoS and Vision</h1>
+<p class="lead">What WEWoS keeps of Vision, what changed, and where Vision came from.</p>
+
+<h2 id="kept">What is kept</h2>
+<p>The engine is a Python 3 port of Vision's NetworkEditor, and keeps its semantics:</p>
+<ul>
+<li>soft and hard runs, data-driven breadth-first scheduling, blocking connections, the
+<code>'Stop'</code> status, and the scheduling nodes (iterate, while);</li>
+<li>port types with their shapes and colors, casting between types, single and multiple
+connections, required and optional inputs;</li>
+<li>widgets bound to inputs, unbound and rebound, in the node or in the parameter panel;</li>
+<li>macros, with their input and output nodes and the <code>new</code> port;</li>
+<li>the node definition API: <code>inputPortsDescr</code>, <code>outputPortsDescr</code>,
+<code>widgetDescr</code>, <code>setFunction</code>, <code>outputData</code>, so that the node
+libraries were ported with few changes;</li>
+<li>Vision's networks, which <a href="files.html#import">import</a>.</li>
+</ul>
+
+<h2 id="changed">What is different</h2>
+<ul>
+<li><b>No Tk, no OpenGL on the server.</b> Widgets are data that the page draws. The 3D viewers are
+drawn by the browser with 3Dmol.js or Mol*; DejaVu's geometries became plain Python objects that the
+server sends to the page.</li>
+<li><b>Data flows from left to right</b>, inputs on the left of a node and outputs on its right, where
+Vision drew it down the page. Imported networks are laid out again.</li>
+<li><b>One run at a time</b>, on a thread of the server. Changing a widget during a run queues another
+run.</li>
+<li><b>The parameter column</b> replaces the parameter panels: it shows the selected node's widgets,
+ports and buttons.</li>
+<li><b>Each network has a folder</b>, where its files are read and written.</li>
+<li>Vision's libraries were reorganized: <i>vizlib</i> is 3D Visualization, <i>MolKit</i> is Molecules
+(on MolKit2 and ProDy), and Lines/CPK/MSMS macros are single nodes.</li>
+</ul>
+
+<h2 id="notported">What is not ported</h2>
+<ul>
+<li>user panels (a network as a standalone application), and saving a node's source to a user library
+from its menu;</li>
+<li>the libraries of PMV, ADT, FlexTree, ImageMagick, web services and the other MGLTools packages;</li>
+<li>from DejaVu: textures, volume rendering, clip planes, stereo, and the legend's units and inverted
+label colors;</li>
+<li>from Volume: volume rendering (UTVolRen) and QSlim mesh simplification;</li>
+<li>matplotlib's navigation toolbar;</li>
+<li>Vision's option panels for widgets other than numbers.</li>
+</ul>
+
+<h2 id="history">History</h2>
+<p>Vision began as <b>ViPEr</b>, a Visual Programming Environment for Python, written by Michel Sanner,
+Daniel Stoffler and Arthur Olson in the Molecular Graphics Laboratory of The Scripps Research
+Institute. It was presented at the 10th International Python Conference in February 2002, where it
+received the best paper award:</p>
+<p style="margin-left:2em">M. F. Sanner, D. Stoffler, A. J. Olson. <i>ViPEr, a Visual Programming
+Environment for Python.</i> 10th International Python Conference, 2002.
+<a href="https://legacy.python.org/workshops/2002-02/papers/10/index.htm">legacy.python.org/workshops/2002-02/papers/10</a></p>
+<p>It was later renamed Vision, because of a name conflict at Scripps with VIPER, the Virus Particle
+Explorer of Charles Brooks's lab, and distributed with MGLTools, with NetworkEditor as its engine,
+alongside PMV and AutoDockTools.</p>
+<p>The paper describes the design WEWoS keeps: nodes that wrap Python functions, ports colored and
+shaped by data type, any Python object flowing on connections, data-driven scheduling, widgets bound
+to input ports, macros, libraries of nodes (Standard, Imaging, MolKit, symserv), and networks saved as
+Python code. The network of its figure 1 (crambin's MSMS surface, transparent, over its atoms scaled by
+a dial and colored by their x coordinate, and the viewer's picture grabbed and filtered) runs in WEWoS
+as the example <i>ViPEr paper figure 1</i> (group <i>Vision examples</i>).</p>
+
+<h2 id="credits">Credits</h2>
+<p>The engine and the node libraries are ported from MGLTools (Michel Sanner, Daniel Stoffler,
+Guillaume Vareille and the Molecular Graphics Laboratory, TSRI). The tutorials follow the Vision
+tutorial of MGLTools 1.5.3 by Michel Sanner and Guillaume Vareille. 3Dmol.js is BSD 3-Clause
+licensed, Mol* MIT licensed; see <code>THIRD_PARTY_NOTICES.md</code>. The server and page conventions
+come from ADapt and ADCP_docking.</p>
