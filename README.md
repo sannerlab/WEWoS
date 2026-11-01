@@ -2,9 +2,9 @@
 
 WEWoS ports Vision, the visual programming environment of MGLTools, to the web.
 - **Server:** a Python 3 port of the NetworkEditor/Vision engine runs on a local server.
-- **Browser:** draws the network editor and the 3D viewer. [3Dmol.js](https://3dmol.csb.pitt.edu) replaces DejaVu; [Mol*](https://molstar.org) can be used instead, viewer by viewer.
+- **Browser:** draws the network editor and the 3D viewers, which replace DejaVu. Each viewer draws with [3Dmol.js](https://3dmol.csb.pitt.edu) (the default) or [Mol\*](https://molstar.org) (ambient occlusion, shadows, depth of field, illumination), switched in the viewer's header.
 
-It follows ADapt's approach: a standard-library HTTP server bound to localhost with a URL token, plain JavaScript with no build step, and a bundled 3Dmol.js.
+It follows ADapt's approach: a standard-library HTTP server bound to localhost with a URL token, plain JavaScript with no build step, and bundled viewers (3Dmol.js, and Mol\* loaded the first time a viewer uses it).
 
 ## Start
 
@@ -28,7 +28,7 @@ To use it from another machine, forward the port: `ssh -L 8767:127.0.0.1:8767 ho
 - **Edit a node's code:** use the panel's *Edit code…* or double-click the node. The compute function's arguments are the input ports.
 - **Add ports:** *Add a port* in the panel adds an input or output port. A Generic node plus your own ports and code is a new node.
 - **Macros:** select nodes, then right-click > *Group into a macro*. Double-click a macro to open its network in a tab. Inside it, connect to port `new` of the input or output node to add a macro port.
-- **3D viewing:** a Viewer node opens a 3D panel, drawn with 3Dmol.js or Mol* (the menu in the panel's header). Drag the divider under it to make it taller, use ⇕ to give it the whole column, or ⤢ to fill the window (Esc to come back); the splitter left of the column makes it wider. Click an atom or shape and the Viewer's `lastPick` output carries what you clicked to the connected nodes, for example *Picked Atom*.
+- **3D viewing:** a Viewer node opens a 3D panel, drawn with 3Dmol.js or Mol\* (the menu in the panel's header). Drag the divider under it to make it taller, use ⇕ to give it the whole column, or ⤢ to fill the window (Esc to come back); the splitter left of the column makes it wider. Click an atom or shape and the Viewer's `lastPick` output carries what you clicked to the connected nodes, for example *Picked Atom*.
 - **Files:** File > Save writes `<name>.wnet.json` in the network's folder. *Open network* reads one back. *Download* gets the network or the whole folder.
 - **Examples:** File > *Open an example…*. *poliovirus capsid* fetches PDB 2PLV, builds a coarse surface of one protomer and draws it 60 times with the file's icosahedral matrices, in a Mol\* viewer (it needs the RCSB the first time; the file is then cached in the network folder).
 
@@ -96,4 +96,4 @@ Node code runs on the server with your rights, as it did in Vision. The server l
 
 ## Licences
 
-See THIRD_PARTY_NOTICES.md. The engine and libraries are ported from MGLTools (Michel Sanner, Daniel Stoffler, TSRI). 3Dmol.js is BSD 3-Clause; Mol* is MIT. The server and page conventions come from ADapt and ADCP_docking (BSD 3-Clause).
+See THIRD_PARTY_NOTICES.md. The engine and libraries are ported from MGLTools (Michel Sanner, Daniel Stoffler, TSRI). 3Dmol.js is BSD 3-Clause; Mol\* is MIT. The server and page conventions come from ADapt and ADCP_docking (BSD 3-Clause).
