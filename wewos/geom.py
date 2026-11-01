@@ -165,12 +165,13 @@ class Geom(object):
         return 1 if self.instanceMatrices is None or len(self.instanceMatrices) == 0 \
             else len(self.instanceMatrices)
 
-    def _color_json(self, d, n):
+    def _color_json(self, d, n, ninst=None):
         d['color'] = self.color
         if self.colors is not None:
             c = numpy.asarray(self.colors, 'f')
-            if self._ninst() > 1:
-                c = numpy.tile(c, (self._ninst(), 1))
+            k = self._ninst() if ninst is None else ninst
+            if k > 1:
+                c = numpy.tile(c, (k, 1))
             d['colors'] = b64(c[:n] if len(c) >= n else numpy.resize(c, (n, 3)))
 
     def to_json(self):
@@ -355,16 +356,17 @@ class IndexedPolygons(Geom):
         return self.vnormals
 
     def _json(self, d):
+        # the mesh once, with its instance matrices (row-major, translation in
+        # the last column): the page makes the copies (Mol* instances them on
+        # the graphics card), so 60 copies of a surface do not weigh 60 times
         v, f = self.vertices, self.faces
-        n = len(v)
-        d['vertices'] = b64(self._instances(v))
-        d['faces'] = b64(numpy.vstack([f + i * n for i in range(self._ninst())]) if len(f) else f, 'i4')
-        nm = self.getVNormals()
-        if self._ninst() > 1:
-            nm = numpy.vstack([(nm @ m[:3, :3].T) for m in self.instanceMatrices])
-        d['normals'] = b64(nm)
+        d['vertices'] = b64(v)
+        d['faces'] = b64(f, 'i4')
+        d['normals'] = b64(self.getVNormals())
         d['wireframe'] = self.wireframe
-        self._color_json(d, n * self._ninst())
+        if self.instanceMatrices is not None and len(self.instanceMatrices):
+            d['instances'] = [[float(x) for x in m.ravel()] for m in self.instanceMatrices]
+        self._color_json(d, len(v), ninst=1)
 
 
 def triangles(faces):
@@ -499,6 +501,8 @@ def instance_list(m):
         return None
     out = []
     def walk(x):
+        if x is None or isinstance(x, str):      # an unconnected input (e.g. of a macro)
+            return
         a = numpy.asarray(x, 'f')
         if a.shape == (4, 4):
             out.append(a)

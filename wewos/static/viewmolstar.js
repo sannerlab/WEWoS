@@ -258,10 +258,12 @@
           else pr.tube({start: xyz(s, i), end: xyz(e, i), radius: rad, color, tooltip: tip});
         }
       } else if(g.type === 'lines' || (g.type === 'mesh' && g.wireframe)){
-        const p = dec(g.vertices);
-        const seg = g.type === 'lines' ? Array.from(dec(g.segments)) : edges(dec(g.faces));
+        let p = dec(g.vertices), faces = g.type === 'mesh' ? dec(g.faces) : null, vc = dec(g.colors);
+        if(faces && g.instances && g.instances.length)
+          ({p, f: faces, cols: vc} = V3DU.expandMesh(p, faces, null, vc, g.instances));
+        const seg = g.type === 'lines' ? Array.from(dec(g.segments)) : edges(faces);
         const ns = seg.length / 2;
-        const sc = V3DU.segmentColors(seg, dec(g.colors));
+        const sc = V3DU.segmentColors(seg, vc);
         const params = {vertices: Array.from(p), indices: seg, width: 1.5, tooltip: tip};
         if(sc){
           const groups = new Map(), lg = new Array(ns);
@@ -281,6 +283,8 @@
           .parse({format: 'ply'}).shape({ref, custom: {ply_coloring: cols ? 'vertex' : 'uniform'}});
         if(!cols) sh.color({color: hex(g.color)});
         if(alpha < 1) sh.opacity({opacity: alpha});
+        // copies made by the graphics card
+        (g.instances || []).forEach(M => sh.instance({matrix: colMajor(M)}));
       } else if(g.type === 'labels'){
         const p = dec(g.positions), cols = dec(g.colors), base = hex(g.color);
         const pr = b.primitives({ref});

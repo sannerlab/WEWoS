@@ -49,6 +49,42 @@ const V3DU = {
     return out;
   },
   maxOf(a, d){ if(!a || !a.length) return d || 0; let m = 0; for(let i = 0; i < a.length; i++) if(a[i] > m) m = a[i]; return m; },
+  /* a mesh with instance matrices (row-major, translation in the last
+     column) as one mesh holding all the copies */
+  expandMesh(p, f, nm, cols, mats){
+    const n = p.length / 3, k = mats.length;
+    const P = new Float32Array(p.length * k), F = new Int32Array(f.length * k);
+    const N = nm ? new Float32Array(nm.length * k) : null, C = cols ? new Float32Array(cols.length * k) : null;
+    mats.forEach((M, j) => {
+      const o = j * p.length;
+      for(let i = 0; i < n; i++){
+        const x = p[3*i], y = p[3*i+1], z = p[3*i+2], q = o + 3 * i;
+        P[q] = M[0]*x + M[1]*y + M[2]*z + M[3];
+        P[q+1] = M[4]*x + M[5]*y + M[6]*z + M[7];
+        P[q+2] = M[8]*x + M[9]*y + M[10]*z + M[11];
+        if(N){ const a = nm[3*i], b = nm[3*i+1], c = nm[3*i+2];
+               N[q] = M[0]*a + M[1]*b + M[2]*c; N[q+1] = M[4]*a + M[5]*b + M[6]*c; N[q+2] = M[8]*a + M[9]*b + M[10]*c; }
+      }
+      if(C) C.set(cols, j * cols.length);
+      const fo = j * f.length, vo = j * n;
+      for(let q = 0; q < f.length; q++) F[fo + q] = f[q] + vo;
+    });
+    return {p: P, f: F, nm: N, cols: C};
+  },
+  // is a triangle mesh closed (each edge shared by two triangles)?
+  isClosed(f){
+    if(!f || !f.length) return false;
+    const count = new Map();
+    for(let j = 0; j < f.length; j += 3){
+      for(let e = 0; e < 3; e++){
+        const a = f[j + e], b = f[j + (e + 1) % 3];
+        const key = a < b ? a * 4294967296 + b : b * 4294967296 + a;
+        count.set(key, (count.get(key) || 0) + 1);
+      }
+    }
+    for(const c of count.values()) if(c !== 2) return false;
+    return true;
+  },
   // a segment takes the color of its first vertex
   segmentColors(seg, cols){
     if(!cols) return null;

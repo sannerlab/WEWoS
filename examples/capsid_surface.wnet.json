@@ -1,0 +1,138 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "Molecules",
+  "Volume",
+  "3D Visualization"
+ ],
+ "network": {
+  "name": "poliovirus capsid",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "Fetch PDB",
+    "cls": "FetchPDB",
+    "lib": "Molecules",
+    "pos": [
+     40,
+     46
+    ],
+    "label": "Fetch PDB",
+    "widgets": {
+     "pdbId": "2plv"
+    }
+   },
+   {
+    "id": "n2",
+    "name": "Assembly Matrices",
+    "cls": "AssemblyMatrices",
+    "lib": "Molecules",
+    "pos": [
+     378,
+     55
+    ],
+    "label": "Assembly Matrices",
+    "widgets": {
+     "biomolecule": 1
+    },
+    "widgetOpts": {
+     "biomolecule": {
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n3",
+    "name": "CoarseMolSurf",
+    "cls": "CoarseMolSurf",
+    "lib": "Volume",
+    "pos": [
+     729,
+     40
+    ],
+    "label": "CoarseMolSurf",
+    "innerWidgets": {
+     "2": {
+      "Xdim": 48,
+      "Ydim": 48,
+      "Zdim": 48,
+      "padding": 2.0,
+      "blobbyness": -0.3
+     },
+     "3": {
+      "isovalue": 1.0,
+      "calculatesignatures": null,
+      "verbosity": 0
+     },
+     "4": {
+      "opacity": 1.0
+     }
+    }
+   },
+   {
+    "id": "n16",
+    "name": "Viewer",
+    "cls": "Viewer",
+    "lib": "3D Visualization",
+    "pos": [
+     1214,
+     40
+    ],
+    "label": "Viewer",
+    "state": {
+     "renderer": "molstar"
+    }
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n1",
+     "mol"
+    ],
+    "to": [
+     "n2",
+     "mol"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n1",
+     "mol"
+    ],
+    "to": [
+     "n3",
+     "UT_Blur_molFrag"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n2",
+     "matrices"
+    ],
+    "to": [
+     "n3",
+     "IndexedPolygons_instanceMatrices"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n3",
+     "IndexedPolygons_indexedPolygons"
+    ],
+    "to": [
+     "n16",
+     "geometries"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

@@ -175,14 +175,16 @@
           o.shapes.push(sh);
         });
       } else if(g.type === 'mesh'){
-        const p = dec(g.vertices), f = dec(g.faces), nm = dec(g.normals), cols = dec(g.colors);
-        const n = p.length / 3;
+        let p = dec(g.vertices), f = dec(g.faces), nm = dec(g.normals), cols = dec(g.colors);
+        /* an open mesh is drawn two-sided, as in DejaVu: the back side is a copy
+           of the faces, reversed, on vertices with reversed normals. 3Dmol draws
+           a mesh one-sided, so the back of an open surface (an isosurface cut by
+           its box, a slice) was not drawn, and the outline pass painted it black.
+           A closed surface needs no back side. */
+        const two = !g.wireframe && !V3DU.isClosed(f);
+        if(g.instances && g.instances.length) ({p, f, nm, cols} = V3DU.expandMesh(p, f, nm, cols, g.instances));
+        const n = p.length / 3, nv = two ? 2 * n : n;
         o.pts = sample(p);
-        /* two-sided, as in DejaVu: the back side is a copy of the faces, reversed,
-           on vertices with reversed normals. 3Dmol draws a mesh one-sided, so
-           the back of an open surface (an isosurface cut by its box, a slice)
-           was not drawn, and the outline pass painted it black. */
-        const two = !g.wireframe, nv = two ? 2 * n : n;
         const vertexArr = new Array(nv), normalArr = new Array(nv);
         for(let i = 0; i < n; i++){
           vertexArr[i] = vec(p, i);

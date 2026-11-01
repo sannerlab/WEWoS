@@ -4397,6 +4397,8 @@ class CoarseMolSurf(MacroNode):
     """A coarse molecular surface: the atoms are blurred as Gaussians onto a
 grid (UT Blur), the grid is isocontoured and a mesh is built. The
 blobbyness, grid size and isovalue are in this node's parameter panel.
+Its second input takes instance matrices (symmetry copies of the surface,
+e.g. from Assembly Matrices or Icosahedral1).
 (Vision's version also decimated the surface with QSlim, which is not
 available here.)"""
 
@@ -4425,6 +4427,7 @@ available here.)"""
             poly = IndexedPolygons(name='IndexedPolygons', library=vizlib)
             net.addNode(poly, 201, 300)
             net.connectNodes(net.ipNode, bl, 0, 'molFrag', doNotSchedule=True)
+            net.connectNodes(net.ipNode, poly, 0, 'instanceMatrices', doNotSchedule=True)
             net.connectNodes(bl, iso, 'maskGrid', 'grid3D', doNotSchedule=True)
             for a, b in (('coords', 'coords'), ('indices', 'indices'), ('normals', 'vnormals')):
                 net.connectNodes(iso, poly, a, b, doNotSchedule=True)

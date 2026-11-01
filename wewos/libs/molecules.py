@@ -525,6 +525,76 @@ class WriteMolecule(NetworkNode):
 """)
 
 
+def biomt_matrices(path, biomolecule=1):
+    """The 4x4 matrices building biological assembly number `biomolecule` of
+    a PDB file (its REMARK 350 BIOMT records), and the chains they apply to."""
+    rows, chains, cur = {}, [], None
+    with open(path) as fh:
+        for line in fh:
+            if not line.startswith('REMARK 350'):
+                continue
+            s = line[10:].strip()
+            if s.startswith('BIOMOLECULE:'):
+                try:
+                    cur = int(s.split(':', 1)[1].split()[0])
+                except (ValueError, IndexError):
+                    cur = None
+            elif cur == biomolecule and ('APPLY THE FOLLOWING TO CHAINS:' in s or
+                                         s.startswith('AND CHAINS:')):
+                chains += [c.strip() for c in s.split(':', 1)[1].split(',') if c.strip()]
+            elif cur == biomolecule and s.startswith('BIOMT') and len(s) > 6:
+                f = s[6:].split()
+                rows.setdefault(int(f[0]), {})[int(s[5])] = [float(x) for x in f[1:5]]
+    mats = []
+    for k in sorted(rows):
+        m = numpy.identity(4, 'f')
+        for r in (1, 2, 3):
+            if r in rows[k]:
+                m[r - 1] = rows[k][r]
+        mats.append(m)
+    return mats, chains
+
+
+class AssemblyMatrices(NetworkNode):
+    """The matrices that build a biological assembly from the deposited
+coordinates: the REMARK 350 BIOMT records of the PDB file (for a virus
+capsid, its 60 icosahedral operators, in the frame of the file). Connect them
+to the instanceMatrices input of a representation (CPK, Cartoon...), a
+geometry, or a CoarseMolSurf macro to draw the assembly.
+
+All the matrices are applied to all the atoms given: when the records apply
+different operators to different chains, select the chains first.
+
+Input Ports
+    mol: a molecule read from a PDB file (Read Molecule, Fetch PDB), or a file name
+    biomolecule: which assembly of the file (1: the first)
+Output Ports
+    matrices: the 4x4 matrices
+"""
+
+    def __init__(self, name='Assembly Matrices', **kw):
+        kw['name'] = name
+        NetworkNode.__init__(self, **kw)
+        self.inputPortsDescr.append(datatype='None', name='mol')
+        self.inputPortsDescr.append(datatype='int', name='biomolecule', required=False)
+        self.widgetDescr['biomolecule'] = {'class': 'NEThumbWheel', 'master': 'node', 'type': 'int',
+                                           'initialValue': 1, 'min': 1, 'lockMin': True,
+                                           'oneTurn': 10, 'labelCfg': {'text': 'assembly'}}
+        self.outputPortsDescr.append(datatype='instancemat(0)', name='matrices')
+        self.setFunction("""def doit(self, mol, biomolecule):
+    path = mol if isinstance(mol, str) else getattr(mol, 'filename', None)
+    if not path or not os.path.isfile(path):
+        raise ValueError('no PDB file for %r' % (mol,))
+    mats, chains = biomt_matrices(path, int(biomolecule or 1))
+    if not mats:
+        raise ValueError('%s has no BIOMT records for assembly %d'
+                         % (os.path.basename(path), int(biomolecule or 1)))
+    print('%s: assembly %d, %d matrices, for chains %s'
+          % (os.path.basename(path), int(biomolecule or 1), len(mats), ', '.join(chains) or '?'))
+    self.outputData(matrices=mats)
+""")
+
+
 class Sequence(NetworkNode):
     """The one-letter sequence of the atoms' residues."""
 
@@ -575,6 +645,7 @@ molkitlib.addType(AtomSetType('TreeNodeSet'))
 
 molkitlib.addNode(ReadMolecule, 'Read Molecule', 'Input')
 molkitlib.addNode(FetchPDB, 'Fetch PDB', 'Input')
+molkitlib.addNode(AssemblyMatrices, 'Assembly Matrices', 'Input')
 molkitlib.addNode(AssignRadii, 'Assign Radii', 'Input')
 molkitlib.addNode(AtomsProperty, 'Extract Atom Property', 'Input')
 molkitlib.addNode(NodeSelector, 'Select', 'Filter')

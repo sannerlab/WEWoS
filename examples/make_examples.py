@@ -195,6 +195,29 @@ def plots():
     save(n, 'plots')
 
 
+def capsid_surface():
+    """Poliovirus (PDB 2PLV): a coarse molecular surface of one protomer
+    (VP1-VP4), drawn 60 times by the icosahedral matrices of the PDB file
+    (REMARK 350 BIOMT), in a Mol* viewer (ambient occlusion, silhouettes)."""
+    from wewos.engine.layout import arrange
+    n = new('poliovirus capsid')
+    fp = node(n, MOL, 'Fetch PDB', 30, 40, pdbId='2plv')
+    am = node(n, MOL, 'Assembly Matrices', 30, 160)
+    cm = VOL.instantiate(cls='CoarseMolSurf')
+    n.addNode(cm, 330, 40)
+    blur = [x for x in cm.macroNetwork.nodes if x.name == 'UT Blur'][0]
+    for p in ('Xdim', 'Ydim', 'Zdim'):
+        blur.inputPortByName[p].widget.set(48, run=False)       # coarse: ~9,000 vertices
+    v = node(n, VIZ, 'Viewer', 650, 40)
+    v.setRenderer('molstar')
+    n.connectNodes(fp, am, 'mol', 'mol')
+    n.connectNodes(fp, cm, 'mol', cm.inputPorts[0].name)
+    n.connectNodes(am, cm, 'matrices', cm.inputPorts[1].name)
+    n.connectNodes(cm, v, cm.outputPorts[0].name, 'geometries')
+    arrange(n, emit=False)
+    save(n, 'capsid_surface')
+
+
 if __name__ == '__main__':
     crambin_surface()
     iterate_squares()
@@ -205,3 +228,4 @@ if __name__ == '__main__':
     map_isosurface()
     viewer_snapshot()
     plots()
+    capsid_surface()

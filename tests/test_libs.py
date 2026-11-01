@@ -303,3 +303,73 @@ def test_viewer_renderer_and_molstar_settings():
     # a viewer saved before there was a renderer choice opens in 3Dmol
     v2.setStateFromSaving({'camera': [4, 5, 6]})
     eq((v2.renderer, v2.camera, v2.cameras, v2.molstarCanvas), ('3dmol', [4, 5, 6], {}, None))
+
+
+BIOMT_PDB = """REMARK 350 BIOMOLECULE: 1
+REMARK 350 APPLY THE FOLLOWING TO CHAINS: A, B
+REMARK 350   BIOMT1   1  1.000000  0.000000  0.000000        0.00000
+REMARK 350   BIOMT2   1  0.000000  1.000000  0.000000        0.00000
+REMARK 350   BIOMT3   1  0.000000  0.000000  1.000000        0.00000
+REMARK 350   BIOMT1   2 -1.000000  0.000000  0.000000       10.00000
+REMARK 350   BIOMT2   2  0.000000 -1.000000  0.000000        0.00000
+REMARK 350   BIOMT3   2  0.000000  0.000000  1.000000        0.00000
+REMARK 350 BIOMOLECULE: 2
+REMARK 350 APPLY THE FOLLOWING TO CHAINS: A
+REMARK 350   BIOMT1   1  1.000000  0.000000  0.000000        0.00000
+REMARK 350   BIOMT2   1  0.000000  1.000000  0.000000        0.00000
+REMARK 350   BIOMT3   1  0.000000  0.000000  1.000000        0.00000
+"""
+
+
+def test_assembly_matrices_and_surface_copies():
+    import base64
+    import numpy
+    from wewos.libs.molecules import biomt_matrices
+    path = os.path.join(outdir('biomt'), 'biomt.pdb')
+    with open(path, 'w') as fh:
+        fh.write(BIOMT_PDB)
+    mats, chains = biomt_matrices(path)
+    eq((len(mats), chains), (2, ['A', 'B']))
+    check(numpy.allclose(mats[1][0], [-1, 0, 0, 10]))
+    eq(len(biomt_matrices(path, 2)[0]), 1)
+    # the node, from a file name; then CoarseMolSurf copies its surface
+    mk, vol, vz = (get_library(x) for x in ('Molecules', 'Volume', '3D Visualization'))
+    am, rd = mk.instantiate(label='Assembly Matrices'), mk.instantiate(label='Read Molecule')
+    cm, v = vol.instantiate(cls='CoarseMolSurf'), vz.instantiate(label='Viewer')
+    ev = get_library('Standard').instantiate(label='eval')
+    n = net(ev, am, rd, cm, v)
+    ev.inputPorts[0].widget.set(repr(path), run=False)          # the file name
+    n.connectNodes(ev, am, 'result', 'mol')
+    rd.inputPortByName['filename'].widget.set(os.path.join(DATA, '1crn.pdb'), run=False)
+    eq([p.name for p in cm.inputPorts], ['UT_Blur_molFrag', 'IndexedPolygons_instanceMatrices'])
+    check(not cm.inputPorts[1].required)
+    n.connectNodes(rd, cm, 'mol', cm.inputPorts[0].name)
+    n.connectNodes(am, cm, 'matrices', cm.inputPorts[1].name)
+    n.connectNodes(cm, v, cm.outputPorts[0].name, 'geometries')
+    n.run(n.rootNodes)
+    g = v.geomsJSON()[0]
+    eq(g['type'], 'mesh')
+    eq(len(g['instances']), 2)                        # sent once, with its copies
+    nv = len(base64.b64decode(g['vertices']['b64'])) // 12
+    eq(nv, len(base64.b64decode(g['normals']['b64'])) // 12)
+    check(nv > 100)
+    eq(g['instances'][1][3], 10.0)                    # row-major, translation last column
+    # without matrices the macro still runs, and draws one surface
+    n.deleteConnections(list(cm.inputPorts[1].connections))
+    n.run([rd])
+    check('instances' not in v.geomsJSON()[0])
+
+
+def test_capsid_example_loads():
+    import json
+    with open(os.path.join(os.path.dirname(DATA), '..', 'examples', 'capsid_surface.wnet.json')) as fh:
+        d = json.load(fh)
+    n = Network('capsid')
+    from wewos.engine import fileio
+    eq(fileio.from_dict(n, d), [])
+    cm = [x for x in n.nodes if x.__class__.__name__ == 'CoarseMolSurf'][0]
+    eq([c.port1.node.name for c in cm.inputPorts[1].connections], ['Assembly Matrices'])
+    v = [x for x in n.nodes if x.__class__.__name__ == 'Viewer'][0]
+    eq(v.renderer, 'molstar')
+    blur = [x for x in cm.macroNetwork.nodes if x.name == 'UT Blur'][0]
+    eq(blur.inputPortByName['Xdim'].widget.get(), 48)
