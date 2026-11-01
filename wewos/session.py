@@ -137,7 +137,7 @@ class Session(object):
             except (ValueError, SyntaxError, KeyError) as e:
                 raise Refused(str(e))
         if op not in ('get_code', 'port_data', 'copy', 'viewer_state', 'viewer_geoms',
-                      'viewer_snapshot', 'image_data'):
+                      'viewer_snapshot', 'image_data', 'colormap_file'):
             self.autosave()
         out['seq'] = self.net.bus.seq
         return out
@@ -433,6 +433,23 @@ class Session(object):
         if 'molstar' in a:
             v.setMolstarSettings(a['molstar'])
         return {'rendering': dict(v.rendering), 'molstar': v.molstarCanvas}
+
+    def _op_colormap_file(self, a):
+        """Read or write a Vision colormap file (a relative path is in the
+        network's folder)."""
+        from wewos import colormaps
+        path = os.path.join(self.folder, os.path.expanduser(a.get('path') or ''))
+        if a.get('action') == 'write':
+            if not path.endswith('.py'):
+                path += '_map.py'
+            with open(path, 'w') as fh:
+                fh.write(colormaps.write_vision(a.get('colorMap')))
+            return {'path': path}
+        try:
+            with open(path) as fh:
+                return {'colorMap': colormaps.read_vision(fh.read()), 'path': path}
+        except OSError as e:
+            raise Refused('cannot read %s: %s' % (path, e))
 
     def _op_viewer_renderer(self, a):
         v = self._viewer(a['node'])

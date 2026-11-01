@@ -318,20 +318,24 @@ redraw, e.g. Grab Image (Vision's One Redraw)."""
 
 class ColorMap(NetworkNode):
     """Colors for a list of values: values between mini and maxi are mapped
-through a color ramp (rgb: blue-green-red; rwb: red-white-blue; grey;
-rainbow)."""
+through a color ramp. The ramp is edited in the node's parameter panel, as in
+Vision: draw its red, green, blue (or hue, saturation, value/luminance) and
+opacity as curves with the mouse (left button: freehand, right button: a
+straight line), start from a preset (rgb, rwb, grey, rainbow and MGLTools'
+color maps), give it a min and max, undo, and read or write Vision colormap
+files. mini and maxi, when connected, override the ramp's own range; without
+either, the range of the values is used. The colors have an alpha when the
+ramp has some transparency."""
 
     def __init__(self, name='Color Map', **kw):
         kw['name'] = name
         NetworkNode.__init__(self, **kw)
         ip = self.inputPortsDescr
         ip.append(datatype='None', name='values')
-        ip.append(datatype='string', name='ramp', required=False)
+        ip.append(datatype='None', name='ramp', required=False)
         ip.append(datatype='float', name='mini', required=False)
         ip.append(datatype='float', name='maxi', required=False)
-        self.widgetDescr['ramp'] = {'class': 'NEComboBox', 'master': 'node',
-                                    'choices': ['rgb', 'rwb', 'grey', 'rainbow'],
-                                    'fixedChoices': True, 'initialValue': 'rgb',
+        self.widgetDescr['ramp'] = {'class': 'NEColorMap', 'master': 'node', 'initialValue': 'rgb',
                                     'labelCfg': {'text': 'ramp'}}
         self.outputPortsDescr.append(datatype='colorfloat3or4(0)', name='colors')
         self.setFunction("""def doit(self, values, ramp, mini, maxi):
@@ -347,18 +351,38 @@ _RAMPS = {
 }
 
 
+def ramp_of(ramp):
+    """(n x 4 RGBA colors, mini, maxi) of a color map value: a preset name, a
+    list of colors, or a dict {'ramp', 'mini', 'maxi'} (wewos.colormaps)."""
+    from wewos.colormaps import normalize
+    cm = normalize(ramp)
+    if isinstance(cm, str):
+        cols, lo, hi = _RAMPS.get(cm, _RAMPS['rgb']), None, None
+    else:
+        cols, lo, hi = cm.get('ramp') or _RAMPS['rgb'], cm.get('mini'), cm.get('maxi')
+    c = numpy.asarray(cols, 'f').reshape(-1, numpy.shape(cols)[-1])
+    if c.shape[1] == 3:
+        c = numpy.hstack([c, numpy.ones((len(c), 1), 'f')])
+    if len(c) == 1:
+        c = numpy.vstack([c, c])
+    return c[:, :4], lo, hi
+
+
 def colormap(values, ramp='rgb', mini=None, maxi=None):
+    """Colors (n x 3, or n x 4 when the ramp has transparency) for values,
+    between mini and maxi (given, else the ramp's range, else the values')."""
     v = numpy.asarray(values, 'f').ravel()
+    cols, rlo, rhi = ramp_of(ramp)
     if v.size == 0:
         return numpy.zeros((0, 3), 'f')
-    lo = float(v.min()) if mini is None else mini
-    hi = float(v.max()) if maxi is None else maxi
+    lo = mini if mini is not None else (rlo if rlo is not None else float(v.min()))
+    hi = maxi if maxi is not None else (rhi if rhi is not None else float(v.max()))
     t = numpy.clip((v - lo) / (hi - lo if hi != lo else 1.), 0, 1)
-    cols = numpy.asarray(_RAMPS.get(ramp or 'rgb', _RAMPS['rgb']), 'f')
     x = t * (len(cols) - 1)
     i = numpy.minimum(x.astype(int), len(cols) - 2)
     f = (x - i)[:, None]
-    return cols[i] * (1 - f) + cols[i + 1] * f
+    out = cols[i] * (1 - f) + cols[i + 1] * f
+    return out if (cols[:, 3] < 1).any() else out[:, :3]
 
 
 class ReadMesh(NetworkNode):

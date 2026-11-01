@@ -432,3 +432,46 @@ def test_viper_figure_nodes():
     check(any(d['type'] == 'mesh' for d in g.values()), list(g))
     # One Redraw's trigger ran Pass (which stops: nothing feeds its input); never run, it would be idle
     check(pr.status in ('done', 'stopped'), pr.status)
+
+
+def test_colormaps_vision_files_and_mapping():
+    import numpy
+    from wewos import colormaps
+    from wewos.libs.viz3d import colormap
+    # a Vision colormap file, with numpy arrays as MGLTools wrote them; never run
+    text = ("from DejaVu.colorMap import ColorMap\nfrom numpy import array\n"
+            "cm = ColorMap('bw')\n"
+            "cfg = {'name': 'bw', 'ramp': array([[0., 0., 1., 1.], [1., 1., 1., 1.], [1., 0., 0., 1.]], 'f'),"
+            " 'mini': 0.0, 'maxi': 10.0}\n"
+            "apply( cm.configure, (), cfg)\nimport os; os.remove('/nonexistent')\n")
+    cm = colormaps.read_vision(text)
+    eq((cm['name'], len(cm['ramp']), cm['mini'], cm['maxi']), ('bw', 3, 0.0, 10.0))
+    eq(colormaps.read_vision(colormaps.write_vision(cm)), cm)          # round trip
+    # the ramp's own range is used unless mini/maxi are given
+    eq(colormap([0, 5, 10], cm).round(3).tolist(), [[0, 0, 1], [1, 1, 1], [1, 0, 0]])
+    eq(colormap([5], cm, mini=5, maxi=15).round(3).tolist(), [[0, 0, 1]])
+    # transparency gives RGBA colors; presets and plain lists still work
+    c = colormap([0, 1], {'ramp': [[1, 0, 0, .25], [0, 0, 1, 1]]})
+    eq(c.shape, (2, 4)); check(abs(c[0, 3] - .25) < 1e-6)
+    eq(colormap([0, 1], 'grey').tolist(), [[0, 0, 0], [1, 1, 1]])
+    eq(colormap([0, 1], [[1, 0, 0], [0, 1, 0]]).tolist(), [[1, 0, 0], [0, 1, 0]])
+    # a widget value is cleaned (Vision's value carries widget settings too)
+    eq(colormaps.normalize({'ramp': [[2, -1, 0.5]], 'mini': 'x', 'labelGridCfg': {}, 'name': 3}),
+       {'ramp': [[1.0, 0.0, 0.5, 1.0]], 'mini': None, 'name': '3'})
+    try:
+        colormaps.read_vision('x = 1\n')
+        check(False, 'not a colormap file, but read')
+    except ValueError:
+        pass
+
+
+def test_color_map_node_takes_an_edited_ramp():
+    vz, std = get_library('3D Visualization'), get_library('Standard')
+    ev, cm = std.instantiate(label='eval'), vz.instantiate(label='Color Map')
+    n = net(ev, cm)
+    ev.inputPorts[0].widget.set('[0, 10]', run=False)
+    n.connectNodes(ev, cm, 'result', 'values')
+    eq(cm.inputPortByName['ramp'].widget.spec()['kind'], 'colormap')
+    cm.inputPortByName['ramp'].widget.set({'ramp': [[0, 1, 0, 1], [1, 0, 1, 1]], 'name': 'gm'}, run=False)
+    n.run(n.rootNodes)
+    eq(cm.outputPortByName['colors'].data.tolist(), [[0, 1, 0], [1, 0, 1]])

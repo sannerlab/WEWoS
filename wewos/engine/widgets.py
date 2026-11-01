@@ -58,6 +58,8 @@ WIDGETS = {
     'NEContourSpectrum': {'kind': 'number', 'vtype': 'number',
                           'defaults': {'type': 'float', 'min': None, 'max': None,
                                        'precision': 3, 'initialValue': 0.0}},
+    # a color ramp (and value range), edited as curves on the page (DejaVu's ColorMapGUI)
+    'NEColorMap': {'kind': 'colormap', 'vtype': 'colormap', 'defaults': {'initialValue': 'rgb'}},
     'NEColorEditor': {'kind': 'color', 'vtype': 'color',
                       'defaults': {'initialValue': [1.0, 1.0, 1.0]}},
     'NEColorWheel': {'kind': 'color', 'vtype': 'color',
@@ -191,6 +193,9 @@ class WidgetProxy(object):
                                            ('vectZ', '0 0 1'))]
             v = list(value)
             return [float(x) for x in v[:3]] + [axis(a) for a in v[3:6]]
+        if vt == 'colormap':
+            from wewos.colormaps import normalize
+            return normalize(value)
         if vt == 'color':
             if isinstance(value, str) and value.startswith('#') and len(value) == 7:
                 return [int(value[i:i + 2], 16) / 255.0 for i in (1, 3, 5)]

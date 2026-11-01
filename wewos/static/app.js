@@ -332,6 +332,8 @@ function closeTab(id){
 function widgetCtx(nid, port, compact){
   return {
     compact,
+    key: nid + ':' + port,
+    colormapFile: (action, path, colorMap) => edit('colormap_file', {action, path, colorMap}),
     change: (value, runIt) => edit('set_widget', {node: nid, port, value, run: runIt && ST.auto}),
     pickFile: (kind, cur, opts) => filePicker(kind, cur, opts),
     upload: () => uploadFile(),
@@ -382,6 +384,7 @@ function panel(){
     const row = document.createElement('div'); row.className = 'row';
     const lab = document.createElement('label');
     lab.textContent = p.widget.label || p.name; lab.title = p.name + ': ' + p.datatype + (p.widget.master === 'node' ? ' (also shown in the node)' : '');
+    if(p.widget.kind === 'colormap') row.classList.add('wide');      // the editor takes the row
     row.append(lab, W.render(p.widget, widgetCtx(n.id, p.name, false)));
     lab.addEventListener('contextmenu', ev => { ev.preventDefault(); widgetMenu(n, p, ev); });
     wbox.append(row);

@@ -165,6 +165,7 @@ def test_saved_viewer_opacity_and_unknown_settings():
            'c = ColorMapNE(constrkw={}, name="Color Map", library=vizlib)\n'
            'masterNet.addNode(c, 10, 90)\n'
            'c.inputPortByName["colorMap"].widget.set({"mini": 0}, run=False)\n'
+           'c.inputPortByName["filename"].widget.set("my_map.py", run=False)\n'
            'def loadSavedStates_Viewer_1(self=None, event=None):\n'
            '    obj = self.vi.FindObjectByName("root|surf")\n'
            '    if obj:\n'
@@ -176,5 +177,22 @@ def test_saved_viewer_opacity_and_unknown_settings():
     nodes = {e['name']: e for e in data['network']['nodes']}
     eq(nodes['surf']['widgets']['opacity'], 0.5)           # the front material
     eq((nodes['Color Map']['lib'], nodes['Color Map']['cls']), ('3D Visualization', 'ColorMap'))
-    check('colorMap' not in (nodes['Color Map'].get('widgets') or {}))
-    check(any('colorMap' in w for w in report.warnings))
+    check('ramp' in nodes['Color Map']['widgets'])                    # the color map is kept
+    check('filename' not in nodes['Color Map']['widgets'])            # no such input here
+    check(any('filename' in w for w in report.warnings))
+
+
+def test_vision_color_map_keeps_its_ramp():
+    src = ('from DejaVu.VisionInterface.DejaVuNodes import vizlib\n'
+           'from DejaVu.VisionInterface.DejaVuNodes import ColorMapNE\n'
+           'c = ColorMapNE(constrkw={}, name="Color Map", library=vizlib)\n'
+           'masterNet.addNode(c, 10, 90)\n'
+           'c.inputPortByName["colorMap"].widget.set({"mini": -3.0, "maxi": 24.0, "name": "cmap", '
+           '"labelGridCfg": {"row": 1}, "ramp": [[0., 0., 1., 1.], [1., 0., 0., 1.]]}, run=False)\n')
+    data, report = importer.import_source(src, 'x_net.py')
+    w = data['network']['nodes'][0]['widgets']['ramp']
+    eq((w['mini'], w['maxi'], len(w['ramp'])), (-3.0, 24.0, 2))
+    net = Network('imported')
+    eq(fileio.from_dict(net, data), [])
+    eq(net.nodes[0].inputPortByName['ramp'].widget.get(),
+       {'ramp': [[0.0, 0.0, 1.0, 1.0], [1.0, 0.0, 0.0, 1.0]], 'mini': -3.0, 'maxi': 24.0, 'name': 'cmap'})

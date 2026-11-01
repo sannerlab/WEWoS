@@ -24,7 +24,7 @@ DEJAVU = {
     'GeomContainer': ('3D Visualization', 'GeomContainer', {}, {}),
     'GroupGeomsNE': ('3D Visualization', 'GeomContainer', {'*': 'geoms'}, {'*': 'geomContainer'}),
     'GeomOptions': ('3D Visualization', 'GeomOptions', {}, {}),
-    'ColorMapNE': ('3D Visualization', 'ColorMap', {}, {'mappedColors': 'colors'}),
+    'ColorMapNE': ('3D Visualization', 'ColorMap', {'colorMap': 'ramp'}, {'mappedColors': 'colors'}),
     'OneRedraw': ('3D Visualization', 'OneRedraw', {}, {}),
 }
 

@@ -123,6 +123,7 @@ body.vfull #viewers{position:fixed;inset:0;z-index:25;height:auto !important;bac
   border-left:3px solid var(--line);padding-left:8px}
 #panel .row{display:grid;grid-template-columns:110px 1fr;gap:6px;align-items:center;margin:4px 0}
 #panel .row>label{color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#panel .row.wide{grid-template-columns:1fr}
 #panel .btns{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0}
 #panel table{border-collapse:collapse;width:100%;font-size:12px}
 #panel td{padding:2px 4px;border-bottom:1px solid var(--line)}
@@ -201,6 +202,22 @@ textarea.w-text{width:100%;min-height:60px;font:11.5px ui-monospace,Menlo,monosp
 .fb-list div:hover{background:var(--hover)}
 .fb-list div.sel{background:var(--accent2)}
 .fb-list .sz{margin-left:auto;color:var(--dim);font-size:11px}
+/* the colormap editor (Color Map node) */
+.w-cmbar{width:120px;height:14px;border:1px solid var(--line);border-radius:3px;display:block}
+.w-cmap{display:flex;flex-direction:column;gap:5px;width:100%;min-width:0}
+.w-cmap canvas{width:100%;border:1px solid var(--line);border-radius:4px;display:block}
+.w-cmap .cm-bar{height:16px}
+.w-cmap .cm-curve{height:130px;cursor:crosshair;touch-action:none;background:var(--card)}
+.w-cmap .cm-row{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}
+.w-cmap .cm-row label{display:inline-flex;gap:4px;align-items:center;color:var(--dim)}
+.w-cmap .cm-row input[type=number]{width:70px}
+.w-cmap .cm-row input[type=text]{width:90px}
+.w-cmap .cm-chs{display:inline-flex;gap:2px;flex-wrap:wrap}
+.w-cmap .cm-chs button{padding:1px 6px;font-size:11px}
+.w-cmap .cm-chs button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.w-cmap .cm-msg{font-size:11px;min-height:12px}
+.w-cmap .cm-hint{font-size:11px;margin-left:auto}
+.w-cmap .cm-curve:focus{outline:2px solid var(--accent);outline-offset:-1px}
 .fb-list .exgroup>summary{padding:4px 8px;font-weight:600;cursor:pointer;background:var(--panel);
   border-bottom:1px solid var(--line);position:sticky;top:0}
 .fb-list .exgroup>div{padding-left:18px}

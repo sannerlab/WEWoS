@@ -64,7 +64,7 @@ PAGE = r"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <input type=file id=fileupload hidden>
 <script src="static/3Dmol-min.js?v=__V_3DMOL__"></script>
 <script>const STATIC_V = {'molstar.js': '__V_MOLSTAR__', 'molstar.css': '__V_MOLSTARCSS__',
-                  'molstar-dark.css': '__V_MOLSTARDARK__'};</script>
+                  'molstar-dark.css': '__V_MOLSTARDARK__', 'colormaps.json': '__V_COLORMAPS__'};</script>
 <script src="static/widgets.js?v=__V_WIDGETS__"></script>
 <script src="static/view3dmol.js?v=__V_VIEW3DMOL__"></script>
 <script src="static/viewmolstar.js?v=__V_VIEWMOLSTAR__"></script>
@@ -103,4 +103,5 @@ def render():
                 .replace('__V_VIEWMOLSTAR__', _v('viewmolstar.js'))
                 .replace('__V_MOLSTARCSS__', _v('molstar.css'))
                 .replace('__V_MOLSTARDARK__', _v('molstar-dark.css'))
+                .replace('__V_COLORMAPS__', _v('colormaps.json'))
                 .replace('__V_MOLSTAR__', _v('molstar.js')))

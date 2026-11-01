@@ -404,6 +404,246 @@ const W = (() => {
     return box;
   }
 
+  /* colormap: DejaVu's color map editor (ColorMapGUI). The ramp is drawn as
+     curves, one channel at a time, in RGB, HSV or HSL (Vision used HSL) plus
+     opacity: the left button draws freehand, the right one a straight line,
+     and Shift-click a straight segment from the last point (a polyline when
+     repeated). Undo (also Ctrl/Cmd+Z on the curve) and reset are under it.
+     Presets come from static/colormaps.json (WEWoS's ramps and MGLTools'
+     color maps); Vision colormap files are read and written by the server.
+     The value is {ramp: [[r, g, b, a], ...], mini, maxi, name}, or a preset name. */
+  let CM_PRESETS = null;
+  function cmPresets(){
+    if(!CM_PRESETS){
+      const v = (window.STATIC_V || {})['colormaps.json'] || '0';
+      CM_PRESETS = fetch('static/colormaps.json?v=' + v).then(r => r.json()).then(d => d.presets || []).catch(() => []);
+    }
+    return CM_PRESETS;
+  }
+  const CM_STATE = {};                   // per node input: mode, channel, history
+  const CM_MODES = {RGB: ['red', 'green', 'blue'], HSV: ['hue', 'saturation', 'value'],
+                    HSL: ['hue', 'saturation', 'luminance']};
+  function rgb2hsv(r, g, b){
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+    let h = 0;
+    if(d){ h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h /= 6; if(h < 0) h += 1; }
+    return [h, mx ? d / mx : 0, mx];
+  }
+  function hsv2rgb(h, s, v){
+    const f = h * 6, i = Math.floor(f), t = f - i, p = v * (1 - s), q = v * (1 - t * s), u = v * (1 - (1 - t) * s);
+    return [[v, u, p], [q, v, p], [p, v, u], [p, q, v], [u, p, v], [v, p, q]][((i % 6) + 6) % 6];
+  }
+  function rgb2hsl(r, g, b){
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+    return [d ? rgb2hsv(r, g, b)[0] : 0, d ? Math.min(1, d / (1 - Math.abs(2 * l - 1))) : 0, l];
+  }
+  function hsl2rgb(h, s, l){
+    const c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs((h * 6) % 2 - 1)), m = l - c / 2;
+    const [r, g, b] = [[c, x, 0], [x, c, 0], [0, c, x], [0, x, c], [x, 0, c], [c, 0, x]][((Math.floor(h * 6) % 6) + 6) % 6];
+    return [r + m, g + m, b + m];
+  }
+  const toMode = (m, c) => m === 'HSV' ? rgb2hsv(c[0], c[1], c[2]) : m === 'HSL' ? rgb2hsl(c[0], c[1], c[2]) : [c[0], c[1], c[2]];
+  const fromMode = (m, x) => m === 'HSV' ? hsv2rgb(x[0], x[1], x[2]) : m === 'HSL' ? hsl2rgb(x[0], x[1], x[2]) : [x[0], x[1], x[2]];
+  const cmCss = c => 'rgba(' + Math.round(c[0] * 255) + ',' + Math.round(c[1] * 255) + ',' + Math.round(c[2] * 255) + ',' + (c[3] == null ? 1 : c[3]) + ')';
+  const cmCopy = cm => ({ramp: cm.ramp.map(c => c.slice()), mini: cm.mini, maxi: cm.maxi, name: cm.name});
+  // {ramp, mini, maxi, name} of a value (a preset name is looked up)
+  async function cmResolve(val){
+    if(val && typeof val === 'object' && Array.isArray(val.ramp) && val.ramp.length)
+      return {ramp: val.ramp.map(c => [c[0], c[1], c[2], c[3] == null ? 1 : c[3]]),
+              mini: val.mini == null ? null : val.mini, maxi: val.maxi == null ? null : val.maxi, name: val.name || ''};
+    const name = typeof val === 'string' && val ? val : 'rgb';
+    const p = (await cmPresets()).find(x => x.name === name) || {ramp: [[0, 0, 1, 1], [1, 0, 0, 1]]};
+    return {ramp: p.ramp.map(c => c.slice()), mini: null, maxi: null, name};
+  }
+  function cmBar(cv, ramp){
+    const g = cv.getContext('2d'), W = cv.width, H = cv.height, s = Math.max(4, Math.round(H / 2));
+    for(let x = 0; x < W; x += s) for(let y = 0; y < H; y += s){ g.fillStyle = ((x + y) / s) % 2 ? '#c8c8c8' : '#fff'; g.fillRect(x, y, s, s); }
+    if(!ramp || !ramp.length) return;
+    for(let x = 0; x < W; x++){ g.fillStyle = cmCss(ramp[Math.min(ramp.length - 1, Math.floor(x / W * ramp.length))]); g.fillRect(x, 0, 1, H); }
+  }
+  function resampleRamp(ramp, n){
+    const out = [];
+    for(let k = 0; k < n; k++){
+      const x = k / (n - 1) * (ramp.length - 1), i = Math.min(Math.floor(x), ramp.length - 2), f = x - i;
+      out.push([0, 1, 2, 3].map(j => ramp[i][j] * (1 - f) + ramp[i + 1][j] * f));
+    }
+    return out;
+  }
+
+  function colormap(spec, ctx){
+    const key = ctx.key || 'colormap';
+    const st = CM_STATE[key] = CM_STATE[key] || {mode: 'HSV', ch: 0, hist: []};
+    if(ctx.compact){
+      const cv = el('canvas', {width: 120, height: 14, class: 'w-cmbar', title: 'the color ramp: select the node to edit it in its parameter panel'});
+      cmResolve(spec.value).then(r => cmBar(cv, r.ramp));
+      return cv;
+    }
+    const box = el('div', {class: 'w-cmap'});
+    box.innerHTML =
+      '<canvas class=cm-bar width=256 height=16></canvas>' +
+      '<div class=cm-row><select class=cm-mode title="edit the ramp as red, green, blue; hue, saturation, value; or hue, saturation, luminance (Vision\'s)">' +
+      Object.keys(CM_MODES).map(m => '<option>' + m + '</option>').join('') + '</select><span class=cm-chs></span></div>' +
+      '<canvas class=cm-curve width=256 height=120 tabindex=0 title="left button: draw the curve freehand\n' +
+      'Shift-click: a straight segment from the last point (repeat for a polyline)\nright button: a straight line\nCtrl/Cmd+Z: undo"></canvas>' +
+      '<div class=cm-row><button class=cm-undo title="undo the last change (Ctrl/Cmd+Z on the curve)">&#8630; undo</button>' +
+      '<button class=cm-reset title="back to the ramp the editing started from">&#10226; reset</button>' +
+      '<label title="update the network while drawing"><input class=cm-cont type=checkbox> continuous</label>' +
+      '<span class="cm-hint dim">Shift-click: segment</span></div>' +
+      '<div class=cm-row><label>min <input class=cm-min type=number step=any placeholder=auto></label>' +
+      '<label>max <input class=cm-max type=number step=any placeholder=auto></label>' +
+      '<label>name <input class=cm-name type=text></label></div>' +
+      '<div class=cm-row><select class=cm-preset title="start from a preset"><option value="">preset&hellip;</option></select>' +
+      '<button class=cm-read title="read a Vision colormap file (e.g. rgb256_map.py)">read&hellip;</button>' +
+      '<button class=cm-write title="write a Vision colormap file">write&hellip;</button></div>' +
+      '<div class="cm-msg dim"></div>';
+    const $$ = s => box.querySelector(s);
+    const bar = $$('.cm-bar'), curve = $$('.cm-curve'), msg = $$('.cm-msg');
+    let cur = null, chans = null;
+    const toChans = () => { chans = cur.ramp.map(c => toMode(st.mode, c).concat([c[3]])); };
+    const fromChans = (i0, i1) => {
+      for(let i = i0; i <= i1; i++){ const x = chans[i], c = fromMode(st.mode, x); cur.ramp[i] = [c[0], c[1], c[2], x[3]]; }
+    };
+    const value = () => ({ramp: cur.ramp.map(c => c.map(x => Math.round(Math.max(0, Math.min(1, x)) * 1e4) / 1e4)),
+                          mini: cur.mini, maxi: cur.maxi, name: cur.name || undefined});
+    const send = () => ctx.change(value(), true);
+    const live = throttled(send, 200);
+    const remember = () => { st.hist.push(cmCopy(cur)); if(st.hist.length > 60) st.hist.splice(1, 1); };
+    const LINE = {RGB: ['#d33', '#2a2', '#36d'], HSV: ['#c3c', '#d80', '#555'], HSL: ['#c3c', '#d80', '#555']};
+    function draw(){
+      cmBar(bar, cur.ramp);
+      const g = curve.getContext('2d'), W = curve.width, H = curve.height, n = cur.ramp.length;
+      g.clearRect(0, 0, W, H);
+      g.fillStyle = 'rgba(128,128,128,0.08)'; g.fillRect(0, 0, W, H);
+      g.strokeStyle = 'rgba(128,128,128,0.35)'; g.lineWidth = 1;
+      [0.25, 0.5, 0.75].forEach(f => { g.beginPath(); g.moveTo(0, H * f); g.lineTo(W, H * f); g.stroke(); });
+      const X = i => (i + 0.5) / n * W, Y = v => H - 3 - v * (H - 6);
+      const cols = LINE[st.mode].concat(['#888']);
+      [0, 1, 2, 3].sort((a, b) => (a === st.ch) - (b === st.ch)).forEach(k => {
+        g.beginPath();
+        for(let i = 0; i < n; i++){ const y = Y(chans[i][k]); i ? g.lineTo(X(i), y) : g.moveTo(X(i), y); }
+        g.strokeStyle = cols[k]; g.globalAlpha = k === st.ch ? 1 : 0.3; g.lineWidth = k === st.ch ? 2 : 1;
+        g.stroke(); g.globalAlpha = 1;
+      });
+      // the last point: where a Shift-click segment starts
+      if(st.anchor){
+        const [f, v] = st.anchor;
+        g.beginPath(); g.arc(X(Math.round(f * (n - 1))), Y(v), 4, 0, 2 * Math.PI);
+        g.lineWidth = 2; g.strokeStyle = cols[st.ch]; g.fillStyle = 'rgba(255,255,255,0.85)'; g.fill(); g.stroke();
+      }
+    }
+    function chButtons(){
+      const names = CM_MODES[st.mode].concat(['opacity']);
+      $$('.cm-chs').innerHTML = names.map((nm, k) => '<button data-ch=' + k + (k === st.ch ? ' class=on' : '') + '>' + nm + '</button>').join('');
+    }
+    function load(cm, push){
+      if(push && cur) remember();
+      cur = cm; toChans(); draw();
+      $$('.cm-min').value = cur.mini == null ? '' : cur.mini;
+      $$('.cm-max').value = cur.maxi == null ? '' : cur.maxi;
+      $$('.cm-name').value = cur.name || '';
+    }
+    $$('.cm-mode').value = st.mode;
+    chButtons();
+    cmResolve(spec.value).then(cm => { load(cm, false); if(!st.hist.length) st.hist.push(cmCopy(cm)); });
+    cmPresets().then(list => {
+      const sel = $$('.cm-preset');
+      list.forEach(p => { const o = el('option', {value: p.name}); o.textContent = p.name + (p.from ? ' (' + p.from + ')' : ''); sel.append(o); });
+    });
+    $$('.cm-mode').addEventListener('change', e => { st.mode = e.target.value; chButtons(); toChans(); draw(); });
+    $$('.cm-chs').addEventListener('click', e => {
+      const b = e.target.closest('button'); if(!b) return;
+      st.ch = +b.dataset.ch; chButtons(); draw();
+    });
+    // drawing on the curves
+    const pos = e => {
+      const r = curve.getBoundingClientRect(), n = cur.ramp.length;
+      const i = Math.max(0, Math.min(n - 1, Math.floor((e.clientX - r.left) / r.width * n)));
+      const v = 1 - ((e.clientY - r.top) / r.height * curve.height - 3) / (curve.height - 6);
+      return [i, Math.max(0, Math.min(1, v))];
+    };
+    curve.addEventListener('contextmenu', e => { e.preventDefault(); e.stopPropagation(); });
+    curve.addEventListener('pointerdown', e => {
+      if(!cur) return;
+      e.preventDefault(); e.stopPropagation();
+      curve.setPointerCapture(e.pointerId);
+      remember();
+      if(cur.ramp.length < 64){ cur.ramp = resampleRamp(cur.ramp, 128); toChans(); }
+      dragging = true;
+      const n = cur.ramp.length, ch = st.ch, start = pos(e), snap = chans.map(c => c.slice());
+      const toI = f => Math.max(0, Math.min(n - 1, Math.round(f * (n - 1))));
+      const fromI = p => [p[0] / (n - 1), p[1]];
+      // a straight line: from where the right button went down, or (Shift) from the last point
+      const lineFrom = e.button === 2 ? start
+        : (e.shiftKey && st.anchor ? [toI(st.anchor[0]), st.anchor[1]] : null);
+      const right = !!lineFrom;
+      let last = start, end = start;
+      const paint = (a, b) => {
+        let [i0, v0] = a, [i1, v1] = b;
+        if(i0 > i1){ [i0, i1] = [i1, i0]; [v0, v1] = [v1, v0]; }
+        for(let i = i0; i <= i1; i++) chans[i][ch] = i1 === i0 ? v1 : v0 + (v1 - v0) * (i - i0) / (i1 - i0);
+        fromChans(i0, i1);
+      };
+      if(right) paint(lineFrom, start);
+      else paint(start, start);
+      draw();
+      const move = ev => {
+        const p = pos(ev);
+        end = p;
+        if(right){ chans = snap.map(c => c.slice()); fromChans(0, chans.length - 1); paint(lineFrom, p); }
+        else { paint(last, p); last = p; }
+        draw();
+        if($$('.cm-cont').checked) live();
+      };
+      const up = () => {
+        curve.removeEventListener('pointermove', move); curve.removeEventListener('pointerup', up);
+        dragging = false; busyUntil = performance.now() + 400;
+        st.anchor = fromI(end);                       // the next Shift-click starts here
+        draw();
+        send();
+      };
+      curve.addEventListener('pointermove', move); curve.addEventListener('pointerup', up);
+    });
+    curve.addEventListener('keydown', e => {
+      if((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z'){ e.preventDefault(); $$('.cm-undo').click(); }
+    });
+    const num = v => v === '' ? null : +v;
+    $$('.cm-min').addEventListener('change', e => { remember(); cur.mini = num(e.target.value); send(); });
+    $$('.cm-max').addEventListener('change', e => { remember(); cur.maxi = num(e.target.value); send(); });
+    $$('.cm-name').addEventListener('change', e => { cur.name = e.target.value; send(); });
+    $$('.cm-preset').addEventListener('change', async e => {
+      const name = e.target.value; e.target.value = '';
+      if(!name) return;
+      const p = (await cmPresets()).find(x => x.name === name);
+      if(!p) return;
+      load({ramp: p.ramp.map(c => c.slice()), mini: cur.mini, maxi: cur.maxi, name}, true);
+      send();
+    });
+    $$('.cm-undo').addEventListener('click', () => {
+      if(!st.hist.length) return;
+      // the state before the last change (the first one stays, for reset)
+      const prev = st.hist.length > 1 ? st.hist.pop() : st.hist[0];
+      load(cmCopy(prev), false); send();
+    });
+    $$('.cm-reset').addEventListener('click', () => { if(!st.hist.length) return; load(cmCopy(st.hist[0]), true); send(); });
+    $$('.cm-read').addEventListener('click', async () => {
+      if(!ctx.pickFile || !ctx.colormapFile) return;
+      const path = await ctx.pickFile('file', '', {title: 'Read a Vision colormap file'});
+      if(!path) return;
+      const d = await ctx.colormapFile('read', path);
+      if(!d || d.error) return;
+      load(await cmResolve(d.colorMap), true); send();
+      msg.textContent = 'read ' + path;
+    });
+    $$('.cm-write').addEventListener('click', async () => {
+      if(!ctx.pickFile || !ctx.colormapFile) return;
+      const path = await ctx.pickFile('filesave', '', {title: 'Write a Vision colormap file (name_map.py)'});
+      if(!path) return;
+      const d = await ctx.colormapFile('write', path, value());
+      if(d && !d.error) msg.textContent = 'wrote ' + d.path;
+    });
+    return box;
+  }
+
   function json(spec, ctx){
     const inp = el('input', {type: 'text', spellcheck: 'false',
                              title: 'widget ' + spec.class + ' is shown as a value (JSON)'});
@@ -417,7 +657,7 @@ const W = (() => {
   }
 
   const KINDS = {number, entry, checkbox, button, combo, file, dir: file, filesave: file,
-                 text, vector, xyzvect, color, multicheck, json};
+                 text, vector, xyzvect, color, multicheck, colormap, json};
 
   /* render(spec, ctx) -> HTMLElement. ctx: {change(value, run), pickFile(kind,
      current, options) -> Promise<path|null>, upload() -> Promise<path|null>,

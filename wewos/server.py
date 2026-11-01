@@ -52,6 +52,7 @@ EXAMPLE_GROUPS = {'vision': 'Vision examples (MGLTools)',
                   'vision_matplotlib': 'Vision matplotlib examples (MGLTools)'}
 DOCS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'docs')
 STATIC_TYPES = {'.js': 'application/javascript', '.css': 'text/css', '.txt': 'text/plain',
+                '.json': 'application/json',
                 '.svg': 'image/svg+xml', '.png': 'image/png'}
 DOC_TYPES = {'.html': 'text/html; charset=utf-8', '.css': 'text/css', '.png': 'image/png'}
 

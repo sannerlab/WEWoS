@@ -122,3 +122,12 @@ def test_view_change_is_a_redraw():
     seq = s.net.bus.seq
     s.edit('viewer_view', {'node': v.id, 'view': [3, 4]})          # saving the view only
     eq(runs(seq), [])
+
+
+def test_colormap_file_edit():
+    s = _session()
+    cm = {'ramp': [[0, 0, 1, 1], [1, 0, 0, 0.5]], 'mini': 1.0, 'maxi': 2.0, 'name': 'mine'}
+    out = s.edit('colormap_file', {'action': 'write', 'path': 'mine', 'colorMap': cm})
+    check(out['path'].endswith('mine_map.py') and os.path.isfile(out['path']))
+    back = s.edit('colormap_file', {'action': 'read', 'path': 'mine_map.py'})['colorMap']
+    eq(back, {'ramp': [[0.0, 0.0, 1.0, 1.0], [1.0, 0.0, 0.0, 0.5]], 'mini': 1.0, 'maxi': 2.0, 'name': 'mine'})

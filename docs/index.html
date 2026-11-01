@@ -60,7 +60,11 @@ Returning <code>'Stop'</code> stops the nodes below.</p>
 left to right; drag the divider above the row to make it taller), drawn with 3Dmol.js or Mol* (the menu in its header; Mol* adds
 ambient occlusion, shadows, depth of field and illumination). Connect geometries to its <code>geometries</code> input:
 Spheres, Cylinders, IndPolygons (meshes), lines, labels, and from the Molecules library CPK, Sticks, Lines,
-Cartoon, Surface and MSMS. Click something in the viewer: the Viewer's <code>lastPick</code> output sends it to
+Cartoon, Surface and MSMS. A <b>Color Map</b> node turns values into colors; its parameter panel has
+Vision's color map editor: draw the ramp's channels (RGB, HSV or HSL, and opacity) as curves with the mouse
+(left button freehand, Shift-click a straight segment from the last point, right button a straight line), pick a
+preset, set min and max, undo (Ctrl/Cmd+Z) or reset, and read or write
+Vision colormap files. Click something in the viewer: the Viewer's <code>lastPick</code> output sends it to
 the nodes connected there (try <b>Picked Atom</b>, or the example <i>pick a residue</i>).</p>
 
 <h2>Files</h2>

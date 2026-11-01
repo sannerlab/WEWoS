@@ -24,6 +24,9 @@ analysis of large biomolecular structures. *Nucleic Acids Research* 49(W1):W431-
 MGLTools Vision (`Vision/doc/Examples`; Michel Sanner, Daniel Stoffler, Sowjanya Karnati,
 Guillaume Vareille, TSRI), converted by `examples/make_vision_examples.py`, with their data files
 (1crn.pdb, cv.pdb, chain-4.pdb, matplotlib/Data/*.dat), under the MGLTools license.
+`wewos/static/colormaps.json` holds the color maps distributed with MGLTools
+(ViewerFramework/ColorMaps/*_map.py), read by `tools/ports/make_colormaps.py`; the colormap editor
+(`static/widgets.js`) follows DejaVu's ColorMapGUI (Michel Sanner, TSRI). MGLTools license.
 `wewos/libs/radii_patterns.py` is MolKit's table of atom radii (Michel F. Sanner, TSRI 2000;
 the radii of MSMS's pdb_to_xyzr), MGLTools license. The "Lena" photograph
 of those examples (lena.jpg) is not redistributed: `image.jpg`, a rendering made with WEWoS,
