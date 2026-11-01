@@ -446,9 +446,25 @@ nodes connected to lastPick run."""
     def updateScene(self, geometries):
         geoms = [g for g in G.flatten(geometries if geometries is not None else [])
                  if g.kind != 'container']
+        # one name per geometry object: two geometries with the same name
+        # (two isocontour macros...) get "name (2)" instead of replacing
+        # each other, and keep their name from run to run
+        if not hasattr(self, '_keys'):
+            self._keys = {}
+        live = {id(g) for g in geoms}
+        self._keys = {k: v for k, v in self._keys.items() if k in live}
         new = {}
         for g in geoms:
-            new[g.fullName()] = g
+            key = self._keys.get(id(g))
+            if key is None or key.split(' (')[0] != g.fullName():
+                base = key = g.fullName()
+                taken = set(self._keys.values())
+                k = 2
+                while key in taken:
+                    key = '%s (%d)' % (base, k)
+                    k += 1
+                self._keys[id(g)] = key
+            new[key] = g
         changed = []
         for name, g in new.items():
             key = (id(g), g.version)
@@ -467,7 +483,9 @@ nodes connected to lastPick run."""
         out = []
         for name, g in self.geoms.items():
             if names is None or name in names:
-                out.append(g.to_json())
+                d = g.to_json()
+                d['name'] = name
+                out.append(d)
         return out
 
     def sceneState(self):
@@ -476,6 +494,35 @@ nodes connected to lastPick run."""
 
     def setView(self, view):
         self.camera = view
+
+    def snapshot(self, timeout=15.0):
+        """The picture this viewer shows on the page, as a PIL image. The
+        page draws the viewer, so it is asked for it ('snapshot_request');
+        it answers through the session (snapshotReceived)."""
+        import base64
+        import io
+        import itertools
+        import threading
+        from PIL import Image
+        if not hasattr(self, '_snaps'):
+            self._snaps, self._snapIds = {}, itertools.count(1)
+        rid = '%s-%d' % (self.id, next(self._snapIds))
+        done = threading.Event()
+        self._snaps[rid] = [done, None]
+        self.network.emit('snapshot_request', viewer=self.id, request=rid)
+        if not done.wait(timeout):
+            self._snaps.pop(rid, None)
+            raise RuntimeError('no page sent the picture of viewer %s: open the page with '
+                               'this network, with the viewer showing' % self.name)
+        png = self._snaps.pop(rid)[1]
+        data = base64.b64decode(png.split(',', 1)[1])
+        return Image.open(io.BytesIO(data)).convert('RGBA')
+
+    def snapshotReceived(self, rid, png):
+        entry = getattr(self, '_snaps', {}).get(rid)
+        if entry is not None and entry[1] is None:
+            entry[1] = png
+            entry[0].set()
 
     def picked(self, body):
         d = {'geom': body.get('geom'), 'object': self.geoms.get(body.get('geom'))}

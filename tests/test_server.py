@@ -61,7 +61,9 @@ def test_build_run_save_open():
     t = '?t=' + tok
     try:
         libs = _get(base + '/api/libraries' + t)
-        check({'Standard', '3D Visualization', 'Molecules'} <= {l['name'] for l in libs['libraries']})
+        check({'Standard', '3D Visualization', 'Molecules', 'SymServer', 'Volume', 'Imaging'}
+              <= {k['name'] for k in libs['known']}, libs['known'])
+        check('Standard' in {l['name'] for l in libs['libraries']})
         s = _post(base + '/api/new' + t, {'name': 'demo'})
         sid = s['session']
         ed = lambda op, **a: _post(base + '/api/edit' + t, dict(a, s=sid, op=op))
@@ -113,5 +115,38 @@ def test_import_endpoint_and_code_edit():
         ok = _post(base + '/api/edit' + t, {'s': sid, 'op': 'set_code', 'node': rd,
                                             'code': 'def doit(self, filename):\n    pass\n'})
         check('error' not in ok, ok)
+    finally:
+        httpd.shutdown()
+
+
+def test_libraries_on_demand_and_user_library():
+    httpd, base, tok = _server()
+    t = '?t=' + tok
+    try:
+        r = _post(base + '/api/library' + t, {'name': 'SymServer'})
+        check('SymServer' in {l['name'] for l in r['libraries']}, r)
+        # a library of the user's, from a file
+        path = os.path.join(outdir('userlib'), 'mynodes.py')
+        with open(path, 'w') as fh:
+            fh.write("from wewos.engine import NetworkNode, NodeLibrary\n"
+                     "class Double(NetworkNode):\n"
+                     "    def __init__(self, name='double', **kw):\n"
+                     "        kw['name'] = name\n"
+                     "        NetworkNode.__init__(self, **kw)\n"
+                     "        self.inputPortsDescr.append(datatype='float', name='x')\n"
+                     "        self.outputPortsDescr.append(datatype='float', name='y')\n"
+                     "        self.setFunction('def doit(self, x):\\n    self.outputData(y=2 * x)\\n')\n"
+                     "mylib = NodeLibrary('My nodes', '#888888')\n"
+                     "mylib.addNode(Double, 'double', 'Math')\n")
+        r = _post(base + '/api/library' + t, {'file': path})
+        check('My nodes' in {l['name'] for l in r['libraries']}, r)
+        conf = json.load(open(httpd.app.libconf_path))
+        check('My nodes' in conf['user'])
+        r = _post(base + '/api/library_startup' + t, {'name': 'SymServer', 'on': True})
+        check([k for k in r['known'] if k['name'] == 'SymServer'][0]['startup'])
+        s = _post(base + '/api/new' + t, {'name': 'u'})
+        d = _post(base + '/api/edit' + t, {'s': s['session'], 'op': 'add', 'lib': 'My nodes',
+                                           'label': 'double', 'pos': [0, 0]})
+        check('node' in d, d)
     finally:
         httpd.shutdown()

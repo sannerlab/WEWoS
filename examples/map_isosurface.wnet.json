@@ -1,0 +1,203 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "Volume",
+  "3D Visualization"
+ ],
+ "network": {
+  "name": "map isosurface",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "ReadAnyMap",
+    "cls": "ReadAnyMap",
+    "lib": "Volume",
+    "pos": [
+     30,
+     60
+    ],
+    "label": "ReadAnyMap",
+    "widgets": {
+     "filename": "data/nwv1.mrc",
+     "format": "auto",
+     "normalize": 1
+    },
+    "widgetOpts": {
+     "format": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n2",
+    "name": "UTiso",
+    "cls": "UT_Iso",
+    "lib": "Volume",
+    "pos": [
+     330,
+     30
+    ],
+    "label": "UTiso",
+    "innerWidgets": {
+     "2": {
+      "isovalue": 1.0,
+      "calculatesignatures": null,
+      "verbosity": 0
+     },
+     "3": {
+      "opacity": 1.0
+     }
+    }
+   },
+   {
+    "id": "n12",
+    "name": "OrthoSlice",
+    "cls": "OrthoSlice",
+    "lib": "Volume",
+    "pos": [
+     330,
+     140
+    ],
+    "label": "OrthoSlice",
+    "widgets": {
+     "axis": "z",
+     "sliceNumber": 12,
+     "ramp": "rgb",
+     "opacity": 0.8
+    },
+    "widgetOpts": {
+     "axis": {
+      "autoList": false
+     },
+     "sliceNumber": {
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "ramp": {
+      "autoList": false
+     },
+     "opacity": {
+      "type": "float",
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n13",
+    "name": "GridBB",
+    "cls": "BoundingBox",
+    "lib": "Volume",
+    "pos": [
+     330,
+     420
+    ],
+    "label": "GridBB"
+   },
+   {
+    "id": "n14",
+    "name": "VolumeStats",
+    "cls": "VolumeStats",
+    "lib": "Volume",
+    "pos": [
+     30,
+     260
+    ],
+    "label": "VolumeStats"
+   },
+   {
+    "id": "n15",
+    "name": "Viewer",
+    "cls": "Viewer",
+    "lib": "3D Visualization",
+    "pos": [
+     700,
+     160
+    ],
+    "label": "Viewer"
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n1",
+     "grid"
+    ],
+    "to": [
+     "n2",
+     "UT-Isocontour_grid3D"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n1",
+     "grid"
+    ],
+    "to": [
+     "n12",
+     "grid"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n1",
+     "grid"
+    ],
+    "to": [
+     "n13",
+     "grid"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n1",
+     "grid"
+    ],
+    "to": [
+     "n14",
+     "grid"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n2",
+     "IndexedPolygons_indexedPolygons"
+    ],
+    "to": [
+     "n15",
+     "geometries"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n12",
+     "OrthoSlice"
+    ],
+    "to": [
+     "n15",
+     "geometries"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n13",
+     "Grid3DBB"
+    ],
+    "to": [
+     "n15",
+     "geometries"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

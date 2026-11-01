@@ -116,6 +116,8 @@ class Session(object):
         d['seq'] = self.net.bus.seq
         d['networks'] = {net.netid: net.describe() for net in self._all_networks()}
         d['execStatus'] = self.net.execStatus
+        from .engine.library import loaded
+        d['libraries'] = sorted(lib.name for lib in loaded())
         d['runOnNewData'] = bool(self.net.runOnNewData.value)
         return d
 
@@ -134,7 +136,8 @@ class Session(object):
                 out = fn(a) or {}
             except (ValueError, SyntaxError, KeyError) as e:
                 raise Refused(str(e))
-        if op not in ('get_code', 'port_data', 'copy', 'viewer_state', 'viewer_geoms'):
+        if op not in ('get_code', 'port_data', 'copy', 'viewer_state', 'viewer_geoms',
+                      'viewer_snapshot', 'image_data'):
             self.autosave()
         out['seq'] = self.net.bus.seq
         return out
@@ -400,6 +403,16 @@ class Session(object):
 
     def _op_viewer_geoms(self, a):
         return {'geoms': self._viewer(a['node']).geomsJSON(a.get('names'))}
+
+    def _op_viewer_snapshot(self, a):
+        self._viewer(a['node']).snapshotReceived(a.get('request'), a.get('png') or '')
+        return {}
+
+    def _op_image_data(self, a):
+        n = self.node(a['node'])
+        if not hasattr(n, 'imageData'):
+            raise Refused('%s does not show images' % n.name)
+        return n.imageData()
 
     def _op_viewer_view(self, a):
         self._viewer(a['node']).setView(a.get('view'))

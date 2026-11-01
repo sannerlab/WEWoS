@@ -16,7 +16,9 @@ def check():
     missing = []
     for mod, why in (('numpy', 'the engine'), ('MolKit2', 'the Molecules library'),
                      ('prody', 'the Molecules library'),
-                     ('mslib', 'molecular surfaces (MSMS)')):
+                     ('mslib', 'molecular surfaces (MSMS)'),
+                     ('UTpackages.UTisocontour', 'isocontouring in the Volume library'),
+                     ('PIL', 'the Imaging library')):
         try:
             __import__(mod)
         except Exception:

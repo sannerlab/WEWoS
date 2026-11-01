@@ -11,7 +11,7 @@ nodes loaded MGLTools libraries into the Tk editor.
 import warnings
 import numpy
 import math, types
-from wewos.symserv.mglmath.rotax import rotax	
+from wewos.mglmath.rotax import rotax	
 
 from wewos.engine import NetworkNode, NodeLibrary
 from wewos.engine import MacroNode
@@ -151,7 +151,7 @@ class Identity(NetworkNode):
 
         if code: self.setFunction(code)
 
-from wewos.symserv.mglmath.rotax import rotVectToVect
+from wewos.mglmath.rotax import rotVectToVect
 
 class AlignVectToVect(NetworkNode):
     """Create a stream of rotations that align 3D vectors"""

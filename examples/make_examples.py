@@ -14,8 +14,8 @@ sys.path.insert(0, os.path.dirname(HERE))
 
 from wewos.engine import Network, fileio, get_library  # noqa: E402
 
-STD, VIZ, MOL, SYM = (get_library(n) for n in ('Standard', '3D Visualization', 'Molecules',
-                                                'SymServer'))
+STD, VIZ, MOL, SYM, VOL, IMG = (get_library(n) for n in (
+    'Standard', '3D Visualization', 'Molecules', 'SymServer', 'Volume', 'Imaging'))
 
 
 def node(net, lib, label, x, y, **widgets):
@@ -143,6 +143,40 @@ def icosahedral_spheres():
     save(n, 'icosahedral_spheres')
 
 
+def map_isosurface():
+    n = new('map isosurface')
+    rd = node(n, VOL, 'ReadAnyMap', 30, 60, filename='data/nwv1.mrc')
+    iso = node(n, VOL, 'UTiso', 330, 30)
+    sl = node(n, VOL, 'OrthoSlice', 330, 140, sliceNumber=12, opacity=0.8)
+    bb = node(n, VOL, 'GridBB', 330, 420)
+    st = node(n, VOL, 'VolumeStats', 30, 260)
+    v = node(n, VIZ, 'Viewer', 700, 160)
+    n.connectNodes(rd, iso, 'grid', 'UT-Isocontour_grid3D')
+    n.connectNodes(rd, sl, 'grid', 'grid')
+    n.connectNodes(rd, bb, 'grid', 'grid')
+    n.connectNodes(rd, st, 'grid', st.inputPorts[0].name)
+    n.connectNodes(iso, v, 'IndexedPolygons_indexedPolygons', 'geometries')
+    n.connectNodes(sl, v, 'OrthoSlice', 'geometries')
+    n.connectNodes(bb, v, 'Grid3DBB', 'geometries')
+    save(n, 'map_isosurface')
+
+
+def viewer_snapshot():
+    n = new('viewer snapshot')
+    rd = node(n, MOL, 'Read Molecule', 30, 40, filename='data/1crn.pdb')
+    ca = node(n, MOL, 'Cartoon', 320, 40)
+    v = node(n, VIZ, 'Viewer', 620, 60)
+    gr = node(n, IMG, 'Grab Image', 620, 240)
+    fl = node(n, IMG, 'Filter Image', 860, 240, filter='CONTOUR')
+    sh = node(n, IMG, 'Show Image', 860, 380)
+    n.connectNodes(rd, ca, 'mol', 'atoms')
+    n.connectNodes(ca, v, 'cartoon', 'geometries')
+    n.connectNodes(v, gr, 'viewer', 'viewer')
+    n.connectNodes(gr, fl, 'image', 'image')
+    n.connectNodes(fl, sh, 'image', 'image')
+    save(n, 'viewer_snapshot')
+
+
 if __name__ == '__main__':
     crambin_surface()
     iterate_squares()
@@ -150,3 +184,5 @@ if __name__ == '__main__':
     spheres_colormap()
     helical_crambin()
     icosahedral_spheres()
+    map_isosurface()
+    viewer_snapshot()

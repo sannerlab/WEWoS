@@ -585,6 +585,16 @@ def _network(net, ids, report):
     return {'nodes': nodes, 'connections': conns}
 
 
+def localize_code(code):
+    """Imports of MGLTools packages that WEWoS bundles, pointed at its copies
+    (a grid made with another Volume package would not be a Grid3D here)."""
+    import re
+    code = re.sub(r'\bfrom Volume\.', 'from wewos.volcore.', code)
+    for m in ('rotax', 'transformation', 'crystal', 'stats', 'VectorModule', 'TensorModule'):
+        code = code.replace('from mglutil.math.%s import' % m, 'from wewos.mglmath.%s import' % m)
+    return code
+
+
 def _mapped(maps, node, port, io):
     m = maps.get(id(node))
     if m is None or not isinstance(port, str):
@@ -610,7 +620,7 @@ def _node_entry(n, ids, report):
                   'library': sym.lib.name if sym.lib else None}
         report.unmapped.append('%s (%s.%s)' % (n.name, sym.module, sym.cls))
         e.update(lib='__builtin__', cls='UnsupportedNode',
-                 unsupported={'origin': origin, 'code': code,
+                 unsupported={'origin': origin, 'code': code and localize_code(code),
                               'inputs': [{'name': p} for p in sorted(
                                   n.ports_seen_in | {d['name'] for d in n.added_in})],
                               'outputs': [{'name': p} for p in sorted(
@@ -633,11 +643,23 @@ def _node_entry(n, ids, report):
         report.warnings.append('%s: widget values given by port number were not imported'
                                % n.name)
     if n.inner:
-        report.warnings.append('%s: settings inside the library macro %s were not imported'
-                               % (n.name, sym.cls))
+        from wewos.engine import get_library
+        from wewos.engine.macros import MacroNode
+        klass = get_library(lib).nodeClassFromName.get(cls)
+        if cls == sym.cls and klass is not None and issubclass(klass, MacroNode):
+            # the same library macro: its inner nodes are in the same order
+            inner = {str(i): {classmap.map_port({}, k): v for k, v in r.widgets.items()}
+                     for i, r in n.inner.items() if r.widgets}
+            if inner:
+                e['innerWidgets'] = inner
+        else:
+            report.warnings.append('%s: settings inside the library macro %s were not imported'
+                                   % (n.name, sym.cls))
     if code:
-        if lib == 'Standard':
-            e['code'] = code
+        same = lib == 'Standard' or (cls == sym.cls and classmap.family(
+            sym.module, sym.lib.name if sym.lib else None) in classmap.SAME_NAMES)
+        if same:
+            e['code'] = localize_code(code)
             report.code.append(n.name)
         else:
             report.warnings.append('%s: its edited code was written for %s and was not kept'

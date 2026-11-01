@@ -17,6 +17,7 @@ PAGE = r"""<!doctype html><html lang="en"><head><meta charset="utf-8">
   <div class=menubar>
     <button id=m_file class=plainbtn>File &#9662;</button>
     <button id=m_edit class=plainbtn>Edit &#9662;</button>
+    <button id=m_libs class=plainbtn title="load node libraries">Libraries&hellip;</button>
   </div>
   <span class=sep></span>
   <button id=b_run title="Soft run: run the nodes that have new data (Vision's run)">&#9654; Run</button>

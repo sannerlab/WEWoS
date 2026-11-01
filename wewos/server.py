@@ -10,7 +10,9 @@ other machines unless --host says so (use an SSH tunnel instead).
 Routes
   GET  /                        the page
   GET  api/status               version, environment, libraries that failed to load
-  GET  api/libraries            node catalog, port types, widget kinds
+  GET  api/libraries            loaded libraries (palette), all known ones, types, widgets
+  POST api/library {name | module | file}   load a library (a user module or file)
+  POST api/library_startup {name, on}       load it when the server starts
   GET  api/sessions             open networks
   GET  api/session?s=           one network, in full
   GET  api/events?s=&since=N    events after N (long poll, up to 25 s)
@@ -58,16 +60,79 @@ class App(object):
         self.token = secrets.token_urlsafe(18)
         self.sessions = {}
         self._lock = threading.Lock()
+        self.libconf_path = os.path.join(self.outdir, 'libraries.json')
+        self.libconf = self._read_libconf()
+        self._startup_libraries()
+
+    # ---- libraries: loaded on demand, as in Vision ---------------------------------------
+    def _read_libconf(self):
+        try:
+            with open(self.libconf_path) as fh:
+                d = json.load(fh)
+        except (OSError, ValueError):
+            d = {}
+        d.setdefault('startup', ['Standard'])
+        d.setdefault('user', {})
+        return d
+
+    def _write_libconf(self):
+        tmp = self.libconf_path + '.part'
+        with open(tmp, 'w') as fh:
+            json.dump(self.libconf, fh, indent=1)
+        os.replace(tmp, self.libconf_path)
+
+    def _startup_libraries(self):
+        from .engine import library
+        library.USER.update(self.libconf['user'])
+        for name in ['Standard'] + [n for n in self.libconf['startup'] if n != 'Standard']:
+            try:
+                library.get_library(name)
+            except Exception as e:
+                print('library %s did not load: %s' % (name, e), flush=True)
 
     def status(self):
-        from .engine.library import available
+        from .engine.library import known
         return {'version': __version__, 'app': APP, 'outdir': self.outdir,
                 'missing': env.check(), 'environment': env.provenance(),
-                'libraries': [{'name': n, 'error': e} for n, e in available()]}
+                'libraries': known()}
 
     def libraries(self):
         from .engine.library import catalog
-        return catalog()
+        d = catalog()
+        for k in d['known']:
+            k['startup'] = k['name'] in self.libconf['startup']
+        return d
+
+    def load_library(self, body):
+        """Load a library by name, or a module / .py file of the user's
+        (remembered in libraries.json for the next sessions)."""
+        from .engine import library
+        if body.get('module') or body.get('file'):
+            src = {k: body[k].strip() for k in ('module', 'file') if body.get(k)}
+            try:
+                libs = library.load_user(**src)
+            except Exception as e:
+                raise Refused('could not load %s: %s: %s'
+                              % (src.get('file') or src.get('module'), type(e).__name__, e))
+            for lib in libs:
+                self.libconf['user'][lib.name] = src
+            self._write_libconf()
+        else:
+            try:
+                library.get_library(body.get('name') or '')
+            except Exception as e:
+                raise Refused('could not load library %s: %s: %s'
+                              % (body.get('name'), type(e).__name__, e))
+        return self.libraries()
+
+    def library_startup(self, body):
+        name, on = body.get('name'), bool(body.get('on'))
+        st = [n for n in self.libconf['startup'] if n != name]
+        if on:
+            st.append(name)
+        self.libconf['startup'] = st
+        self._write_libconf()
+        return self.libraries()
 
     def new(self, name='network'):
         sid = secrets.token_hex(8)
@@ -344,6 +409,8 @@ class Handler(BaseHTTPRequestHandler):
         routes = {
             '/api/new': lambda: app.new_state(body.get('name')),
             '/api/example': lambda: app.example(body.get('name')),
+            '/api/library': lambda: app.load_library(body),
+            '/api/library_startup': lambda: app.library_startup(body),
             '/api/edit': lambda: s().edit(body.get('op'), body),
             '/api/run': lambda: s().run(body.get('mode'), body.get('node'), body.get('net')),
             '/api/save': lambda: s().save(body.get('name')),

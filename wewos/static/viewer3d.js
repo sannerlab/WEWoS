@@ -260,21 +260,67 @@ const VIEW3D = (() => {
     else finish(rec);
   }
 
+  /* ---- image panels (Imaging's Show Image node) ---------------------------------- */
+  const IM = {};         // node id -> {panel, img}
+  function ensureImage(id){
+    if(IM[id]) return IM[id];
+    const n = cb.find(id);
+    const panel = document.createElement('div');
+    panel.className = 'vpanel';
+    panel.innerHTML = '<div class=vhead><b>' + esc(n ? n.name : id) + '</b>' +
+      '<span class=isize></span>' +
+      '<button class=plainbtn data-a=save title="save the image">&#128190;</button>' +
+      '<button class=plainbtn data-a=fold title="hide / show">&#9662;</button></div>' +
+      '<div class=ibox><img alt=""></div>';
+    box.append(panel);
+    const rec = {panel, img: panel.querySelector('img'), id};
+    panel.querySelector('.vhead').addEventListener('click', e => {
+      const a = e.target.dataset && e.target.dataset.a;
+      if(a === 'save' && rec.img.src){ const l = document.createElement('a');
+        l.href = rec.img.src; l.download = (n ? n.name : 'image') + '.png'; l.click(); }
+      if(a === 'fold'){ const b = panel.querySelector('.ibox'); b.hidden = !b.hidden; panel.classList.toggle('folded', b.hidden); }
+    });
+    IM[id] = rec;
+    return rec;
+  }
+  async function loadImage(id){
+    const d = await cb.edit('image_data', {node: id});
+    if(!d || d.error || !d.png) return;
+    const rec = ensureImage(id);
+    rec.img.src = d.png;
+    rec.panel.querySelector('.isize').textContent = d.size ? d.size[0] + '\u00d7' + d.size[1] + ' ' + (d.mode || '') : '';
+  }
+
   return {
     init,
-    reset(){ Object.keys(V).forEach(id => this.removeViewer(id)); },
+    reset(){ Object.keys(V).forEach(id => this.removeViewer(id)); Object.keys(IM).forEach(id => this.removeViewer(id)); },
     requestAll(nets){
-      for(const k in nets) for(const id in nets[k].nodes)
+      for(const k in nets) for(const id in nets[k].nodes){
         if(nets[k].nodes[id].viewer) load(id);
+        if(nets[k].nodes[id].imageViewer) loadImage(id);
+      }
+    },
+    imageEvent(e){ loadImage(e.node); },
+    async snapshot(e){
+      // a Grab Image node asks for the picture a viewer shows (once what
+      // the viewer is still fetching is drawn)
+      const rec = V[e.viewer];
+      if(!rec || rec.div.hidden) return;
+      try { await rec.pending; } catch(err) {}
+      rec.v.render();
+      cb.edit('viewer_snapshot', {node: e.viewer, request: e.request, png: rec.v.pngURI()});
     },
     viewerEvent(e){ if(e.op === 'add') ensure(e.node); },
     apply(e){
       const rec = ensure(e.viewer);
       (e.removed || []).forEach(n => { clearObj(rec, n); delete rec.versions[n]; });
       const names = (e.changed || []).map(c => c.name);
-      if(names.length) fetchAndDraw(rec, names); else finish(rec);
+      // drawing is chained, so a snapshot can wait for what is pending
+      rec.pending = (rec.pending || Promise.resolve()).then(() =>
+        names.length ? fetchAndDraw(rec, names) : finish(rec));
     },
     removeViewer(id){
+      if(IM[id]){ IM[id].panel.remove(); delete IM[id]; }
       const rec = V[id]; if(!rec) return;
       try { rec.v.clear(); } catch(e) {}
       rec.panel.remove(); delete V[id];

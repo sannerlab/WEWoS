@@ -34,11 +34,15 @@ To use it from another machine, forward the port: `ssh -L 8767:127.0.0.1:8767 ho
 
 ## Libraries
 
+Libraries load on demand, as in Vision. When the server starts, only Standard (and any library marked *at start*) is in the palette; **Libraries…** (or *+ Load a library…* under the palette) loads the others. Opening a network, an example or an imported Vision network loads the libraries it uses. Your own libraries load the same way: give a module name or a `.py` file on the server that creates a `NodeLibrary` (`from wewos.engine import NodeLibrary, NetworkNode`). They are remembered in `libraries.json` in the networks folder.
+
 | Library | Contents |
 |---|---|
 | Standard | the 75 nodes of Vision's StandardNodes that do not drive Tk: input widgets, Python (iterate, while, accum, eval, map…), logic, filters, numpy |
 | 3D Visualization | Viewer, Spheres, Cylinders, IndPolygons (meshes), IndPolylines, labels, box, axis, groups, color map, mesh reader. This replaces DejaVu's vizlib, and the port names are DejaVu's. |
 | Molecules | MolKit2: Read Molecule, Fetch PDB, Select (ProDy or MolKit syntax), atom properties, radii, CPK, Sticks, Lines, Cartoon, Surface (3Dmol), MSMS (mslib), Write PDB, Picked Atom |
+| Volume | Volume: read maps (AutoGrid, CCP4, MRC, CNS/XPLOR, DX, Delphi, GRD, BRIX, SPIDER, UHBD, Rawiv, AVS/FLD, numpy), write CCP4/Rawiv, statistics, masks, clipping, transforms, resampling, Gaussian blurring of molecules (UT blur), isocontouring with its contour spectrum (UTiso, UT-Isocontour), signed distance, meshing, orthogonal slices drawn as colored meshes, bounding boxes, a coarse molecular surface macro. Volume rendering and QSlim decimation are not ported. |
+| Imaging | Pillow: read, save, filter, invert, split, mask, paste, blend, multiply, composite, rotate, transpose, scale, statistics; Show Image shows an image in a panel of the page, Grab Image takes a snapshot of a 3D viewer. |
 | SymServer | symserv: n-fold axes (2- to 6-fold and N-fold), helix, super-helix, rotate, translate, orient, scale, merge, multiply, split, inverse, transpose, the Icosahedral1 and IcosCage macros, reading and saving matrices. Its matrices go to the `instanceMatrices` input of a geometry, or of a molecule's CPK/Sticks/Lines/Cartoon/Surface/MSMS node, which draws one copy per matrix. |
 
 ## Vision networks (`*_net.py`)
@@ -46,7 +50,7 @@ To use it from another machine, forward the port: `ssh -L 8767:127.0.0.1:8767 ho
 File > *Import a Vision network* (or `bin/wewos import old_net.py`) converts a saved Vision network to the WEWoS format. The file is **not executed**: it is parsed after a Python 2 → 3 syntax conversion, and only what the generated files do is interpreted. That covers libraries, nodes, widget values, edited code, ports added to nodes, user macros and connections.
 
 How nodes come across:
-- Nodes of the Standard, DejaVu, MolKit and symserv libraries map onto the WEWoS libraries (`wewos/legacy/classmap.py`).
+- Nodes of the Standard, DejaVu, MolKit, symserv, Volume and Imaging libraries map onto the WEWoS libraries (`wewos/legacy/classmap.py`); settings inside library macros (e.g. UTiso's isovalue) come along.
 - Other nodes become placeholders that keep their name, ports and code. They show in red and do not run.
 - Edited compute functions are converted to Python 3 and kept for Standard nodes.
 
@@ -58,8 +62,10 @@ The import report lists what was not carried over. All 76 networks in `/home/san
 bin/wewos                 launcher (finds the adcpsuite env)
 wewos/engine/             the Vision engine in Python 3: types, ports, nodes, network scheduler,
                           macros, widgets as data, event stream, file format
-wewos/libs/               standard.py, viz3d.py, molecules.py, symserv.py
-wewos/symserv/            symserv's operators (Python 3) and the mglutil math they use
+wewos/libs/               standard.py, viz3d.py, molecules.py, symserv.py, volume.py, imaging.py
+wewos/symserv/            symserv's operators (Python 3)
+wewos/volcore/            Volume's core (Grid3D, readers, writers, operators), Python 3
+wewos/mglmath/            the mglutil.math modules symserv and Volume use
 wewos/geom.py             geometry without OpenGL (what DejaVu geometries were to nodes)
 wewos/legacy/             py2to3 conversion and the *_net.py importer
 wewos/server.py, session.py, page.py, static/   the web server and page
@@ -76,7 +82,7 @@ Some things changed:
 - **One run at a time.** Runs execute on a server thread. Changing a widget during a run queues another run.
 - **Not ported:**
   - user panels;
-  - the libraries that are not listed above (Volume, matplotlib, PIL…);
+  - the libraries that are not listed above (matplotlib, ImageMagick, FlexTree…);
   - DejaVu textures, volume rendering, stereo and clip planes.
 
 Node code runs on the server with your rights, as it did in Vision. The server listens on 127.0.0.1 only, and the token in the URL keeps other users of the machine out.

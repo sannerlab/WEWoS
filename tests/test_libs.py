@@ -20,7 +20,7 @@ def _all_nodes(libname):
 
 
 def test_every_node_instantiates():
-    for name in ('Standard', '3D Visualization', 'Molecules', 'SymServer'):
+    for name in ('Standard', '3D Visualization', 'Molecules', 'SymServer', 'Volume', 'Imaging'):
         n = _all_nodes(name)
         check(len(n.nodes) > 5, name)
 
@@ -136,3 +136,62 @@ def test_import_maps_symserv_nodes():
     eq(report.unmapped, [])
     e = data['network']['nodes'][0]
     eq((e['lib'], e['cls']), ('SymServer', 'Sym5FoldNE'))
+
+
+MRC = os.path.join(DATA, 'nwv1.mrc')
+
+
+def test_volume_read_isocontour_slice_box():
+    vol, vz = get_library('Volume'), get_library('3D Visualization')
+    rd, iso, sl, bb, v = (vol.instantiate(label='ReadAnyMap'), vol.instantiate(label='UTiso'),
+                          vol.instantiate(label='OrthoSlice'), vol.instantiate(label='GridBB'),
+                          vz.instantiate(label='Viewer'))
+    n = net(rd, iso, sl, bb, v)
+    rd.inputPorts[0].widget.set(MRC, run=False)
+    n.connectNodes(rd, iso, 'grid', 'UT-Isocontour_grid3D')
+    n.connectNodes(rd, sl, 'grid', 'grid')
+    n.connectNodes(rd, bb, 'grid', 'grid')
+    for g, p in ((iso, 'IndexedPolygons_indexedPolygons'), (sl, 'OrthoSlice'), (bb, 'Grid3DBB')):
+        n.connectNodes(g, v, p, 'geometries')
+    n.run(n.rootNodes)
+    check(all(x.status == 'done' for x in n.allNodes()), {x.name: x.status for x in n.allNodes()})
+    shapes = {g['name']: (g['type'], g['vertices']['shape'][0]) for g in v.geomsJSON()}
+    eq(shapes['IndexedPolygons'][0], 'mesh')
+    check(shapes['IndexedPolygons'][1] > 1000)
+    eq(shapes['OrthoSlice'], ('mesh', 21 * 22))     # one vertex per grid point of z=0
+    eq(shapes['GridBB'], ('lines', 8))
+    isoN = iso.macroNetwork.nodes[2]
+    w = isoN.inputPortByName['isovalue'].widget
+    check(w.options['min'] < 1.0 < w.options['max'])
+    isoN.calculateSignatures()
+    eq(len(w.options['signatures']), 4)
+
+
+def test_volume_coarse_molecular_surface():
+    vol, mk = get_library('Volume'), get_library('Molecules')
+    rd, cm = mk.instantiate(label='Read Molecule'), vol.instantiate(label='CoarseMolSurf')
+    n = net(rd, cm)
+    rd.inputPorts[0].widget.set(PDB, run=False)
+    n.connectNodes(rd, cm, 'mol', cm.inputPorts[0].name)
+    n.run(n.rootNodes)
+    g = cm.outputPorts[0].data
+    check(len(g.vertices) > 1000 and len(g.faces) > 2000, g)
+
+
+def test_imaging_read_filter_show():
+    img = get_library('Imaging')
+    rd, fl, inv, sh = (img.instantiate(label='Read Image'), img.instantiate(label='Filter Image'),
+                       img.instantiate(label='Invert Image'), img.instantiate(label='Show Image'))
+    n = net(rd, fl, inv, sh)
+    rd.inputPorts[0].widget.set(os.path.join(DATA, 'gradient.png'), run=False)
+    fl.inputPortByName['filter'].widget.set('EMBOSS', run=False)
+    n.connectNodes(rd, fl, 'image', 'image')
+    n.connectNodes(fl, inv, 'image', 'image')
+    n.connectNodes(inv, sh, 'image', 'image')
+    seq = n.bus.seq
+    n.run(n.rootNodes)
+    check(all(x.status == 'done' for x in n.nodes), {x.name: x.status for x in n.nodes})
+    check(any(e['kind'] == 'image' for e in n.bus.since(seq)['events']))
+    d = sh.imageData()
+    eq(d['size'], [96, 64])
+    check(d['png'].startswith('data:image/png;base64,'))

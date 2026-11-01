@@ -97,6 +97,10 @@ body.vfull #viewers{position:fixed;inset:0;z-index:25;height:auto !important;bac
 .vhead b{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .vhead button.on{color:var(--accent)}
 .vbox{position:relative;flex:1;min-height:60px;overflow:hidden}
+.ibox{flex:1;min-height:80px;overflow:auto;display:flex;align-items:center;justify-content:center;
+  background:repeating-conic-gradient(var(--soft) 0 25%,var(--card) 0 50%) 0 0/16px 16px}
+.ibox img{max-width:100%;max-height:100%;object-fit:contain}
+.isize{font-size:11px;color:var(--dim)}
 .vpick{font-size:11px;padding:2px 8px;min-height:18px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #panel{flex:1;overflow:auto;padding:8px 10px}
 #panel h3{margin:2px 0 6px;font-size:14px;display:flex;align-items:center;gap:6px}
@@ -175,5 +179,8 @@ textarea.w-text{width:100%;min-height:60px;font:11.5px ui-monospace,Menlo,monosp
 .fb-list div.sel{background:var(--accent2)}
 .fb-list .sz{margin-left:auto;color:var(--dim);font-size:11px}
 .report li{margin:2px 0}
+.libtable{width:100%;border-collapse:collapse}
+.libtable td{padding:6px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+.libtable td:nth-child(2),.libtable td:nth-child(3){white-space:nowrap;width:1%}
 [hidden]{display:none !important}
 body.drag #canvaswrap{outline:3px dashed var(--accent);outline-offset:-6px}

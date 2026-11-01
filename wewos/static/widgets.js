@@ -26,6 +26,10 @@ const W = (() => {
      the canvas scrollable, a scroll that started outside a field and passes
      over it within 400 ms is left alone. */
   let lastOutside = 0;
+  // while a value is being dragged or scrolled the page must not redraw the
+  // widget under the pointer (app.js asks isBusy() before redrawing the panel)
+  let busyUntil = 0, dragging = false;
+  const isBusy = () => dragging || performance.now() < busyUntil;
   document.addEventListener('wheel', e => {
     if(!(e.target.closest && e.target.closest('.wheelable'))) lastOutside = performance.now();
   }, {capture: true, passive: true});
@@ -67,6 +71,7 @@ const W = (() => {
       if(performance.now() - lastOutside < 400) return;   // scrolling through
       if(e.ctrlKey || e.metaKey) return;                  // pinch zoom (trackpad)
       e.preventDefault(); e.stopPropagation();
+      busyUntil = performance.now() + 600;
       const n = wheelSteps(e, st);
       if(n) apply(n * (e.shiftKey ? 0.1 : e.altKey ? 10 : 1));
     }, {passive: false});
@@ -153,6 +158,7 @@ const W = (() => {
     scrub.addEventListener('pointerdown', e => {
       e.preventDefault(); e.stopPropagation();
       scrub.setPointerCapture(e.pointerId);
+      dragging = true;
       const x0 = e.clientX, v0 = +inp.value || 0;
       const oneTurn = o.oneTurn || (hasRange ? (o.max - o.min) : 10);
       const per = oneTurn / 200;                // 200 px = one turn of the wheel
@@ -168,11 +174,60 @@ const W = (() => {
       };
       const up = () => { scrub.removeEventListener('pointermove', move);
                          scrub.removeEventListener('pointerup', up);
+                         dragging = false; busyUntil = performance.now() + 400;
                          live(+inp.value); };
       scrub.addEventListener('pointermove', move);
       scrub.addEventListener('pointerup', up);
     });
+    if(Array.isArray(o.signatures) && o.signatures.length && !ctx.compact && hasRange){
+      // contour spectrum: the signature curves over the value range; a click
+      // on the plot sets the value there
+      const wrap = el('div', {style: 'display:flex;flex-direction:column;gap:2px;width:100%'});
+      wrap.append(spectrum(o, spec.value, v => {
+        v = clamp(v); inp.value = fmt(v, o); if(range) range.value = v; send(v, true);
+      }), box);
+      return wrap;
+    }
     return box;
+  }
+
+  const SIG_COLORS = ['#e8590c', '#1c7ed6', '#2b8a3e', '#ae3ec9', '#868e96'];
+  function spectrum(o, value, set){
+    const W = 300, H = 70, NS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    svg.setAttribute('preserveAspectRatio', 'none');
+    svg.style.cssText = 'width:100%;height:70px;background:var(--soft);border:1px solid var(--line);border-radius:4px;cursor:crosshair';
+    const x0 = o.min, x1 = o.max, sx = x => (x - x0) / ((x1 - x0) || 1) * W;
+    o.signatures.forEach((c, i) => {
+      if(!c.x || !c.x.length) return;
+      const ymax = Math.max(...c.y.map(Math.abs)) || 1;
+      const pts = c.x.map((x, k) => sx(x).toFixed(1) + ',' + (H - 4 - (c.y[k] / ymax) * (H - 8)).toFixed(1));
+      const pl = document.createElementNS(NS, 'polyline');
+      pl.setAttribute('points', pts.join(' '));
+      pl.setAttribute('fill', 'none');
+      pl.setAttribute('stroke', SIG_COLORS[i % SIG_COLORS.length]);
+      pl.setAttribute('stroke-width', '1.2');
+      pl.setAttribute('vector-effect', 'non-scaling-stroke');
+      svg.append(pl);
+    });
+    const mark = document.createElementNS(NS, 'line');
+    mark.setAttribute('y1', 0); mark.setAttribute('y2', H);
+    mark.setAttribute('x1', sx(value)); mark.setAttribute('x2', sx(value));
+    mark.setAttribute('stroke', 'var(--fg)'); mark.setAttribute('stroke-dasharray', '3 2');
+    mark.setAttribute('vector-effect', 'non-scaling-stroke');
+    svg.append(mark);
+    const title = document.createElementNS(NS, 'title');
+    title.textContent = 'contour spectrum (click to set the isovalue)';
+    svg.append(title);
+    svg.addEventListener('pointerdown', e => {
+      e.stopPropagation();
+      const r = svg.getBoundingClientRect();
+      const v = x0 + (e.clientX - r.left) / r.width * (x1 - x0);
+      mark.setAttribute('x1', sx(v)); mark.setAttribute('x2', sx(v));
+      set(v);
+    });
+    return svg;
   }
 
   function entry(spec, ctx){
@@ -263,8 +318,9 @@ const W = (() => {
 
   function vector(spec, ctx){
     const box = el('div', {class: 'w-vector'});
-    const v = Array.isArray(spec.value) ? spec.value : [0, 0, 0];
-    const n = (spec.options && spec.options.size) || v.length || 3;
+    // as many fields as the value has components (3 when there is none yet)
+    const v = Array.isArray(spec.value) && spec.value.length ? spec.value : [0, 0, 0];
+    const n = Math.min(v.length, 16);
     const ins = [];
     const live = throttled(() => ctx.change(ins.map(x => +x.value), true), 150);
     for(let i = 0; i < n; i++){
@@ -349,5 +405,5 @@ const W = (() => {
     return e;
   }
 
-  return {render, esc, el, setReverse, isReversed: () => reverse};
+  return {render, esc, el, setReverse, isReversed: () => reverse, isBusy};
 })();

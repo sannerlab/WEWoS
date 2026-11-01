@@ -1,0 +1,163 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "libraries": [
+  "Molecules",
+  "3D Visualization",
+  "Imaging"
+ ],
+ "network": {
+  "name": "viewer snapshot",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "Read Molecule",
+    "cls": "ReadMolecule",
+    "lib": "Molecules",
+    "pos": [
+     30,
+     40
+    ],
+    "label": "Read Molecule",
+    "widgets": {
+     "filename": "data/1crn.pdb"
+    }
+   },
+   {
+    "id": "n2",
+    "name": "Cartoon",
+    "cls": "Cartoon",
+    "lib": "Molecules",
+    "pos": [
+     320,
+     40
+    ],
+    "label": "Cartoon",
+    "widgets": {
+     "colorBy": "spectrum",
+     "opacity": 1.0
+    },
+    "widgetOpts": {
+     "colorBy": {
+      "autoList": false
+     },
+     "opacity": {
+      "type": "float",
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n3",
+    "name": "Viewer",
+    "cls": "Viewer",
+    "lib": "3D Visualization",
+    "pos": [
+     620,
+     60
+    ],
+    "label": "Viewer"
+   },
+   {
+    "id": "n4",
+    "name": "Grab Image",
+    "cls": "GetFrontBuffer",
+    "lib": "Imaging",
+    "pos": [
+     620,
+     240
+    ],
+    "label": "Grab Image"
+   },
+   {
+    "id": "n5",
+    "name": "Filter Image",
+    "cls": "ImageFilter",
+    "lib": "Imaging",
+    "pos": [
+     860,
+     240
+    ],
+    "label": "Filter Image",
+    "widgets": {
+     "filter": "CONTOUR"
+    },
+    "widgetOpts": {
+     "filter": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n6",
+    "name": "Show Image",
+    "cls": "ShowImage",
+    "lib": "Imaging",
+    "pos": [
+     860,
+     380
+    ],
+    "label": "Show Image"
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n1",
+     "mol"
+    ],
+    "to": [
+     "n2",
+     "atoms"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n2",
+     "cartoon"
+    ],
+    "to": [
+     "n3",
+     "geometries"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n3",
+     "viewer"
+    ],
+    "to": [
+     "n4",
+     "viewer"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n4",
+     "image"
+    ],
+    "to": [
+     "n5",
+     "image"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n5",
+     "image"
+    ],
+    "to": [
+     "n6",
+     "image"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

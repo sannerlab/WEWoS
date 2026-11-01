@@ -103,8 +103,13 @@ def _post(src):
         lines = src.split('\n')
         for i, l in enumerate(lines):
             if l.lstrip().startswith('def '):
-                indent = re.match(r'\s*', lines[i + 1] if i + 1 < len(lines) else '    ').group(0) or '    '
-                lines.insert(i + 1, indent + 'from itertools import zip_longest as _zip_longest')
+                # after the signature, which may span several lines
+                j = i
+                while j < len(lines) - 1 and not lines[j].rstrip().endswith(':'):
+                    j += 1
+                nxt = lines[j + 1] if j + 1 < len(lines) else '    '
+                indent = re.match(r'\s*', nxt).group(0) or '    '
+                lines.insert(j + 1, indent + 'from itertools import zip_longest as _zip_longest')
                 break
         src = '\n'.join(lines)
     return src

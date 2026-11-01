@@ -42,17 +42,22 @@ WIDGETS = {
                                 'initialValue': None}},
     'NEScrolledText': {'kind': 'text', 'vtype': 'str', 'defaults': {'initialValue': ''}},
     'NEVectorGUI': {'kind': 'vector', 'vtype': 'vector',
-                    'defaults': {'initialValue': [1.0, 0.0, 0.0], 'size': 3}},
+                    'defaults': {'initialValue': [1.0, 0.0, 0.0]}},
     'NEVectEntry': {'kind': 'vector', 'vtype': 'vector',
-                    'defaults': {'initialValue': [0.0, 0.0, 0.0], 'size': 3}},
+                    'defaults': {'initialValue': [0.0, 0.0, 0.0]}},
     'NEXYZGUI': {'kind': 'vector', 'vtype': 'vector',
-                 'defaults': {'initialValue': [0.0, 0.0, 0.0], 'size': 3}},
+                 'defaults': {'initialValue': [0.0, 0.0, 0.0]}},
     # symserv's translation along 3 axes: 3 lengths, then the 3 axes
     'NEXYZVectGUI': {'kind': 'xyzvect', 'vtype': 'xyzvect',
                      'defaults': {'initialValue': None, 'vectX': '1 0 0',
                                   'vectY': '0 1 0', 'vectZ': '0 0 1'}},
     'NEMultiCheckButtons': {'kind': 'multicheck', 'vtype': 'any',
                             'defaults': {'initialValue': None, 'choices': []}},
+    # Volume's contour spectrum: a number with the isocontour signatures
+    # (area, volume, gradient... as functions of the isovalue) drawn above it
+    'NEContourSpectrum': {'kind': 'number', 'vtype': 'number',
+                          'defaults': {'type': 'float', 'min': None, 'max': None,
+                                       'precision': 3, 'initialValue': 0.0}},
     'NEColorEditor': {'kind': 'color', 'vtype': 'color',
                       'defaults': {'initialValue': [1.0, 1.0, 1.0]}},
     'NEColorWheel': {'kind': 'color', 'vtype': 'color',
@@ -60,7 +65,8 @@ WIDGETS = {
 }
 
 # options that only placed Tk widgets; dropped from the spec sent to the page
-_TK_ONLY = {'width', 'height', 'wheelPad', 'canvasCfg', 'wheelLabCfg', 'widgetGridCfg',
+# ('size' is a widget's size in pixels, e.g. NEVectorGUI's 'size': 100)
+_TK_ONLY = {'width', 'height', 'size', 'wheelPad', 'canvasCfg', 'wheelLabCfg', 'widgetGridCfg',
             'labelGridCfg', 'NEwidgetPosition', 'widgetPlacerCfg', 'orient',
             'callback', 'command', 'lockedOnPort'}
 
@@ -289,6 +295,35 @@ class WidgetProxy(object):
 
     def setChoices(self, choices):            # Pmw ComboBox method name
         self.configure(choices=choices)
+
+    # thumbwheel / contour spectrum methods node code calls through .widget
+    def setMin(self, v):
+        self.configure(min=None if v is None else float(v))
+
+    def setMax(self, v):
+        self.configure(max=None if v is None else float(v))
+
+    def setValue(self, v):
+        self.set(v, run=False)
+
+    def setSignatures(self, signatures):
+        """Isocontour signatures (objects with nval, getFx, getFy, as made by
+        UTisocontour): kept as curves of at most 200 points for the page."""
+        import numpy
+        curves = []
+        for sig in signatures or []:
+            try:
+                n = int(sig.nval)
+                x = numpy.zeros((n,), 'f')
+                y = numpy.zeros((n,), 'f')
+                sig.getFx(x)
+                sig.getFy(y)
+            except Exception:
+                x, y = numpy.asarray(sig[0], 'f'), numpy.asarray(sig[1], 'f')
+            step = max(1, len(x) // 200)
+            curves.append({'x': [float(v) for v in x[::step]],
+                           'y': [float(v) for v in y[::step]]})
+        self.configure(signatures=curves)
 
     def getDescr(self):
         d = {'class': self.className, 'master': self.master,

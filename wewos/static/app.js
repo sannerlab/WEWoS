@@ -71,6 +71,9 @@ async function loadSession(sid){
   ST.tabs = ['main']; ST.cur = 'main';
   if(tab && ST.nets[tab]){ ST.tabs.push(tab); ST.cur = tab; }
   setExec(d.execStatus); setAuto(d.runOnNewData);
+  // opening a network loads the libraries it uses: show them in the palette
+  const have = (ST.libs || []).map(l => l.name).sort().join('|');
+  if(d.libraries && d.libraries.join('|') !== have) await loadLibraries();
   q.set('session', ST.sid);
   history.replaceState(null, '', '?' + q.toString());
   VIEW3D.reset();
@@ -137,7 +140,8 @@ function applyEvents(evs){
       case 'widget': { const [, n] = findNode(e.node); if(n){
         const p = n.in.find(x => x.name === e.port);
         if(p){ p.widget = e.widget; if(!e.widget) p.unbound = true; else p.unbound = false; }
-        dirty.add(e.node); if(ST.sel.includes(e.node)) refreshPanel = true; } break; }
+        dirty.add(e.node);
+        if(ST.sel.includes(e.node) || (e.net && ST.sel.includes(e.net))) refreshPanel = true; } break; }
       case 'connected':
         net.conns[e.conn.id] = e.conn;
         if(e.net === ST.cur) ED.addConn(e.conn);
@@ -153,6 +157,8 @@ function applyEvents(evs){
       case 'network_renamed': ST.name = e.name; document.title = e.name + ' · WEWoS'; break;
       case 'scene': VIEW3D.apply(e); break;
       case 'viewer': VIEW3D.viewerEvent(e); break;
+      case 'image': VIEW3D.imageEvent(e); break;
+      case 'snapshot_request': VIEW3D.snapshot(e); break;
       case 'message': reportDialog(e.title || 'Message', [e.text]); break;
     }
   }
@@ -160,7 +166,18 @@ function applyEvents(evs){
   if(reshow){ ED.show(cur); }
   dirty.forEach(id => { if(cur && cur.nodes[id]) ED.updateNode(id); });
   stat.forEach(id => { if(cur && cur.nodes[id] && !dirty.has(id)) ED.statusOnly(id); });
-  if(refreshPanel) panel();
+  if(refreshPanel) panelSoon();
+}
+let panelTimer = null;
+function panelSoon(){
+  // redraw the parameter panel, but not while its user is dragging, scrolling
+  // or typing in it
+  clearTimeout(panelTimer);
+  const a = document.activeElement;
+  const typing = a && $('panel').contains(a) &&
+    (a.tagName === 'TEXTAREA' || (a.tagName === 'INPUT' && /^(text|number|search)$/.test(a.type)));
+  if(W.isBusy() || typing) panelTimer = setTimeout(panelSoon, 300);
+  else panel();
 }
 function status_err(n, e){
   status('<span class=bad>node ' + esc(n.name) + ' failed: ' + esc(e.error) + '</span>');
@@ -178,10 +195,63 @@ function setAuto(v){ ST.auto = !!v; $('b_auto').checked = ST.auto; }
 async function loadLibraries(){
   const d = await api('api/libraries');
   if(d.error) return;
-  ST.libs = d.libraries; ST.types = d.types;
-  ED.setTypes(d.types);
-  drawPalette('');
+  applyCatalog(d);
 }
+function applyCatalog(d){
+  ST.libs = d.libraries; ST.types = d.types; ST.known = d.known || [];
+  ED.setTypes(d.types);
+  drawPalette($('search').value);
+  // redraw the current network: ports of newly known types get their colors
+  if(ST.sid && ST.nets[ST.cur]) ED.show(ST.nets[ST.cur]);
+}
+
+/* Libraries are loaded on demand, as in Vision: only Standard (and those
+   marked "load at start") are in the palette when the server starts;
+   opening a network loads the libraries it uses. */
+async function librariesDialog(){
+  const d = await api('api/libraries');
+  if(d.error) return;
+  applyCatalog(d);
+  const box = document.createElement('div');
+  const rows = d.known.map(k =>
+    '<tr><td><b>' + esc(k.name) + '</b><div class=dim style="font-size:11px">' +
+      esc(k.doc || (k.source && (k.source.module || k.source.file)) || '') + '</div>' +
+      (k.error ? '<div class=bad style="font-size:11px">' + esc(k.error) + '</div>' : '') + '</td>' +
+    '<td>' + (k.loaded ? '<span class=good>loaded</span> <span class=dim>' + (k.nodes || 0) + ' nodes</span>'
+                       : '<button data-load="' + esc(k.name) + '">Load</button>') + '</td>' +
+    '<td><label class=chk title="load it when the server starts"><input type=checkbox data-start="' + esc(k.name) + '"' +
+      (k.startup || k.name === 'Standard' ? ' checked' : '') + (k.name === 'Standard' ? ' disabled' : '') +
+      '> at start</label></td></tr>').join('');
+  box.innerHTML = '<table class=libtable>' + rows + '</table>' +
+    '<h4 style="margin:14px 0 4px">Load a library of your own</h4>' +
+    '<p class=dim style="margin:0 0 6px">A Python module (e.g. <code>mypackage.mynodes</code>) or a <code>.py</code> file on the server ' +
+    'that creates a <code>NodeLibrary</code> (<code>from wewos.engine import NodeLibrary, NetworkNode</code>). ' +
+    'It is remembered for the next sessions.</p>' +
+    '<div style="display:flex;gap:6px"><input id=lib_src style="flex:1" placeholder="module name or /path/to/file.py" spellcheck=false>' +
+    '<button id=lib_browse>&hellip;</button><button id=lib_load class=primary>Load</button></div><p id=lib_err class=bad></p>';
+  modal('Libraries', box);
+  const after = r => { if(!r.error){ applyCatalog(r); librariesDialog(); } else box.querySelector('#lib_err').textContent = r.error; };
+  box.querySelectorAll('button[data-load]').forEach(b => b.onclick = async () => {
+    b.disabled = true; b.textContent = 'loading\u2026';
+    after(await api('api/library', {name: b.dataset.load}));
+  });
+  box.querySelectorAll('input[data-start]').forEach(c => c.onchange = async () => {
+    const r = await api('api/library_startup', {name: c.dataset.start, on: c.checked});
+    if(!r.error) applyCatalog(r);
+  });
+  box.querySelector('#lib_browse').onclick = async () => {
+    const p = await filePicker('file', '', {title: 'A library file (.py)'});
+    if(p){ const r = await api('api/library', {file: p});
+           if(r.error) reportDialog('Library not loaded', [r.error]); else { applyCatalog(r); librariesDialog(); } }
+  };
+  box.querySelector('#lib_load').onclick = async () => {
+    const v = box.querySelector('#lib_src').value.trim();
+    if(!v) return;
+    const isFile = v.includes('/') || v.endsWith('.py');
+    after(await api('api/library', isFile ? {file: v} : {module: v}));
+  };
+}
+$('m_libs').onclick = e => { e.stopPropagation(); librariesDialog(); };
 const OPENCATS = new Set((() => { try { return JSON.parse(localStorage.getItem('wewos.cats') || '["Standard/Input"]'); } catch(e) { return []; } })());
 function saveCats(){ try { localStorage.setItem('wewos.cats', JSON.stringify([...OPENCATS])); } catch(e) {} }
 function drawPalette(q){
@@ -219,6 +289,10 @@ function drawPalette(q){
     });
     if(any || !q) box.append(det);
   });
+  const more = document.createElement('div');
+  more.innerHTML = '<button class=plainbtn style="margin:8px 4px;color:var(--accent)">+ Load a library&hellip;</button>';
+  more.firstChild.onclick = librariesDialog;
+  box.append(more);
 }
 $('search').addEventListener('input', e => drawPalette(e.target.value));
 
@@ -312,6 +386,18 @@ function panel(){
     lab.addEventListener('contextmenu', ev => { ev.preventDefault(); widgetMenu(n, p, ev); });
     wbox.append(row);
   });
+  if(n.macro && ST.nets[n.id]){
+    // widgets inside the macro that were put in the macro's panel
+    Object.values(ST.nets[n.id].nodes).forEach(inner => (inner.in || []).forEach(p => {
+      if(!p.widget || p.widget.master !== 'macroParamPanel') return;
+      const row = document.createElement('div'); row.className = 'row';
+      const lab = document.createElement('label');
+      lab.textContent = p.widget.label || p.name;
+      lab.title = inner.name + ' . ' + p.name + ' (inside the macro)';
+      row.append(lab, W.render(p.widget, widgetCtx(inner.id, p.name, false)));
+      wbox.append(row);
+    }));
+  }
   const t = $('p_ports');
   const rows = [];
   (n.in || []).forEach(p => rows.push('<tr><td>&#9664; ' + esc(p.name) + '</td><td class=t>' + esc(p.datatype) +

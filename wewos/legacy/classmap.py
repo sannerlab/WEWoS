@@ -48,7 +48,11 @@ PACKAGES = (
     (('DejaVu.VisionInterface', 'vizlib', 'DejaVu'), 'dejavu'),
     (('MolKit.VisionInterface', 'molkitlib', 'MolKit'), 'molkit'),
     (('symserv', 'symlib', 'SymServer'), 'symserv'),
+    (('Volume.VisionInterface', 'vollib', 'volume'), 'volume'),
 )
+
+# libraries whose node classes keep their names here
+SAME_NAMES = {'symserv': 'SymServer', 'volume': 'Volume'}
 
 
 def family(module, libname=None):
@@ -71,10 +75,10 @@ def lookup(module, cls, libname=None):
         return DEJAVU.get(cls)
     if fam == 'molkit':
         return MOLKIT.get(cls)
-    if fam == 'symserv':
+    if fam in SAME_NAMES:
         from wewos.engine import get_library
-        if cls in get_library('SymServer').nodeClassFromName:
-            return ('SymServer', cls, {}, {})
+        if cls in get_library(SAME_NAMES[fam]).nodeClassFromName:
+            return (SAME_NAMES[fam], cls, {}, {})
         return None
     return None
 

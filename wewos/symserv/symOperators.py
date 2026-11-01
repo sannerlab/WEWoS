@@ -13,8 +13,8 @@
 #
 #########################################################################
 
-from .mglmath.rotax import rotax
-from .mglmath.transformation import Transformation
+from wewos.mglmath.rotax import rotax
+from wewos.mglmath.transformation import Transformation
 import numpy
 import math, string
 

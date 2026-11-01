@@ -26,12 +26,30 @@ def test_cpk_net_maps_completely():
 
 
 def test_unsupported_nodes_become_placeholders():
+    src = ('from NoSuchPackage.Nodes import mylib\n'
+           'from NoSuchPackage.Nodes import Thing\n'
+           'from Vision.StandardNodes import stdlib\n'
+           'from Vision.StandardNodes import Pass\n'
+           't = Thing(constrkw={}, name="thing", library=mylib)\n'
+           'masterNet.addNode(t, 10, 10)\n'
+           'p = Pass(constrkw={}, name="Pass", library=stdlib)\n'
+           'masterNet.addNode(p, 10, 80)\n'
+           'masterNet.connectNodes(t, p, "out", "in1", blocking=True)\n')
+    data, report = importer.import_source(src, 'x_net.py')
+    net = Network('imported')
+    eq(fileio.from_dict(net, data), [])
+    eq(len(report.unmapped), 1)
+    eq([n.__class__.__name__ for n in net.nodes], ['UnsupportedNode', 'Pass'])
+    eq(len(net.connections), 1)
+
+
+def test_coraliso_imports_with_volume():
     net, data, report, problems = _load('coralIso_net.py')
     eq(problems, [])
-    eq(len(report.unmapped), 2)
-    kinds = [n.__class__.__name__ for n in net.nodes]
-    check(kinds.count('UnsupportedNode') == 2, kinds)
-    eq(len(net.connections), report.connections)
+    eq(report.unmapped, [])
+    m = [n for n in net.nodes if n.__class__.__name__ == 'UT_Iso'][0]
+    iso = m.macroNetwork.nodes[2]
+    check(abs(iso.inputPortByName['isovalue'].widget.get() - 11.954) < 1e-3)
 
 
 def test_generic_nodes_keep_ports_and_code():

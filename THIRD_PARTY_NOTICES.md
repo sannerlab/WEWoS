@@ -20,14 +20,23 @@ Research Institute, Molecular Graphics Laboratory (revisions by Guillaume Vareil
 MolKit/VisionInterface, keeping their node and port names. The MGLTools packages were
 distributed under the MGLTools license (TSRI); see the license shipped with MGLTools.
 
-## symserv and mglutil.math (ported and bundled code)
+## symserv, Volume and mglutil.math (ported and bundled code)
 
 `wewos/symserv/` (symOperators, spaceGroups, utils) and `wewos/libs/symserv.py` are Python 3
 ports of MGLTools symserv by Michel Sanner (TSRI), under the MGLTools license
-(`wewos/symserv/LICENSE`). `wewos/symserv/mglmath/` holds rotax, transformation,
-VectorModule and TensorModule from MGLTools mglutil.math (Python 3 versions from the
-ADFR/ADCP distribution, with removed numpy calls updated), under the GNU LGPL as stated in
-their headers.
+(`wewos/symserv/LICENSE`).
+
+`wewos/volcore/` (Grid3D, IO, Operators) is MGLTools Volume (Michel Sanner and others, TSRI)
+in the Python 3 version of the ADFR/ADCP distribution, with what still failed under Python 3
+fixed; `wewos/libs/volume.py` is a port of Volume/VisionInterface/VolumeNodes.py. MGLTools
+license (`wewos/volcore/LICENSE`). Isocontouring, blurring, signed distances and meshing call
+the UTpackages (University of Texas, CVC) of the environment, which are not included.
+
+`wewos/libs/imaging.py` is a port of Vision/PILNodes.py; it uses Pillow from the environment.
+
+`wewos/mglmath/` holds rotax, transformation, VectorModule, TensorModule, crystal and stats
+from MGLTools mglutil.math (Python 3 versions from the ADFR/ADCP distribution, with removed
+numpy calls updated), under the GNU LGPL as stated in their headers.
 
 ## ADCP_docking (adapted code)
 
