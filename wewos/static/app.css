@@ -63,6 +63,7 @@ input[type=text],input[type=number],input[type=search]{padding:2px 5px}
 .cat>summary.cname{color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.04em;margin:4px 0 2px;cursor:pointer}
 .pnode{padding:2px 8px;border-radius:5px;cursor:grab;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;user-select:none}
 .pnode:hover{background:var(--hover)}
+.pnode .doctag{font-size:10px;color:var(--dim);border:1px solid var(--line);border-radius:3px;padding:0 3px;margin-left:4px}
 .liberr{color:var(--bad);font-size:11px;margin-left:12px}
 
 /* center */

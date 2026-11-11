@@ -533,3 +533,14 @@ def test_filter_image_waits_for_a_filter():
     check(stat is None)
     f.dynamicComputeFunction(f, Image.new('RGB', (8, 8)), 'CONTOUR')
     eq(f.outputPortByName['image'].data.size, (8, 8))
+
+
+def test_palette_carries_full_node_documentation_for_search():
+    # the palette searches node docs too: the first paragraph is the
+    # tooltip, the whole docstring (when longer) is sent for the search
+    from wewos.engine import get_library
+    d = get_library('Standard').describe()
+    nodes = {n['label']: n for c in d['categories'] for n in c['nodes']}
+    fl = nodes['Filelist']
+    check('wildcards' in fl['fullDoc'].lower() and len(fl['fullDoc']) > len(fl['doc']))
+    check(all('fullDoc' not in n or len(n['fullDoc']) > len(n['doc']) for n in nodes.values()))

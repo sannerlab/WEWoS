@@ -28,7 +28,7 @@ The page's **Docs** button opens the documentation (`docs/*.html`, served by the
 
 ## Using it
 
-- **Add nodes:** drag them from the palette, or double-click a palette entry. While you drag, the node is drawn under the cursor, with its ports and widgets, at the network's zoom and where it will land.
+- **Add nodes:** drag them from the palette, or double-click a palette entry. *Find a node* searches the loaded libraries by node or category name and, from three letters on, in the nodes' documentation (those matches are tagged *doc*). While you drag, the node is drawn under the cursor, with its ports and widgets, at the network's zoom and where it will land.
 - **Connect:** drag from an **output** (the right edge of a node) to an **input** (the left edge). Compatible ports light up while you drag.
 - **Widgets:** an input with a widget shows it on its row in the node, or in the parameter column on the right. To feed it from another node instead, right-click the widget and choose *Unbind (show the port)*: the input becomes a port you can connect (right-click the port, *Rebind widget*, to get the widget back). Changing a widget runs the node's subtree when *run on change* is checked.
 - **Number widgets:** scroll over one (mouse wheel or two-finger trackpad) or drag its ⇄ handle to change the value. Shift gives finer steps and Alt/Option coarser ones. Right-click one and choose *Options…* to set its minimum, maximum, step, one turn and precision (Vision's option panel).

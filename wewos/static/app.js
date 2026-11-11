@@ -277,7 +277,14 @@ function drawPalette(q){
     if(lib.error){ det.innerHTML += '<div class=liberr>not available: ' + esc(lib.error) + '</div>'; box.append(det); return; }
     let any = false;
     lib.categories.forEach(cat => {
-      const nodes = cat.nodes.filter(n => !q || n.label.toLowerCase().includes(q) || cat.name.toLowerCase().includes(q));
+      // a node matches by its name or its category's, or (from 3 letters on)
+      // by its documentation, which is then marked on its entry
+      const nodes = cat.nodes.filter(n => {
+        n._inDoc = false;
+        if(!q || n.label.toLowerCase().includes(q) || cat.name.toLowerCase().includes(q)) return true;
+        n._inDoc = q.length >= 3 && (n.fullDoc || n.doc || '').toLowerCase().includes(q);
+        return n._inDoc;
+      });
       if(!nodes.length) return;
       any = true;
       const c = document.createElement('details'); c.className = 'cat';
@@ -288,6 +295,7 @@ function drawPalette(q){
       nodes.forEach(n => {
         const e = document.createElement('div');
         e.className = 'pnode'; e.textContent = n.label; e.title = n.doc || n.cls;
+        if(n._inDoc) e.insertAdjacentHTML('beforeend', ' <span class=doctag title="found in its documentation">doc</span>');
         e.draggable = true;
         e.addEventListener('mousedown', () => nodeInfo(lib.name, n.label));
         e.addEventListener('dragstart', ev => {

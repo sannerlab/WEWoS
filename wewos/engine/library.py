@@ -111,10 +111,15 @@ class NodeLibrary(object):
     def describe(self):
         cats = []
         for cat, entries in self.libraryDescr.items():
-            cats.append({'name': cat, 'nodes': [
-                {'label': e['label'], 'cls': e['cls'].__name__,
-                 'doc': (inspect.getdoc(e['cls']) or '').split('\n\n')[0][:400]}
-                for e in entries]})
+            nodes = []
+            for e in entries:
+                doc = inspect.getdoc(e['cls']) or ''
+                d = {'label': e['label'], 'cls': e['cls'].__name__,
+                     'doc': doc.split('\n\n')[0][:400]}       # the tooltip
+                if len(doc) > len(d['doc']):
+                    d['fullDoc'] = doc[:4000]                    # searched with the name
+                nodes.append(d)
+            cats.append({'name': cat, 'nodes': nodes})
         return {'name': self.name, 'color': self.color, 'doc': self.doc,
                 'categories': cats}
 

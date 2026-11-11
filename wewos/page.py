@@ -33,7 +33,7 @@ PAGE = r"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 </header>
 <main>
   <aside id=palette>
-    <input id=search type=search placeholder="Find a node" spellcheck=false autocomplete=off>
+    <input id=search type=search placeholder="Find a node" title="by name or category; from 3 letters on, also in the nodes' documentation" spellcheck=false autocomplete=off>
     <div id=libs></div>
   </aside>
   <section id=center>
