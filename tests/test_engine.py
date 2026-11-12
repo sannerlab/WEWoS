@@ -351,6 +351,21 @@ def test_save_load_round_trip():
                          if e.get('name') == rng2.name][0], 'unchanged code was saved')
 
 
+def test_saved_file_records_the_wewos_version():
+    """A saved network names the WEWoS version that wrote it; a file from a
+    later version still loads, with a warning in the report."""
+    from wewos import __version__
+    from wewos.engine import fileio
+    n = net(std('print'))
+    d = fileio.to_dict(n)
+    eq(d['wewos'], __version__)
+    eq(fileio.from_dict(Network('same'), d), [])
+    d['wewos'] = '99.0.0'
+    report = fileio.from_dict(Network('later'), d)
+    check(len(report) == 1 and '99.0.0' in report[0], report)
+    check(fileio._newer('0.10.0', '0.9.1') and not fileio._newer('0.1.0', '0.1.0'))
+
+
 def test_load_unknown_node_gives_placeholder():
     from wewos.engine import fileio
     data = {'format': 'wewos-net', 'version': 1, 'network': {'nodes': [

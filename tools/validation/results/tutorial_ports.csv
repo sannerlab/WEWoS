@@ -1,0 +1,19 @@
+collection,network,port,vision,wewos,max_abs_diff
+tutorial,cartoon2c,Scale|scaledImage,"array(167, 175, 3) [91. 91. 91. 91. 91. 91.]","array(167, 175, 3) [91. 91. 91. 91. 91. 91.]",241
+tutorial,cartoon4,Scale|scaledImage,"array(390, 410, 3) [91. 91. 91. 91. 91. 91.]","array(390, 410, 3) [91. 91. 91. 91. 91. 91.]",242
+tutorial,cartoon5,Scale|scaledImage,"array(195, 205, 3) [91. 91. 91. 91. 91. 91.]","array(195, 205, 3) [91. 91. 91. 91. 91. 91.]",244
+tutorial,icoscage,Icosahedral/2-fold#2|outMatrices,"array(15, 4, 4) [-1.0000e+00 -1.2246e-16  0.0000e+00 -3.2150e-15  1.2246e-16 -1.0000e+00]","array(15, 4, 4) [-1.0000e+00 -1.2246e-16  0.0000e+00  0.0000e+00  1.2246e-16 -1.0000e+00]",42.6
+tutorial,icoscage,Icosahedral/2-fold#3|outMatrices,"array(15, 4, 4) [-1.0000e+00  0.0000e+00  1.2246e-16  5.2113e-15  0.0000e+00  1.0000e+00]","array(15, 4, 4) [-1.0000e+00  0.0000e+00  1.2246e-16  0.0000e+00  0.0000e+00  1.0000e+00]",42.6
+tutorial,icoscage,Icosahedral/2-fold|outMatrices,"array(30, 4, 4) [1. 0. 0. 0. 0. 1.]","array(30, 4, 4) [1. 0. 0. 0. 0. 1.]",42.6
+tutorial,icoscage,Icosahedral/3-fold|outMatrices,"array(15, 4, 4) [1. 0. 0. 0. 0. 1.]","array(15, 4, 4) [1. 0. 0. 0. 0. 1.]",42.6
+tutorial,icoscage,Icosahedral/Merge|outMatrices,"array(60, 4, 4) [1. 0. 0. 0. 0. 1.]","array(60, 4, 4) [1. 0. 0. 0. 0. 1.]",42.6
+tutorial,icoscage,Icosahedral|Merge_outMatrices,"array(60, 4, 4) [1. 0. 0. 0. 0. 1.]","array(60, 4, 4) [1. 0. 0. 0. 0. 1.]",42.6
+tutorial,isorad,Grid3DBB|boundingBox,"array(2, 3) [-0.0688  0.1437  0.0333  0.2938  0.4625  0.275 ]","array(2, 3) [-15.7387  56.6745  20.8336 156.011  182.6981 171.8775]",182
+tutorial,isorad,OrthoSlice|OrthoSlice|faces,"array(1, 4) [0. 1. 2. 3.]","array(5916, 3) [ 0. 52. 53.  1. 53. 54.]","shapes (1, 4) (5916, 3)"
+tutorial,isorad,OrthoSlice|OrthoSlice|vertices,"array(4, 3) [-15.6955  56.7844  53.3862 129.6784  56.7844  53.3862]","array(3068, 3) [-15.6972  56.78    52.0841 -15.184   59.2411  52.0841]","shapes (4, 3) (3068, 3)"
+tutorial,mol2plv,Icosahedral1/2-fold#2|outMatrices,"array(15, 4, 4) [-1.0000e+00 -1.2246e-16  0.0000e+00 -6.3014e-15  1.2246e-16 -1.0000e+00]","array(15, 4, 4) [-1.0000e+00 -1.2246e-16  0.0000e+00  0.0000e+00  1.2246e-16 -1.0000e+00]",83.4
+tutorial,mol2plv,Icosahedral1/2-fold#3|outMatrices,"array(15, 4, 4) [-1.0000e+00  0.0000e+00  1.2246e-16  1.0214e-14  0.0000e+00  1.0000e+00]","array(15, 4, 4) [-1.0000e+00  0.0000e+00  1.2246e-16  0.0000e+00  0.0000e+00  1.0000e+00]",83.4
+tutorial,mol2plv,Icosahedral1/2-fold|outMatrices,"array(30, 4, 4) [1. 0. 0. 0. 0. 1.]","array(30, 4, 4) [1. 0. 0. 0. 0. 1.]",83.4
+tutorial,mol2plv,Icosahedral1/3-fold|outMatrices,"array(15, 4, 4) [1. 0. 0. 0. 0. 1.]","array(15, 4, 4) [1. 0. 0. 0. 0. 1.]",83.4
+tutorial,mol2plv,Icosahedral1/Merge|outMatrices,"array(60, 4, 4) [1. 0. 0. 0. 0. 1.]","array(60, 4, 4) [1. 0. 0. 0. 0. 1.]",83.4
+tutorial,mol2plv,Icosahedral1|Merge_outMatrices,"array(60, 4, 4) [1. 0. 0. 0. 0. 1.]","array(60, 4, 4) [1. 0. 0. 0. 0. 1.]",83.4

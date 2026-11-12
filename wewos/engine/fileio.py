@@ -224,8 +224,19 @@ def libraries_used(net, acc=None):
 
 
 def to_dict(net):
-    return {'format': FORMAT, 'version': VERSION, 'libraries': libraries_used(net),
-            'network': network_dict(net)}
+    from wewos import __version__
+    return {'format': FORMAT, 'version': VERSION, 'wewos': __version__,
+            'libraries': libraries_used(net), 'network': network_dict(net)}
+
+
+def _newer(saved, current):
+    """True when version string saved is later than current ('0.2.0' > '0.1.0')."""
+    def key(v):
+        return tuple(int(x) if x.isdigit() else 0 for x in str(v).split('.'))
+    try:
+        return key(saved) > key(current)
+    except Exception:
+        return False
 
 
 def save(net, path):
@@ -407,6 +418,10 @@ def from_dict(net, data):
     if data.get('format') != FORMAT:
         raise ValueError('not a %s file' % FORMAT)
     report = []
+    from wewos import __version__
+    if data.get('wewos') and _newer(data['wewos'], __version__):
+        report.append('saved by WEWoS %s, a later version than this one (%s): '
+                      'some of it may not load' % (data['wewos'], __version__))
     d = data['network']
     if d.get('name'):
         net.name = d['name']

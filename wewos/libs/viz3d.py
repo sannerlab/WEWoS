@@ -413,18 +413,33 @@ def ramp_of(ramp):
 
 def colormap(values, ramp='rgb', mini=None, maxi=None):
     """Colors (n x 3, or n x 4 when the ramp has transparency) for values,
-    between mini and maxi (given, else the ramp's range, else the values')."""
+    between mini and maxi (given, else the ramp's range, else the values').
+
+    A preset name (rgb, rwb, grey, rainbow) is a smooth ramp, interpolated
+    between its colors. A ramp given as a table of colors (Vision's color
+    maps, the editor's) is looked up as DejaVu's ColorMap.Map did: the value
+    v takes entry int((v - mini) * n / (maxi - mini)) of the n colors."""
+    from wewos.colormaps import normalize
     v = numpy.asarray(values, 'f').ravel()
     cols, rlo, rhi = ramp_of(ramp)
     if v.size == 0:
         return numpy.zeros((0, 3), 'f')
     lo = mini if mini is not None else (rlo if rlo is not None else float(v.min()))
     hi = maxi if maxi is not None else (rhi if rhi is not None else float(v.max()))
-    t = numpy.clip((v - lo) / (hi - lo if hi != lo else 1.), 0, 1)
-    x = t * (len(cols) - 1)
-    i = numpy.minimum(x.astype(int), len(cols) - 2)
-    f = (x - i)[:, None]
-    out = cols[i] * (1 - f) + cols[i + 1] * f
+    if isinstance(normalize(ramp), str) or len(cols) < 2:
+        t = numpy.clip((v - lo) / (hi - lo if hi != lo else 1.), 0, 1)
+        x = t * (len(cols) - 1)
+        i = numpy.minimum(x.astype(int), max(len(cols) - 2, 0))
+        f = (x - i)[:, None]
+        nxt = numpy.minimum(i + 1, len(cols) - 1)
+        out = cols[i] * (1 - f) + cols[nxt] * f
+    else:
+        n = len(cols)
+        if hi - lo < 0.0001:
+            ind = numpy.ones(v.shape, int)          # as DejaVu did
+        else:
+            ind = ((numpy.clip(v, lo, hi) - lo) * (n / float(hi - lo))).astype(int)
+        out = cols[numpy.minimum(ind, n - 1)]
     return out if (cols[:, 3] < 1).any() else out[:, :3]
 
 

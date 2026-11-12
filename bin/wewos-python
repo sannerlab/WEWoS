@@ -1,0 +1,8 @@
+#!/bin/sh
+# WEWoS: run a Python script in the environment bin/wewos uses, with WEWoS on
+# its path:
+#
+#   bin/wewos-python docs/make_screenshots.py
+#   bin/wewos-python examples/make_examples.py
+HERE="$(cd "$(dirname "$0")" && pwd)"
+WEWOS_EXEC_PYTHON=1 exec "$HERE/wewos" "$@"

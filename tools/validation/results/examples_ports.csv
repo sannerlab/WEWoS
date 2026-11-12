@@ -1,0 +1,3 @@
+collection,network,port,vision,wewos,max_abs_diff
+examples,lena,Read Image|image,"array(128, 128, 3) [226. 161. 119. 226. 162. 118.]","array(128, 128, 3) [226. 161. 119. 226. 162. 118.]",22
+examples,lena,Scale|scaledImage,"array(128, 128, 3) [226. 161. 119. 226. 162. 118.]","array(128, 128, 3) [226. 161. 119. 226. 162. 118.]",22

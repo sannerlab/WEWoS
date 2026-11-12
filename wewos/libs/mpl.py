@@ -125,6 +125,36 @@ from matplotlib.pylab import *
 import numpy
 from matplotlib.artist import setp
 from matplotlib.colors import colorConverter
+
+
+def _get_cmap(name=None, lut=None):
+    """cm.get_cmap, which matplotlib 3.9 removed."""
+    get = getattr(cm, 'get_cmap', None)
+    if get is not None:
+        return get(name, lut)
+    import matplotlib as _mpl
+    c = _mpl.colormaps[name if name is not None else rcParams['image.cmap']]
+    return c.resampled(lut) if lut is not None else c
+
+
+_MPLV = tuple(int(x) for x in matplotlib.__version__.split('.')[:2])
+_PAPERTYPE = _MPLV < (3, 9)        # savefig's papertype: removed in 3.9
+
+
+def _hold_kw(hold):
+    """contour's hold= (Vision's networks give it): removed in matplotlib 3.0."""
+    return {'hold': hold} if _MPLV < (3, 0) else {}
+
+
+def _filled_kw():
+    """colorbar's filled=True: removed in newer matplotlib."""
+    import inspect
+    from matplotlib.colorbar import Colorbar
+    try:
+        ok = 'filled' in inspect.signature(Colorbar.__init__).parameters
+    except (TypeError, ValueError):
+        ok = False
+    return {'filled': True} if ok else {}
 from numpy import sum, asarray, linspace
 
 # ---- Vision.colours and Vision.posnegFill (ported) ----
@@ -1518,8 +1548,8 @@ Output:
         MPLPlottingNode.__init__(*(self,), **kw)
         self.styles=get_styles()
         self.colors=colors        
-        self.joinstyles = Line2D.validJoin
-        self.capstyles = Line2D.validCap 
+        self.joinstyles = getattr(Line2D, 'validJoin', ('miter', 'round', 'bevel'))
+        self.capstyles = getattr(Line2D, 'validCap', ('butt', 'round', 'projecting')) 
         ip = self.inputPortsDescr
         ip.append(datatype='list', name='y',beforeDisconnect=self.codeBeforeDisconnect)
         ip.append(datatype='list', required=False, name='x')
@@ -1652,9 +1682,9 @@ checks for pytz module and returns if not
         MPLPlottingNode.__init__(*(self,), **kw)
         self.styles=get_styles()
         self.colors=colors        
-        self.joinstyles = Line2D.validJoin
+        self.joinstyles = getattr(Line2D, 'validJoin', ('miter', 'round', 'bevel'))
         timezones=common_timezones
-        self.capstyles = Line2D.validCap 
+        self.capstyles = getattr(Line2D, 'validCap', ('butt', 'round', 'projecting')) 
         ip = self.inputPortsDescr
         ip.append(datatype='list', name='y',beforeDisconnect=self.codeBeforeDisconnect)
         ip.append(datatype='list', name='x',beforeDisconnect=self.codeBeforeDisconnect)
@@ -2068,8 +2098,8 @@ Output:
         MPLPlottingNode.__init__(*(self,), **kw)
 
         self.cutoff = 10.0
-        self.joinstyles = Line2D.validJoin
-        self.capstyles = Line2D.validCap
+        self.joinstyles = getattr(Line2D, 'validJoin', ('miter', 'round', 'bevel'))
+        self.capstyles = getattr(Line2D, 'validCap', ('butt', 'round', 'projecting'))
         self.colors = colors
         self.markers = markers 
         self.widgetDescr['s'] = {
@@ -2205,8 +2235,8 @@ Output:
         kw['name'] = name
         MPLPlottingNode.__init__(*(self,), **kw)
         
-        self.joinstyles = Line2D.validJoin
-        self.capstyles = Line2D.validCap
+        self.joinstyles = getattr(Line2D, 'validJoin', ('miter', 'round', 'bevel'))
+        self.capstyles = getattr(Line2D, 'validCap', ('butt', 'round', 'projecting'))
         self.colors=colors
         self.markers =markers 
         self.widgetDescr['s'] = {
@@ -2383,7 +2413,7 @@ alpha, drawAreaDef):
     self.setDrawArea(kw)
     im = self.axes.imshow(data)
     #image properties
-    cmp=cm.get_cmap(cmap)
+    cmp=_get_cmap(cmap)
     im.set_cmap(cmp)
     im.set_interpolation(interpolation)
     im.set_alpha(alpha)
@@ -2459,7 +2489,7 @@ optional arguements:
     self.setDrawAreaDef(drawAreaDef)
     #pseudo color plot of Z
     Qz=z
-    cmap = cm.get_cmap(cmap)
+    cmap = _get_cmap(cmap)
     if x is None or y is None:
         C=self.axes.pcolormesh(Qz,cmap=cmap,shading=shading,alpha=alpha)
     else:
@@ -2534,7 +2564,7 @@ optional arguements:
     self.setDrawAreaDef(drawAreaDef)
     #pseudo color plot of Z
     Qz=z
-    cmap = cm.get_cmap(cmap)
+    cmap = _get_cmap(cmap)
     if x is None or y is None:
         C=self.axes.pcolor(Qz,cmap=cmap,shading=shading,alpha=alpha)
     else:
@@ -2609,7 +2639,7 @@ optional arguements:
     self.setDrawAreaDef(drawAreaDef)
     #pseudo color plot of Z
     Qz=z
-    cmap = cm.get_cmap(cmap)
+    cmap = _get_cmap(cmap)
     if x is None or y is None:
         C=self.axes.pcolor_classic(Qz,cmap=cmap,shading=shading,alpha=alpha)
     else:
@@ -2720,13 +2750,13 @@ length_colors, cmapval, colors, origin, linewidth, hold, drawAreaDef):
     #Z=10.0*(numpy.array(z2) - numpy.array(z1))
     Z=arraylistz
     if length_colors:
-        cmap = cm.get_cmap(cmapval,int(length_colors))
+        cmap = _get_cmap(cmapval,int(length_colors))
     else:
         cmap=eval("cm.%s" %cmapval)
     if arraylistx is None or arraylisty is None:
         #contour plot of an array Z
         if contour=='default':    
-            CS=self.axes.contour(Z,cmap=cmap,linewidths=linewidth,origin=origin,hold=hold)
+            CS=self.axes.contour(Z,cmap=cmap,linewidths=linewidth,origin=origin,**_hold_kw(hold))
             self.axes.clabel(CS,inline=1)
         else:
             CS=self.axes.contourf(numpy.array(Z),cmap=cmap,origin=origin)
@@ -2735,7 +2765,7 @@ length_colors, cmapval, colors, origin, linewidth, hold, drawAreaDef):
         X=numpy.array(arraylistx)
         Y=numpy.array(arraylisty)
         if contour=='default':
-            CS=self.axes.contour(X,Y,Z,cmap=cmap,linewidths=linewidth,origin=origin,hold=hold) 
+            CS=self.axes.contour(X,Y,Z,cmap=cmap,linewidths=linewidth,origin=origin,**_hold_kw(hold)) 
             self.axes.clabel(CS,inline=1)    
         else:
             CS=self.axes.contourf(X,Y,numpy.array(Z),cmap=cmap,origin=origin)
@@ -3830,7 +3860,7 @@ input :
           if not isinstance(i,Subplot):
             plot.figure.delaxes(i)
     if current_image is not None:
-         pl=plot.figure.colorbar(current_image,cmap=current_image.cmap,shrink=shrink,extend=extend,orientation=orientation,spacing=spacing,filled=True)  
+         pl=plot.figure.colorbar(current_image,cmap=current_image.cmap,shrink=shrink,extend=extend,orientation=orientation,spacing=spacing,**_filled_kw())  
          if orientation=="vertical":
             plot.figure.axes[0].set_position([0.125, 0.1, 0.62, 0.8])
             if shrink>=1.0:
@@ -4025,7 +4055,7 @@ orientation, papertype, format):
     if figure:
         if format in (None, '', 'None', 'none'):
             format = None
-        kw = {'papertype': papertype} if papertype else {}
+        kw = {'papertype': papertype} if papertype and _PAPERTYPE else {}
         figure.savefig(fname, dpi=dpi, facecolor=facecolor, edgecolor=edgecolor,
                        orientation=orientation, format=format, **kw)
 """

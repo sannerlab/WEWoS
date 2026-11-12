@@ -1,0 +1,12 @@
+collection,network,port,vision,wewos,max_abs_diff
+matplotlib,BoxPlot,BoxPlot|lines|fliers.len,2.0,1.0,1
+matplotlib,BoxPlot,BoxPlot|axes|line5,"array(5, 2) [197.168    1.     177.2867   1.     167.0577   1.    ]","array(11, 2) [-86.4043   1.     -73.5445   1.     -56.4749   1.    ]","shapes (5, 2) (11, 2)"
+matplotlib,BoxPlot,BoxPlot|axes|line6,"array(6, 2) [-86.4043   1.     -73.5445   1.     -56.4749   1.    ]","array(11, 2) [25.7286  0.925  25.7286  1.075  42.4389  1.075 ]","shapes (6, 2) (11, 2)"
+matplotlib,Figure,Histogram|plot|npatches,500000.0,50.0,5e+05
+matplotlib,Figure,Histogram|plot|patch_heights,"array(500000,) [0. 0. 0. 0. 0. 0.]","array(50,) [1.3564e-04 0.0000e+00 9.0423e-05 1.8085e-04 4.5212e-05 1.8085e-04]","shapes (500000,) (50,)"
+matplotlib,MultiPlot,MultiPlot|multiplot|npatches,500000.0,50.0,5e+05
+matplotlib,MultiPlot,Histogram|plot|npatches,500000.0,50.0,5e+05
+matplotlib,MultiPlot,Histogram|plot|patch_heights,"array(500000,) [0. 0. 0. 0. 0. 0.]","array(50,) [1.3564e-04 0.0000e+00 9.0423e-05 1.8085e-04 4.5212e-05 1.8085e-04]","shapes (500000,) (50,)"
+matplotlib,Scatter,Scatter|plot|coll0,"array(30, 2) [0.0479 0.0479 0.0348 0.0348 0.4551 0.4551]","array(30, 2) [0. 0. 1. 1. 2. 2.]",28.6
+matplotlib,Stem,Stem|stem|line0,"array(2, 2) [0.1   0.    0.1   0.995]","array(2, 2) [0.1    0.     6.2832 0.    ]",6.18
+matplotlib,Stem,Stem|stem|line1,"array(2, 2) [0.1    0.     6.2832 0.    ]","array(10, 2) [0.1    0.995  0.787  0.706  1.474  0.0966]","shapes (2, 2) (10, 2)"

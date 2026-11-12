@@ -4,7 +4,8 @@ source code Vision kept in strings (doit functions, port callbacks), which a
 plain 2to3 run leaves untouched.
 
 Tabs are expanded first (Python 2 read a tab as up to 8 columns; Python 3
-refuses mixed indentation), then lib2to3's fixers run. Code strings are found
+refuses mixed indentation), then lib2to3's fixers run (fissix's, the same
+code, on Python 3.13 and later). Code strings are found
 as string literals whose text starts with 'def ' and converted the same way.
 """
 import ast
@@ -39,13 +40,21 @@ def _fix_types(src):
 
 
 def _tool():
+    """lib2to3's refactoring tool; from Python 3.13 on, where lib2to3 is gone,
+    the same code from fissix (pip install fissix)."""
     global _TOOL
     if _TOOL is None:
         with warnings.catch_warnings():
             warnings.simplefilter('ignore')
-            from lib2to3.refactor import RefactoringTool, get_fixers_from_package
-        fixers = [f for f in get_fixers_from_package('lib2to3.fixes') if f not in _SKIP]
-        _TOOL = RefactoringTool(fixers, {'print_function': False})
+            try:
+                import lib2to3.refactor as refactor
+                pkg = 'lib2to3'
+            except ImportError:
+                import fissix.refactor as refactor
+                pkg = 'fissix'
+        skip = {f.replace('lib2to3.', pkg + '.', 1) for f in _SKIP}
+        fixers = [f for f in refactor.get_fixers_from_package(pkg + '.fixes') if f not in skip]
+        _TOOL = refactor.RefactoringTool(fixers, {'print_function': False})
     return _TOOL
 
 

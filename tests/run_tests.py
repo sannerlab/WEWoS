@@ -24,7 +24,8 @@ def main():
     a = p.parse_args()
     mods = sorted(f[:-3] for f in os.listdir(HERE)
                   if f.startswith('test_') and f.endswith('.py'))
-    failed = passed = 0
+    failed = passed = skipped = 0
+    import common
     for m in mods:
         mod = importlib.import_module(m)
         for name in sorted(n for n in dir(mod) if n.startswith('test_')):
@@ -35,12 +36,14 @@ def main():
                 getattr(mod, name)()
                 passed += 1
                 print('ok    %-55s %5.1fs' % ('%s.%s' % (m, name), time.time() - t), flush=True)
+            except common.Skip as e:
+                skipped += 1
+                print('skip  %-55s (%s)' % ('%s.%s' % (m, name), e), flush=True)
             except Exception:
                 failed += 1
                 print('FAIL  %-55s %5.1fs' % ('%s.%s' % (m, name), time.time() - t), flush=True)
                 traceback.print_exc()
-    import common
-    print('\n%d passed, %d failed   (outputs: %s)' % (passed, failed, common.OUT))
+    print('\n%d passed, %d skipped, %d failed   (outputs: %s)' % (passed, skipped, failed, common.OUT))
     return 1 if failed else 0
 
 

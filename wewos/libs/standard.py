@@ -1648,7 +1648,10 @@ numOfBottomLinesToJump, sep, datatype):
         for d in data:
             numdata.append( list(map( dtype, d.split(sep) )) )
 
-        result = self.numData = numpy.array(numdata)
+        try:
+            result = self.numData = numpy.array(numdata)
+        except ValueError:      # rows of different lengths, as numpy < 1.24 gave them
+            result = self.numData = numpy.array(numdata, dtype=object)
 
     else:
         data = self.numData

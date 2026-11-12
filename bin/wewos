@@ -49,4 +49,7 @@ export PYTHONNOUSERSITE="disable"
 export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$ENV_ROOT/lib"
 export PYTHONPATH="$HERE"
 export WEWOS_OUTDIR="${WEWOS_OUTDIR:-$HOME/wewos_runs}"
+if [ -n "$WEWOS_EXEC_PYTHON" ]; then      # bin/wewos-python: a script, in this environment
+    exec "$ENV_ROOT/bin/python" "$@"
+fi
 exec "$ENV_ROOT/bin/python" -m wewos "$@"

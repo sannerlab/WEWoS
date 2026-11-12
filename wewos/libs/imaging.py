@@ -220,8 +220,8 @@ class ResizeImage(NetworkNode):
     if filter is not None and filter != '':
         op = eval('Image.'+filter)
         result = image.resize( (int(round(w*scale)), int(round(h*scale))), op )
-    else:
-        result = image.resize( (int(round(w*scale)), int(round(h*scale))) )
+    else:   # PIL's default before Pillow 7 (Pillow's is now BICUBIC), as in Vision
+        result = image.resize( (int(round(w*scale)), int(round(h*scale))), Image.NEAREST )
     
     self.outputData( scaledImage=result )\n"""
 

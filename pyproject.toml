@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wewos"
+dynamic = ["version"]
+description = "WEWoS, the Web Enabled Workflow System: MGLTools Vision's visual programming in a web browser"
+readme = "README.md"
+requires-python = ">=3.7"
+license = {file = "LICENSE.md"}
+authors = [{name = "Michel F. Sanner"}]
+dependencies = [
+    "numpy",
+    "fissix; python_version >= '3.13'",   # lib2to3, for importing Vision networks
+]
+
+[project.optional-dependencies]
+imaging = ["Pillow"]
+plots = ["matplotlib"]
+all = ["Pillow", "matplotlib"]
+# The Molecules library (MolKit2, ProDy, mslib) and isocontouring (UTpackages) come
+# with the ADCP distribution's Python 3.7 environment; see the README.
+
+[project.scripts]
+wewos = "wewos.__main__:main"
+
+[project.urls]
+Homepage = "https://sannerlab.github.io/software/wewos/"
+License = "https://sannerlab.github.io/software/license.html"
+
+[tool.setuptools.dynamic]
+version = {attr = "wewos.__version__"}
+
+[tool.setuptools.packages.find]
+include = ["wewos*"]
+
+[tool.setuptools.package-data]
+wewos = ["static/*", "symserv/LICENSE", "volcore/LICENSE"]

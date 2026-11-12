@@ -93,6 +93,80 @@ def pick_residue():
     save(n, 'pick_residue')
 
 
+CONTACTS_CODE = """def doit(self, picked, molecule, cutoff):
+    # the residues with an atom within cutoff (Angstrom) of the picked residue
+    import numpy
+    ag = molecule._ag
+    xyz, resi = ag.getCoords(), ag.getResindices()
+    r0 = int(picked.getResindices()[0])
+    near = xyz[resi == r0]
+    others = numpy.nonzero((resi != r0) & ag.getFlags('protein'))[0]
+    d = numpy.sqrt(((xyz[others, None, :] - near[None, :, :]) ** 2).sum(-1)).min(1)
+    best = {}
+    for i, di in zip(others, d):
+        if di <= cutoff and di < best.get(resi[i], 1e9):
+            best[resi[i]] = di
+    order = sorted(best, key=best.get)
+    first = [numpy.nonzero(resi == r)[0][0] for r in order]
+    names = ['%s%d %s' % (ag.getResnames()[i], ag.getResnums()[i], ag.getChids()[i])
+             for i in first]
+    ca = [numpy.nonzero((resi == r) & (ag.getNames() == 'CA'))[0] for r in order]
+    where = [xyz[c[0]] if len(c) else xyz[i] for c, i in zip(ca, first)]
+    lines = ['residue,min_distance_A\\n'] + ['%s,%.2f\\n' % (n, best[r]) for n, r in zip(names, order)]
+    contacts = molecule.select('resindex ' + ' '.join(str(r) for r in order)) if order else None
+    self.outputData(contacts=contacts, names=names, distances=[float(best[r]) for r in order],
+                    where=where, table=lines)
+"""
+
+
+def contacts():
+    """Click a residue (the inhibitor) in the view: a Python node finds the
+    residues within a cutoff, they are drawn as sticks with labels, plotted,
+    and written to contacts.csv."""
+    n = new('contacts of a picked residue')
+    rd = node(n, MOL, 'Read Molecule', 30, 40, filename='data/1hsg.pdb')
+    pr = node(n, MOL, 'Select', 300, 30, selectionString='protein')
+    lg = node(n, MOL, 'Select', 300, 170, selectionString='resname MK1')
+    ca = node(n, MOL, 'Cartoon', 560, 20, colorBy='chain')
+    st = node(n, MOL, 'Sticks', 560, 170)
+    v = node(n, VIZ, 'Viewer', 830, 100)
+    pa = node(n, MOL, 'Picked Atom', 830, 330)
+    dl = node(n, STD, 'Dial', 830, 470, dial=4.0)
+    dl.rename('cutoff')
+    gn = node(n, STD, 'Generic', 1090, 330)
+    gn.rename('residues near the pick')
+    gn.addInputPort(name='picked', datatype='None')
+    gn.addInputPort(name='molecule', datatype='None')
+    gn.addInputPort(name='cutoff', datatype='float')
+    for p in ('contacts', 'names', 'distances', 'where', 'table'):
+        gn.addOutputPort(name=p, datatype='None')
+    gn.setFunction(CONTACTS_CODE)
+    cs = node(n, MOL, 'Sticks', 1360, 250, colorBy='element')
+    cs.rename('contact sticks')
+    lb = node(n, VIZ, 'GlfLabels', 1360, 380)
+    bh = node(n, MPL, 'BarH', 1360, 520)
+    sl = node(n, STD, 'Save Lines', 1360, 660, filename='contacts.csv')
+    n.connectNodes(rd, pr, 'mol', 'nodes')
+    n.connectNodes(rd, lg, 'mol', 'nodes')
+    n.connectNodes(pr, ca, 'selection', 'atoms')
+    n.connectNodes(lg, st, 'selection', 'atoms')
+    n.connectNodes(ca, v, 'cartoon', 'geometries')
+    n.connectNodes(st, v, 'sticks', 'geometries')
+    n.connectNodes(v, pa, 'lastPick', 'pick')
+    n.connectNodes(pa, gn, 'residue', 'picked')
+    n.connectNodes(rd, gn, 'mol', 'molecule')
+    n.connectNodes(dl, gn, 'value', 'cutoff')
+    n.connectNodes(gn, cs, 'contacts', 'atoms')
+    n.connectNodes(cs, v, 'sticks', 'geometries')
+    n.connectNodes(gn, lb, 'where', 'coords')
+    n.connectNodes(gn, lb, 'names', 'labels')
+    n.connectNodes(lb, v, 'glflabels', 'geometries')
+    n.connectNodes(gn, bh, 'names', 'bottom')
+    n.connectNodes(gn, bh, 'distances', 'width')
+    n.connectNodes(gn, sl, 'table', 'data')
+    save(n, 'contacts')
+
+
 def spheres_colormap():
     n = new('spheres and a color map')
     ev = node(n, STD, 'eval', 30, 40)
@@ -223,6 +297,7 @@ if __name__ == '__main__':
     crambin_surface()
     iterate_squares()
     pick_residue()
+    contacts()
     spheres_colormap()
     helical_crambin()
     icosahedral_spheres()

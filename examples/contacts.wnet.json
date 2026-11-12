@@ -1,0 +1,531 @@
+{
+ "format": "wewos-net",
+ "version": 1,
+ "wewos": "0.1.0",
+ "libraries": [
+  "Molecules",
+  "3D Visualization",
+  "Standard",
+  "MatPlotLib"
+ ],
+ "network": {
+  "name": "contacts of a picked residue",
+  "nodes": [
+   {
+    "id": "n1",
+    "name": "Read Molecule",
+    "cls": "ReadMolecule",
+    "lib": "Molecules",
+    "pos": [
+     30,
+     40
+    ],
+    "label": "Read Molecule",
+    "widgets": {
+     "filename": "data/1hsg.pdb"
+    }
+   },
+   {
+    "id": "n2",
+    "name": "Select",
+    "cls": "NodeSelector",
+    "lib": "Molecules",
+    "pos": [
+     300,
+     30
+    ],
+    "label": "Select",
+    "widgets": {
+     "selectionString": "protein",
+     "syntax": "prody"
+    },
+    "widgetOpts": {
+     "syntax": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n3",
+    "name": "Select",
+    "cls": "NodeSelector",
+    "lib": "Molecules",
+    "pos": [
+     300,
+     170
+    ],
+    "label": "Select",
+    "widgets": {
+     "selectionString": "resname MK1",
+     "syntax": "prody"
+    },
+    "widgetOpts": {
+     "syntax": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n4",
+    "name": "Cartoon",
+    "cls": "Cartoon",
+    "lib": "Molecules",
+    "pos": [
+     560,
+     20
+    ],
+    "label": "Cartoon",
+    "widgets": {
+     "colorBy": "chain",
+     "opacity": 1.0
+    },
+    "widgetOpts": {
+     "colorBy": {
+      "autoList": false
+     },
+     "opacity": {
+      "type": "float",
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n5",
+    "name": "Sticks",
+    "cls": "AtomsAsSticks",
+    "lib": "Molecules",
+    "pos": [
+     560,
+     170
+    ],
+    "label": "Sticks",
+    "widgets": {
+     "colorBy": "element",
+     "opacity": 1.0,
+     "cradii": 0.2
+    },
+    "widgetOpts": {
+     "colorBy": {
+      "autoList": false
+     },
+     "opacity": {
+      "type": "float",
+      "increment": 0.0,
+      "precision": 2
+     },
+     "cradii": {
+      "type": "float",
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n6",
+    "name": "Viewer",
+    "cls": "Viewer",
+    "lib": "3D Visualization",
+    "pos": [
+     830,
+     100
+    ],
+    "label": "Viewer"
+   },
+   {
+    "id": "n7",
+    "name": "Picked Atom",
+    "cls": "PickedAtom",
+    "lib": "Molecules",
+    "pos": [
+     830,
+     330
+    ],
+    "label": "Picked Atom"
+   },
+   {
+    "id": "n8",
+    "name": "cutoff",
+    "cls": "DialNE",
+    "lib": "Standard",
+    "pos": [
+     830,
+     470
+    ],
+    "label": "Dial",
+    "widgets": {
+     "dial": 4.0
+    },
+    "widgetOpts": {
+     "dial": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n9",
+    "name": "residues near the pick",
+    "cls": "Generic",
+    "lib": "Standard",
+    "pos": [
+     1090,
+     330
+    ],
+    "label": "Generic",
+    "addPorts": {
+     "in": [
+      {
+       "name": "picked",
+       "datatype": "AtomSet",
+       "required": true,
+       "singleConnection": true
+      },
+      {
+       "name": "molecule",
+       "datatype": "Molecule",
+       "required": true,
+       "singleConnection": true
+      },
+      {
+       "name": "cutoff",
+       "datatype": "float",
+       "required": true,
+       "singleConnection": true
+      }
+     ],
+     "out": [
+      {
+       "name": "contacts",
+       "datatype": "None"
+      },
+      {
+       "name": "names",
+       "datatype": "None"
+      },
+      {
+       "name": "distances",
+       "datatype": "None"
+      },
+      {
+       "name": "where",
+       "datatype": "None"
+      },
+      {
+       "name": "table",
+       "datatype": "None"
+      }
+     ]
+    },
+    "code": "def doit(self, picked, molecule, cutoff):\n    # the residues with an atom within cutoff (Angstrom) of the picked residue\n    import numpy\n    ag = molecule._ag\n    xyz, resi = ag.getCoords(), ag.getResindices()\n    r0 = int(picked.getResindices()[0])\n    near = xyz[resi == r0]\n    others = numpy.nonzero((resi != r0) & ag.getFlags('protein'))[0]\n    d = numpy.sqrt(((xyz[others, None, :] - near[None, :, :]) ** 2).sum(-1)).min(1)\n    best = {}\n    for i, di in zip(others, d):\n        if di <= cutoff and di < best.get(resi[i], 1e9):\n            best[resi[i]] = di\n    order = sorted(best, key=best.get)\n    first = [numpy.nonzero(resi == r)[0][0] for r in order]\n    names = ['%s%d %s' % (ag.getResnames()[i], ag.getResnums()[i], ag.getChids()[i])\n             for i in first]\n    ca = [numpy.nonzero((resi == r) & (ag.getNames() == 'CA'))[0] for r in order]\n    where = [xyz[c[0]] if len(c) else xyz[i] for c, i in zip(ca, first)]\n    lines = ['residue,min_distance_A\\n'] + ['%s,%.2f\\n' % (n, best[r]) for n, r in zip(names, order)]\n    contacts = molecule.select('resindex ' + ' '.join(str(r) for r in order)) if order else None\n    self.outputData(contacts=contacts, names=names, distances=[float(best[r]) for r in order],\n                    where=where, table=lines)\n"
+   },
+   {
+    "id": "n10",
+    "name": "contact sticks",
+    "cls": "AtomsAsSticks",
+    "lib": "Molecules",
+    "pos": [
+     1360,
+     250
+    ],
+    "label": "Sticks",
+    "widgets": {
+     "colorBy": "element",
+     "opacity": 1.0,
+     "cradii": 0.2
+    },
+    "widgetOpts": {
+     "colorBy": {
+      "autoList": false
+     },
+     "opacity": {
+      "type": "float",
+      "increment": 0.0,
+      "precision": 2
+     },
+     "cradii": {
+      "type": "float",
+      "increment": 0.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n11",
+    "name": "GlfLabels",
+    "cls": "Labels",
+    "lib": "3D Visualization",
+    "pos": [
+     1360,
+     380
+    ],
+    "label": "GlfLabels",
+    "widgets": {
+     "fontSize": 14
+    },
+    "widgetOpts": {
+     "fontSize": {
+      "increment": 0.0,
+      "oneTurn": 360.0,
+      "precision": 2
+     }
+    }
+   },
+   {
+    "id": "n12",
+    "name": "BarH",
+    "cls": "BarHNE",
+    "lib": "MatPlotLib",
+    "pos": [
+     1360,
+     520
+    ],
+    "label": "BarH",
+    "widgets": {
+     "color": "b",
+     "edgecolor": "b",
+     "ecolor": "b",
+     "capsize": 3.0,
+     "align": "edge"
+    },
+    "widgetOpts": {
+     "color": {
+      "autoList": false
+     },
+     "edgecolor": {
+      "autoList": false
+     },
+     "ecolor": {
+      "autoList": false
+     },
+     "capsize": {
+      "min": null,
+      "max": null,
+      "increment": 0.0,
+      "precision": 2
+     },
+     "align": {
+      "autoList": false
+     }
+    }
+   },
+   {
+    "id": "n13",
+    "name": "Save Lines",
+    "cls": "SaveLines",
+    "lib": "Standard",
+    "pos": [
+     1360,
+     660
+    ],
+    "label": "Save Lines",
+    "widgets": {
+     "filename": "contacts.csv"
+    }
+   }
+  ],
+  "connections": [
+   {
+    "from": [
+     "n1",
+     "mol"
+    ],
+    "to": [
+     "n2",
+     "nodes"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n1",
+     "mol"
+    ],
+    "to": [
+     "n3",
+     "nodes"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n2",
+     "selection"
+    ],
+    "to": [
+     "n4",
+     "atoms"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n3",
+     "selection"
+    ],
+    "to": [
+     "n5",
+     "atoms"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n4",
+     "cartoon"
+    ],
+    "to": [
+     "n6",
+     "geometries"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n5",
+     "sticks"
+    ],
+    "to": [
+     "n6",
+     "geometries"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n6",
+     "lastPick"
+    ],
+    "to": [
+     "n7",
+     "pick"
+    ],
+    "blocking": false
+   },
+   {
+    "from": [
+     "n7",
+     "residue"
+    ],
+    "to": [
+     "n9",
+     "picked"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n1",
+     "mol"
+    ],
+    "to": [
+     "n9",
+     "molecule"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n8",
+     "value"
+    ],
+    "to": [
+     "n9",
+     "cutoff"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n9",
+     "contacts"
+    ],
+    "to": [
+     "n10",
+     "atoms"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n10",
+     "sticks"
+    ],
+    "to": [
+     "n6",
+     "geometries"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n9",
+     "where"
+    ],
+    "to": [
+     "n11",
+     "coords"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n9",
+     "names"
+    ],
+    "to": [
+     "n11",
+     "labels"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n11",
+     "glflabels"
+    ],
+    "to": [
+     "n6",
+     "geometries"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n9",
+     "names"
+    ],
+    "to": [
+     "n12",
+     "bottom"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n9",
+     "distances"
+    ],
+    "to": [
+     "n12",
+     "width"
+    ],
+    "blocking": true
+   },
+   {
+    "from": [
+     "n9",
+     "table"
+    ],
+    "to": [
+     "n13",
+     "data"
+    ],
+    "blocking": true
+   }
+  ],
+  "runOnNewData": true
+ }
+}

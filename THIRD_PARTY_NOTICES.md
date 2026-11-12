@@ -43,13 +43,14 @@ distributed under the MGLTools license (TSRI); see the license shipped with MGLT
 ## symserv, Volume and mglutil.math (ported and bundled code)
 
 `wewos/symserv/` (symOperators, spaceGroups, utils) and `wewos/libs/symserv.py` are Python 3
-ports of MGLTools symserv by Michel Sanner (TSRI), under the MGLTools license
-(`wewos/symserv/LICENSE`).
+ports of MGLTools symserv by Michel Sanner (TSRI), distributed with WEWoS under the Sannerlab
+MIT-like Source-Available License, version 1.0 (`wewos/symserv/LICENSE`, a copy of `LICENSE.md`).
 
 `wewos/volcore/` (Grid3D, IO, Operators) is MGLTools Volume (Michel Sanner and others, TSRI)
 in the Python 3 version of the ADFR/ADCP distribution, with what still failed under Python 3
-fixed; `wewos/libs/volume.py` is a port of Volume/VisionInterface/VolumeNodes.py. MGLTools
-license (`wewos/volcore/LICENSE`). Isocontouring, blurring, signed distances and meshing call
+fixed; `wewos/libs/volume.py` is a port of Volume/VisionInterface/VolumeNodes.py. Distributed
+with WEWoS under the Sannerlab MIT-like Source-Available License, version 1.0
+(`wewos/volcore/LICENSE`, a copy of `LICENSE.md`). Isocontouring, blurring, signed distances and meshing call
 the UTpackages (University of Texas, CVC) of the environment, which are not included.
 
 `wewos/libs/imaging.py` is a port of Vision/PILNodes.py; it uses Pillow from the environment.

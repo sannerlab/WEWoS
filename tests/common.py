@@ -17,6 +17,29 @@ OUT = os.path.join(HERE, '_out', datetime.datetime.now().strftime('%Y%m%d-%H%M%S
 DATA = os.path.join(HERE, 'data')
 
 
+class Skip(Exception):
+    """A test that cannot run here: a package it needs is not installed."""
+
+
+def requires(*modules):
+    """Skip the test when one of these modules does not import (MolKit2,
+    mslib and UTpackages come only with the ADCP environment)."""
+    import functools
+    import importlib
+
+    def deco(f):
+        @functools.wraps(f)
+        def wrapper(*a, **k):
+            for m in modules:
+                try:
+                    importlib.import_module(m)
+                except Exception:
+                    raise Skip('needs %s' % m)
+            return f(*a, **k)
+        return wrapper
+    return deco
+
+
 def outdir(name):
     d = os.path.join(OUT, name)
     os.makedirs(d, exist_ok=True)

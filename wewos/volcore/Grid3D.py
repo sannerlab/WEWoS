@@ -286,7 +286,7 @@ class Grid3DF(Grid3D):
 
 class Grid3DI(Grid3D):
     def __init__(self, data, origin, stepSize, header, crystal=None):
-        assert data.dtype in [numpy.int32, numpy.int]
+        assert data.dtype in [numpy.int32, int]
         Grid3D.__init__(self, data, origin, stepSize, header, crystal)
 
 
@@ -310,24 +310,24 @@ class Grid3DUSI(Grid3D):
 
 class Grid3DUC(Grid3D):
     def __init__(self, data, origin, stepSize, header, crystal=None):
-        assert data.dtype in [numpy.int0, numpy.uint8]
+        assert data.dtype in [numpy.intp, numpy.uint8]
         Grid3D.__init__(self, data, origin, stepSize, header, crystal)
         
 
 ArrayTypeToGrid = {
-    numpy.float64:Grid3DD, numpy.float:Grid3DD,
+    numpy.float64:Grid3DD, float:Grid3DD,
     numpy.float32:Grid3DF, numpy.float16:Grid3DF,
     #numpy.float8:Grid3DF, numpy.float0:Grid3DF,
-    numpy.int32:Grid3DI, numpy.int:Grid3DI,
+    numpy.int32:Grid3DI, int:Grid3DI,
     numpy.int16:Grid3DSI,
     numpy.uint8:Grid3DUC,
     }
 
 GridTypeToArray = {
-    'Grid3DD'  :numpy.float,
+    'Grid3DD'  :float,
     'Grid3DF'  :numpy.float16,
     #'Grid3DF'  :numpy.Float0,
-    'Grid3DI'  :numpy.int,
+    'Grid3DI'  :int,
     'Grid3DSI' :numpy.int16,
     'Grid3DUC' :numpy.uint8,
 }

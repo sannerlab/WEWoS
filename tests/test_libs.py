@@ -2,7 +2,7 @@
 """The node libraries: every node instantiates; molecules, MSMS, viewer, picking."""
 import os
 
-from common import DATA, check, eq, net, outdir
+from common import DATA, check, eq, net, outdir, requires
 
 from wewos.engine import Network, get_library
 
@@ -46,6 +46,7 @@ def test_spheres_scene_delta():
     check(evs and evs[-1]['removed'] == ['Spheres'])
 
 
+@requires('MolKit2')
 def test_molecule_select_cpk():
     mk = get_library('Molecules')
     rd, sel, cpk = mk.instantiate(label='Read Molecule'), mk.instantiate(label='Select'), \
@@ -62,6 +63,7 @@ def test_molecule_select_cpk():
     eq(len(cpk.geom.atomIndices), sel.outputPortByName['numAtoms'].data)
 
 
+@requires('MolKit2', 'mslib')
 def test_msms_surface():
     mk = get_library('Molecules')
     rd, ms = mk.instantiate(label='Read Molecule'), mk.instantiate(label='MSMS')
@@ -75,6 +77,7 @@ def test_msms_surface():
     check(len(v) > 1000 and len(f) > 2000 and f.max() < len(v))
 
 
+@requires('MolKit2')
 def test_pick_runs_downstream():
     mk, vz = get_library('Molecules'), get_library('3D Visualization')
     rd, cpk, v, pa = (mk.instantiate(label='Read Molecule'), mk.instantiate(label='CPK'),
@@ -107,6 +110,37 @@ def test_symserv_icosahedral_matrices():
     eq(len(keys), 60)
 
 
+
+@requires('MolKit2', 'matplotlib')
+def test_contacts_example_pick_drives_the_analysis():
+    """examples/contacts: clicking the inhibitor of 1HSG runs the Python node
+    that finds the residues within the cutoff; they become sticks, labels, a
+    bar plot and contacts.csv; turning the cutoff dial runs it again."""
+    import json
+    import shutil
+    from wewos.engine import Network, fileio
+    ex = os.path.join(os.path.dirname(DATA), '..', 'examples')
+    d = outdir('contacts')
+    shutil.copytree(os.path.join(ex, 'data'), os.path.join(d, 'data'))
+    n = Network('contacts', workdir=d)
+    with open(os.path.join(ex, 'contacts.wnet.json')) as fh:
+        eq(fileio.from_dict(n, json.load(fh)), [])
+    n.run(list(n.rootNodes))
+    node = {x.name: x for x in n.nodes}
+    node['Viewer'].picked({'geom': 'Sticks', 'atom': {'index': 0}})     # an MK1 atom
+    eq(node['Picked Atom'].outputPortByName['label'].data.split(':')[1][:3], 'MK1')
+    eq({x.name: x.status for x in n.allNodes() if x.status != 'done'}, {})
+    names = node['residues near the pick'].outputPortByName['names'].data
+    eq(names[:2], ['ASP25 B', 'ASP25 A'])          # the catalytic aspartates
+    eq(len(names), 26)
+    with open(os.path.join(d, 'contacts.csv')) as fh:
+        rows = fh.read().splitlines()
+    eq(rows[:2], ['residue,min_distance_A', 'ASP25 B,2.63'])
+    node['cutoff'].inputPorts[0].widget.set(3.0)
+    eq(node['residues near the pick'].outputPortByName['names'].data, ['ASP25 B', 'ASP25 A'])
+
+
+@requires('MolKit2')
 def test_symserv_helix_instances_a_molecule():
     import numpy
     sym, mk, vz = get_library('SymServer'), get_library('Molecules'), get_library('3D Visualization')
@@ -142,6 +176,7 @@ def test_import_maps_symserv_nodes():
 MRC = os.path.join(DATA, 'nwv1.mrc')
 
 
+@requires('UTpackages')
 def test_volume_read_isocontour_slice_box():
     vol, vz = get_library('Volume'), get_library('3D Visualization')
     rd, iso, sl, bb, v = (vol.instantiate(label='ReadAnyMap'), vol.instantiate(label='UTiso'),
@@ -168,6 +203,7 @@ def test_volume_read_isocontour_slice_box():
     eq(len(w.options['signatures']), 4)
 
 
+@requires('MolKit2', 'UTpackages')
 def test_volume_coarse_molecular_surface():
     vol, mk = get_library('Volume'), get_library('Molecules')
     rd, cm = mk.instantiate(label='Read Molecule'), vol.instantiate(label='CoarseMolSurf')
@@ -321,6 +357,7 @@ REMARK 350   BIOMT3   1  0.000000  0.000000  1.000000        0.00000
 """
 
 
+@requires('MolKit2', 'UTpackages')
 def test_assembly_matrices_and_surface_copies():
     import base64
     import numpy
@@ -383,16 +420,36 @@ def test_vision_examples_run():
     import make_vision_examples as mve
     here = os.path.join(os.path.dirname(DATA), '..', 'examples')
     n = 0
+    molecules = _imports('MolKit2', 'mslib')
     for group in ('vision', 'vision_matplotlib'):
         folder = os.path.join(here, group)
         for f in sorted(os.listdir(folder)):
             if f.endswith('.wnet.json'):
+                if not molecules and 'Molecules' in _libraries(os.path.join(folder, f)):
+                    continue        # MolKit2 and mslib come with the ADCP environment
                 res = mve.run(os.path.join(folder, f), folder)
                 check(res.startswith('ran'), (f, res))
                 n += 1
-    check(n >= 45, n)
+    check(n >= (45 if molecules else 43), n)
 
 
+def _imports(*modules):
+    import importlib
+    try:
+        for m in modules:
+            importlib.import_module(m)
+        return True
+    except Exception:
+        return False
+
+
+def _libraries(path):
+    import json
+    with open(path) as fh:
+        return json.load(fh).get('libraries', [])
+
+
+@requires('MolKit2', 'mslib')
 def test_viper_figure_nodes():
     """The nodes the ViPEr paper's figure 1 needs: MolKit radii, property
     expressions, MSMS with radii and its triangles, CPK with radii and colors,
@@ -475,6 +532,17 @@ def test_color_map_node_takes_an_edited_ramp():
     cm.inputPortByName['ramp'].widget.set({'ramp': [[0, 1, 0, 1], [1, 0, 1, 1]], 'name': 'gm'}, run=False)
     n.run(n.rootNodes)
     eq(cm.outputPortByName['colors'].data.tolist(), [[0, 1, 0], [1, 0, 1]])
+
+
+def test_color_map_table_ramp_is_looked_up_as_in_vision():
+    """A ramp given as a table (Vision's color maps) maps a value to entry
+    int((v - mini) * n / (maxi - mini)), as DejaVu's ColorMap.Map did; a
+    preset name stays a smooth ramp."""
+    from wewos.libs.viz3d import colormap
+    ramp = {'ramp': [[i / 15., 0, 0, 1] for i in range(16)]}
+    c = colormap([0.0, 0.03, 0.5, 0.99, 1.0], ramp, 0.0, 1.0)
+    eq([round(float(x), 4) for x in c[:, 0]], [0.0, 0.0, round(8 / 15., 4), 1.0, 1.0])
+    eq(round(float(colormap([0.5], 'grey', 0, 1)[0, 0]), 3), 0.5)
 
 
 def test_color_map_legend():

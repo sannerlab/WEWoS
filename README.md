@@ -6,17 +6,47 @@ WEWoS, the **W**eb **E**nabled **Wo**rkflow **S**ystem, ports Vision, the visual
 
 It follows ADapt's approach: a standard-library HTTP server bound to localhost with a URL token, plain JavaScript with no build step, and bundled viewers (3Dmol.js, and Mol\* loaded the first time a viewer uses it).
 
-## Start
+## Install
+
+**Core** (the engine and importer, and the Standard, 3D Visualization, SymServer, Volume, Imaging
+and MatPlotLib libraries), on Python 3.7 to 3.13:
 
 ```
-bin/wewos serve            # prints http://127.0.0.1:8767/?t=...   open it in a browser
-bin/wewos check            # what is missing (MolKit2, prody, mslib for the Molecules library)
-bin/wewos test             # the test suite
+git clone https://github.com/sannerlab/WEWoS.git
+cd WEWoS
+python -m venv .venv && . .venv/bin/activate     # or a conda environment
+pip install -e ".[all]"                           # numpy, Pillow, matplotlib (and fissix on 3.13+)
+wewos check                                       # what is missing (see below)
+wewos run examples/spheres_colormap.wnet.json     # a network, without the browser
+wewos test                                        # tests needing MolKit2, mslib or UTpackages are skipped
+wewos serve                                       # prints http://127.0.0.1:8767/?t=...  open it in a browser
 ```
 
-`bin/wewos` needs a Python 3 environment with numpy. The Molecules library also needs MolKit2, prody and mslib, which the ADCP distribution's `adcpsuite` env provides. Each network keeps its own folder under `~/wewos_runs` (`$WEWOS_OUTDIR`), holding uploads, saved networks and an autosave.
+**Molecules and isocontouring.** The Molecules library needs MolKit2, ProDy (the Sanner lab's
+fork) and mslib (MSMS); isocontouring, blurring and meshing in the Volume library need
+UTpackages. These are built for Python 3.7 and come with the `adcpsuite` environment that the
+[ADCP 1.1 installer](https://sannerlab.github.io/software/adcp/1.1/download.html) creates (Linux).
+`bin/wewos` finds that environment by itself (`$WEWOS_PYTHON_ENV` names another one) and runs
+WEWoS in it:
 
-To use it from another machine, forward the port: `ssh -L 8767:127.0.0.1:8767 host`, then open the printed URL locally.
+```
+bin/wewos serve            # or: check, test, run, import
+```
+
+**Tested** on Linux (Ubuntu 22.04): Python 3.10, 3.12 and 3.13 with the core (NumPy 2.2-2.5,
+Pillow 12-13, matplotlib 3.10-3.11), and Python 3.7 in the `adcpsuite` environment with
+everything (NumPy 1.21, matplotlib 3.5); the page in Chrome and Firefox. macOS and Windows have
+not been tested.
+
+Each network keeps its own folder under `~/wewos_runs` (`$WEWOS_OUTDIR`), holding uploads, saved
+networks and an autosave. To use a server on another machine, forward its port:
+`ssh -L 8767:127.0.0.1:8767 host`, then open the printed URL locally.
+
+**Trust.** WEWoS is for one user on a trusted machine. The server listens on 127.0.0.1, and the
+token in its URL keeps other users of the machine and other web pages out. Node code runs on the
+server with your permissions, without a sandbox, as it did in Vision; opening a network defines
+its nodes' functions and running it executes them. Open networks (`.wnet.json`, and Vision
+`*_net.py` files, which the importer parses without running) only from sources you trust.
 
 ## Documentation
 
@@ -68,7 +98,7 @@ How nodes come across:
 - Edited compute functions are converted to Python 3 and kept for Standard nodes.
 - Vision drew data flowing down the page. Imported networks, and the macros of the ported libraries (Icosahedral1, UTIsoMac…), are laid out again from left to right: nodes go in columns by their depth in the graph, ordered to keep links straight. *Edit > Arrange the nodes from left to right* does the same for any network.
 
-The import report lists what was not carried over. All 76 networks in `/home/sanner/*_net.py` import and open.
+The import report lists what was not carried over. `tools/validation/validate.py` imports, opens and runs Vision networks in WEWoS and compares every output port with the same network run in MGLTools Vision 1.5.7 (see `tools/validation/README.md`).
 
 ## Layout
 
@@ -116,6 +146,12 @@ It was later renamed Vision, because of a name conflict at Scripps with VIPER, t
 
 The paper describes the design WEWoS keeps: nodes that wrap Python functions, ports colored and shaped by data type, any Python object flowing on connections, data-driven breadth-first scheduling, widgets bound to input ports, macros, libraries of nodes (Standard, Imaging, MolKit, symserv), and networks saved as Python code, which is why Vision's `*_net.py` files can be read here. The network of the paper's figure 1 (crambin's MSMS surface, transparent, over its atoms with radii scaled by a dial and colored by their x coordinate, and the viewer's picture grabbed and contour-filtered) runs here as the example *ViPEr paper figure 1*; its icosahedral capsid built with symserv is close to the *icos* example.
 
-## Licences
+## Licence
 
-See THIRD_PARTY_NOTICES.md. The engine and libraries are ported from MGLTools (Michel Sanner, Daniel Stoffler, TSRI). 3Dmol.js is BSD 3-Clause; Mol\* is MIT. The server and page conventions come from ADapt and ADCP_docking (BSD 3-Clause).
+WEWoS is distributed under the Sannerlab MIT-like Source-Available License, version 1.0
+(`LICENSE.md`, also at https://sannerlab.github.io/software/license.html): use, modification
+and redistribution, commercial use included, for everyone except the persons and organizations
+its Section 2 excludes; it is not an OSI open-source license. MSMS (mslib, from the ADCP
+environment, not included here) is for non-commercial use only.
+
+See THIRD_PARTY_NOTICES.md for the bundled and ported components. The engine and libraries are ported from MGLTools (Michel Sanner, Daniel Stoffler, TSRI). 3Dmol.js is BSD 3-Clause; Mol\* is MIT. The server and page conventions come from ADapt and ADCP_docking (BSD 3-Clause).
