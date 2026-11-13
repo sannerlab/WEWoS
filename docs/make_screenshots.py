@@ -109,24 +109,30 @@ class Page(object):
         for k in [k for k in list(app.sessions) if k != sid]:
             app.close(k, save=False)
         self.js('refreshSessions().then(() => 1)')
+        cdp.wait(self.ws, "!document.querySelector('#tabs .tab.thin')", 30, 'one network left')
 
-    def example(self, name, run=True, fit=True):
-        """Open an example network (examples/<name>) and run it all."""
+    def example(self, name, run=True, fit=True, keep=False, level=None):
+        """Open an example network (examples/<name>) and run it all. keep: leave the
+        networks opened before open (they show as thin tabs); level: its execution mode."""
         self.js("closeModal(); document.getElementById('menu').hidden = true; status('');"
                 "document.getElementById('logclear').click(); document.getElementById('logbox').open = false;"
                 "document.getElementById('viewers').style.height = ''; dispatchEvent(new Event('resize'))")
         old = self.js('ST.sid')
-        self.js("api('api/example', {name: %s}).then(r => loadSession(r.session))" % json.dumps(name))
+        self.js("api('api/example', %s).then(r => loadSession(r.session))"
+                % json.dumps(dict({'name': name}, **({'level': level, 'internet': False} if level else {}))))
         cdp.wait(self.ws, "ST.sid !== %s && !!ST.nets.main && "
                  "(Object.keys(ST.nets.main.nodes).length > 0 || %s)"
                  % (json.dumps(old), json.dumps(name.endswith('00_start.wnet.json'))), 60, 'open ' + name)
-        self.only_this_network()
+        if not keep:
+            self.only_this_network()
         self.js("if(ST.cur !== 'main') switchTab('main')")
         self.idle()
         if run:
             self.js("document.getElementById('b_hardrun').click()")
             time.sleep(0.5)
-            self.session().runner.wait(300)
+            s = self.session()
+            if hasattr(s, 'runner'):                 # an isolated network runs in its worker:
+                s.runner.wait(300)                   # idle() waits for the page's status
             self.idle(1.5)
         if fit:
             self.js('ED.fit()')
@@ -227,18 +233,23 @@ TUT = 'tutorial/'
 
 # ---------------------------------------------------------------- Start here
 def overview(p):
-    p.example(TUT + '09_mol2plv.wnet.json')
+    # two networks opened before mol2plv show as thin tabs, one of them sandboxed
+    p.example('crambin_surface.wnet.json', run=False)
+    p.example('spheres_colormap.wnet.json', run=False, keep=True, level='sandboxed')
+    p.example(TUT + '09_mol2plv.wnet.json', keep=True)
     p.js("DOC.select('Color Map')")
     # the libraries with their categories closed, so that all of them show
     p.js("OPENCATS.clear(); drawPalette('')")
     p.idle(1.0)
     p.badges([(1, '#libs', 0.82, 0, 0, 14), (2, '#search', 1, 0.5, -16, 0), (3, '#m_edit', 0.5, 1, 0, 12),
-              (4, '#b_run', 0, 0.5, -16, 0), (5, '#execstatus', 1, 0.5, 16, 0), (6, '#sessions', 0, 0.5, -16, 0),
-              (7, 'header a.btn', 0.5, 1, 0, 14), (8, '#tabs .tab', 1, 0.5, 16, 0),
-              (9, '#canvas', 0.5, 0.82, 0, 0), (10, p.js("DOC.sel('Lines')"), 0.3, 0, 0, -14),
-              (11, '#panel', 0, 0.16, -2, 0), (12, '.vpanel .vhead', 0, 0.5, 70, 0),
-              (13, '.vlegend', 0, 0.5, -16, 0), (14, '#logbox summary', 0, 0.5, 140, 0),
-              (15, '#status', 0, 0.5, 300, 0)])
+              (4, '#b_run', 0, 0.5, -16, 0), (5, '#execstatus', 0.5, 1, 0, 12), (6, '#isolation', 1, 0.5, 16, 0),
+              (7, '#sessions', 0, 0.5, -16, 0),
+              (8, 'header a.btn', 0.5, 1, 0, 14), (9, '#tabs .tabgroup .tab', 1, 0.5, 16, 0),
+              (10, '#tabs .tab.thin', 0.5, 1, 0, 12),
+              (11, '#canvas', 0.5, 0.82, 0, 0), (12, p.js("DOC.sel('Lines')"), 0.3, 0, 0, -14),
+              (13, '#panel', 0, 0.16, -2, 0), (14, '.vpanel .vhead', 0, 0.5, 70, 0),
+              (15, '.vlegend', 0, 0.5, -16, 0), (16, '#logbox summary', 0, 0.5, 140, 0),
+              (17, '#status', 0, 0.5, 300, 0)])
     p.shot('overview')
     p.unbadge()
 
@@ -250,6 +261,34 @@ def examples(p):
     p.js("document.querySelectorAll('#mbody details.exgroup').forEach((d, i) => d.open = i === 1)")
     time.sleep(0.3)
     p.shot('examples', '#modal .dialog', pad=8)
+    p.js('closeModal()')
+
+
+def network_tabs(p):
+    """Three open networks: thin tabs for two (one sandboxed), the full tab of the one on
+    screen and of the macro opened in it."""
+    p.example('capsid_surface.wnet.json', run=False)
+    p.example('spheres_colormap.wnet.json', run=False, keep=True, level='sandboxed')
+    p.example(TUT + '08_cartoon2b.wnet.json', run=False, keep=True)
+    p.js("switchTab(DOC.id('indexMax'))")
+    p.idle(0.6)
+    p.js('ED.fit()')
+    p.idle(0.4)
+    r = p.js("DOC.rect('#tabs')")
+    p.shot('tabs', {'x': r['x'], 'y': r['y'] - 2, 'width': min(760, r['width']), 'height': r['height'] + 150})
+
+
+def execution_modes(p):
+    """A sandboxed network (badge, tinted and framed canvas), and its Execution mode dialog."""
+    # the dialog as a first-time user sees it: asked each time
+    p.js("api('api/settings', {open_level: 'sandboxed', internet: false, ask: true}).then(s => { ST.iso = s; return 1; })")
+    p.example('spheres_colormap.wnet.json', level='sandboxed')
+    p.views()
+    p.shot('sandboxed', {'x': 0, 'y': 0, 'width': W, 'height': 470})
+    p.js("void changeIsolation()")
+    cdp.wait(p.ws, "!!document.getElementById('iso_ok')", 30, 'execution mode dialog')
+    p.idle(0.4)
+    p.shot('exec_mode', '#modal .dialog', pad=8)
     p.js('closeModal()')
 
 
@@ -342,8 +381,10 @@ def running(p):
     p.js("DOC.select('Read Image')")
     p.idle(0.5)
     p.badges([(1, '#b_run', 0.5, 1, 0, 14), (2, '#b_hardrun', 0.5, 1, 0, 14), (3, '#b_pause', 0.5, 1, 0, 14),
-              (4, '#b_stop', 0.5, 1, 0, 14), (5, '#b_auto', 0.5, 1, 30, 14), (6, '#execstatus', 0.5, 1, 0, 14)])
-    p.shot('toolbar', {'x': 0, 'y': 0, 'width': 640, 'height': 74})
+              (4, '#b_stop', 0.5, 1, 0, 14), (5, '#b_auto', 0.5, 1, 30, 14), (6, '#execstatus', 0.5, 1, 0, 14),
+              (7, '#isolation', 0.5, 1, 0, 14)])
+    r = p.js("DOC.rect('#isolation')")
+    p.shot('toolbar', {'x': 0, 'y': 0, 'width': int(r['x'] + r['width'] + 24), 'height': 74})
     p.unbadge()
     p.shot('node_error', {'x': 220, 'y': 40, 'width': 1220, 'height': 300})
 
@@ -524,7 +565,7 @@ def nodes(p):
     p.shot('add_port', '#side')
 
 
-SCENES = [overview, examples, editor, code_editor, macro, running, tut_first, tut_image, tut_movie,
+SCENES = [overview, examples, network_tabs, execution_modes, editor, code_editor, macro, running, tut_first, tut_image, tut_movie,
           tut_macro, tut_molecule, tut_cage, tut_volumes, viewer, colormap, images, files, libraries,
           nodes]
 

@@ -1076,8 +1076,10 @@ document.addEventListener('drop', e => {
 });
 
 async function refreshSessions(){
+  // answers can arrive out of order: keep only the newest request's
+  const mine = ST.sessReq = (ST.sessReq || 0) + 1;
   const d = await api('api/sessions');
-  if(d.error) return;
+  if(d.error || mine !== ST.sessReq) return;
   ST.sessions = d.sessions;
   if(ST.sid && !ST.opening && !d.sessions.some(x => x.session === ST.sid)){ showAnotherNetwork(); return; }
   drawTabs();

@@ -21,6 +21,7 @@ SRC = os.path.join(HERE, 'src')
 PAGES = [
     ('index', 'Overview', 'Start here'),
     ('start', 'Getting started', 'Start here'),
+    ('networks', 'Examples and open networks', 'Start here'),
     ('editor', 'Building a network', 'Start here'),
     ('running', 'Running a network', 'Start here'),
     ('tutorials', 'About the tutorials', 'Tutorials'),
@@ -35,7 +36,7 @@ PAGES = [
     ('colormap', 'Color maps and legends', 'Viewing results'),
     ('images', 'Images and plots', 'Viewing results'),
     ('files', 'Saving, opening, importing', 'Reference'),
-    ('isolation', 'Networks from other people', 'Reference'),
+    ('isolation', 'Execution modes', 'Reference'),
     ('libraries', 'Node libraries', 'Reference'),
     ('nodes', 'Writing your own nodes', 'Reference'),
     ('vision', 'WEWoS and Vision', 'Reference'),

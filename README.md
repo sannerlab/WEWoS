@@ -35,8 +35,9 @@ bin/wewos serve            # or: check, test, run, import
 
 **Tested** on Linux (Ubuntu 22.04): Python 3.10, 3.12 and 3.13 with the core (NumPy 2.2-2.5,
 Pillow 12-13, matplotlib 3.10-3.11), and Python 3.7 in the `adcpsuite` environment with
-everything (NumPy 1.21, matplotlib 3.5); the page in Chrome and Firefox. macOS and Windows have
-not been tested.
+everything (NumPy 1.21, matplotlib 3.5); the page in Chrome and Firefox. The execution modes
+(sandbox) were also tested on macOS (Intel Python under Rosetta) and on Windows (GitHub's Windows
+runner, where the whole test suite passes, skipping what needs MolKit2 or UTpackages).
 
 Each network keeps its own folder under `~/wewos_runs` (`$WEWOS_OUTDIR`), holding uploads, saved
 networks and an autosave. To use a server on another machine, forward its port:
