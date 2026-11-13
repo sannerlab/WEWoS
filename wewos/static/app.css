@@ -241,3 +241,37 @@ textarea.w-text{width:100%;min-height:60px;font:11.5px ui-monospace,Menlo,monosp
 body.drag #canvaswrap{outline:3px dashed var(--accent);outline-offset:-6px}
 .wopts td{padding:3px 8px 3px 0}
 .wopts input{width:12em}
+
+/* isolation of the current network (wewos/isolation.py) */
+.pill.iso{border:1px solid transparent;cursor:pointer}
+.pill.iso.sandboxed{background:#e3f4ec;color:#1a7f5a;border-color:#9fd6bd}
+.pill.iso.readonly{background:#fff3c4;color:#8a6500;border-color:#e8d27a}
+.pill.iso.unrestricted{border-color:var(--line)}
+:root[data-theme=dark] .pill.iso.sandboxed{background:#123528;color:#4cc79a;border-color:#1f6b4c}
+:root[data-theme=dark] .pill.iso.readonly{background:#3a3010;color:#f0c050;border-color:#6b5a20}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme=light]) .pill.iso.sandboxed{background:#123528;color:#4cc79a;border-color:#1f6b4c}
+  :root:not([data-theme=light]) .pill.iso.readonly{background:#3a3010;color:#f0c050;border-color:#6b5a20}
+}
+.isolevels label{display:flex;gap:8px;align-items:flex-start;margin:6px 0;cursor:pointer}
+.isolevels label.off{opacity:.5;cursor:default}
+.isolevels .what{font-size:12px;color:var(--dim)}
+.isodlg textarea{width:100%;min-height:3.2em;font:12px ui-monospace,Menlo,monospace}
+.isodlg .note{font-size:12px;margin:6px 0}
+/* the canvas of an isolated network is tinted and framed in the badge's color,
+   with its level in the corner: it shows at a glance how the network runs */
+#center.iso-sandboxed{--canvas:#eef7f1;--grid:#d6eadd;--isoframe:#7cc4a1;--isotext:#1a7f5a}
+#center.iso-readonly{--canvas:#fbf6e4;--grid:#eee1b8;--isoframe:#dcc15a;--isotext:#8a6500}
+:root[data-theme=dark] #center.iso-sandboxed{--canvas:#111d17;--grid:#1b2e23;--isoframe:#2d7a57;--isotext:#4cc79a}
+:root[data-theme=dark] #center.iso-readonly{--canvas:#1d1a10;--grid:#2e2817;--isoframe:#8a7425;--isotext:#f0c050}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme=light]) #center.iso-sandboxed{--canvas:#111d17;--grid:#1b2e23;--isoframe:#2d7a57;--isotext:#4cc79a}
+  :root:not([data-theme=light]) #center.iso-readonly{--canvas:#1d1a10;--grid:#2e2817;--isoframe:#8a7425;--isotext:#f0c050}
+}
+#center.iso-sandboxed #canvaswrap::after,#center.iso-readonly #canvaswrap::after{
+  content:'';position:absolute;inset:0;border:3px solid var(--isoframe);pointer-events:none}
+#center.iso-sandboxed #canvaswrap::before,#center.iso-readonly #canvaswrap::before{
+  position:absolute;top:8px;right:14px;font-size:12px;font-weight:600;letter-spacing:.02em;
+  color:var(--isotext);opacity:.85;pointer-events:none;z-index:1}
+#center.iso-sandboxed #canvaswrap::before{content:'\1F6E1\FE0F  sandboxed'}
+#center.iso-readonly #canvaswrap::before{content:'\1F6E1\FE0F  read-only'}

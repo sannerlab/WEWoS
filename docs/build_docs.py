@@ -35,6 +35,7 @@ PAGES = [
     ('colormap', 'Color maps and legends', 'Viewing results'),
     ('images', 'Images and plots', 'Viewing results'),
     ('files', 'Saving, opening, importing', 'Reference'),
+    ('isolation', 'Networks from other people', 'Reference'),
     ('libraries', 'Node libraries', 'Reference'),
     ('nodes', 'Writing your own nodes', 'Reference'),
     ('vision', 'WEWoS and Vision', 'Reference'),

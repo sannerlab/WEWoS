@@ -22,6 +22,9 @@
 'use strict';
 (() => {
   const BACKENDS = window.VIEW3D_BACKENDS = window.VIEW3D_BACKENDS || {};
+  // text from a scene (a network's labels, Mol*'s messages about them) goes into HTML escaped
+  const escText = s => String(s == null ? '' : s).replace(/[&<>"]/g,
+    c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
   BACKENDS.molstar = {label: 'Mol*', create,
                       effects: [['outline', 'silhouettes'], ['fog', 'fog'], ['occlusion', 'ambient occlusion'],
                                 ['shadow', 'shadows'], ['dof', 'depth of field'], ['illumination', 'illumination']]};
@@ -204,7 +207,7 @@
       if(plugin.events.canvas3d && plugin.events.canvas3d.settingsUpdated)
         plugin.events.canvas3d.settingsUpdated.subscribe(() => setTimeout(noticeCanvas, 0));
     })();
-    ready.catch(e => { if(opts.status) opts.status('Mol* could not start: ' + e.message); });
+    ready.catch(e => { if(opts.status) opts.status('Mol* could not start: ' + escText(e.message)); });
 
     /* ---- the scene as MVS ---- */
     function addMol(b, ref, g){
@@ -360,7 +363,7 @@
         flushing = (async () => {
           const tree = build();
           const issues = mvs.MVSData.validationIssues(tree);
-          if(issues && issues.length){ console.warn('Mol* scene:', issues); if(opts.status) opts.status('Mol*: ' + issues[0]); }
+          if(issues && issues.length){ console.warn('Mol* scene:', issues); if(opts.status) opts.status('Mol*: ' + escText(issues[0])); }
           const has = refs.size > 0;
           await mvs.loadMVS(plugin, tree, {keepCamera: !empty && has});
           applyCanvas();

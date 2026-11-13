@@ -36,6 +36,10 @@ class EventBus(object):
         seq = int(seq or 0)
         deadline = time.time() + timeout
         with self.cond:
+            if seq > self.seq:
+                # the client has seen more than this bus ever sent: the network
+                # was reopened (an isolated network restarted); start over
+                return {'seq': self.seq, 'reset': True, 'events': []}
             while self.seq <= seq:
                 left = deadline - time.time()
                 if left <= 0:

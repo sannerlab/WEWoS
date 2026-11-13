@@ -11,6 +11,20 @@
    computed from the scene's bounding sphere, so fog fractions are of the
    scene's depth (3Dmol's own are of the clipping slab, several times deeper). */
 'use strict';
+// Styles and selections come from the network's worker: plain data only, and
+// never a key 3Dmol would evaluate as code ('callback', 'hover_callback', ...)
+function plainScene(o){
+  const strip = x => {
+    if(Array.isArray(x)) return x.map(strip);
+    if(x && typeof x === 'object'){
+      const out = {};
+      for(const k in x) if(!/callback/i.test(k)) out[k] = strip(x[k]);
+      return out;
+    }
+    return typeof x === 'function' ? undefined : x;
+  };
+  return strip(JSON.parse(JSON.stringify(o || {})));
+}
 (() => {
   const BACKENDS = window.VIEW3D_BACKENDS = window.VIEW3D_BACKENDS || {};
   BACKENDS['3dmol'] = {label: '3Dmol', create};
@@ -108,7 +122,7 @@
       const colors = g.atomColors ? dec(g.atomColors) : null;
       m.setStyle({}, {});
       (g.styles || []).forEach(([sel, st]) => {
-        st = JSON.parse(JSON.stringify(st || {}));
+        sel = plainScene(sel); st = plainScene(st);
         if(colors) for(const rep in st){
           if(st[rep] && typeof st[rep] === 'object' && !st[rep].color && !st[rep].colorscheme)
             st[rep].colorfunc = a => { const i = a.index; return colors.length > 3 * i ? hex([colors[3*i], colors[3*i+1], colors[3*i+2]]) : '#cccccc'; };
@@ -120,7 +134,7 @@
         const style = {opacity: s.opacity == null ? 0.85 : s.opacity};
         if(s.color) style.color = Array.isArray(s.color) ? hex(s.color) : s.color;
         if(s.colorscheme) style.colorscheme = s.colorscheme;
-        o.surfaces.push(v.addSurface(type, style, Object.assign({model: m}, s.sel || {})));
+        o.surfaces.push(v.addSurface(type, style, Object.assign(plainScene(s.sel), {model: m})));
       });
       if(g.pickable){
         m.setClickable({}, true, atom => {

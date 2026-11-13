@@ -7,7 +7,7 @@ from . import APP, APP_LONG, COPYRIGHT, __version__
 PAGE = r"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>__APP__</title>
-<script>try { const t = localStorage.getItem("wewos.theme");
+<script nonce="__NONCE__">try { const t = localStorage.getItem("wewos.theme");
   if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
 } catch (e) {}</script>
 <link rel="stylesheet" href="static/app.css?v=__V_CSS__">
@@ -26,6 +26,7 @@ PAGE = r"""<!doctype html><html lang="en"><head><meta charset="utf-8">
   <button id=b_stop title="Stop after the current node">&#9632;</button>
   <label class=chk title="Run a node's subtree when its widget or input changes"><input type=checkbox id=b_auto checked> run on change</label>
   <span id=execstatus class=pill>idle</span>
+  <button id=isolation class="pill iso" hidden title="how this network is isolated; click to change"></button>
   <span class=grow></span>
   <select id=sessions title="Open networks"></select>
   <a class=btn href="docs/index.html" target=_blank rel=noopener>Docs</a>
@@ -63,7 +64,7 @@ PAGE = r"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <input type=file id=fileimport accept=".py" hidden>
 <input type=file id=fileupload hidden>
 <script src="static/3Dmol-min.js?v=__V_3DMOL__"></script>
-<script>const STATIC_V = {'molstar.js': '__V_MOLSTAR__', 'molstar.css': '__V_MOLSTARCSS__',
+<script nonce="__NONCE__">const STATIC_V = {'molstar.js': '__V_MOLSTAR__', 'molstar.css': '__V_MOLSTARCSS__',
                   'molstar-dark.css': '__V_MOLSTARDARK__', 'colormaps.json': '__V_COLORMAPS__'};</script>
 <script src="static/widgets.js?v=__V_WIDGETS__"></script>
 <script src="static/view3dmol.js?v=__V_VIEW3DMOL__"></script>
@@ -87,9 +88,27 @@ def _v(name):
         return '0'
 
 
-def render():
+def csp(nonce):
+    """The page's Content-Security-Policy. Its scripts come only from this
+    server (and its two inline scripts carry the nonce), and it talks only to
+    this server: text or a picture from a network cannot run script in the
+    page, which holds the token, nor send anything elsewhere.
+
+    'unsafe-eval' is there for Mol*: the WebAssembly glue in its bundle makes
+    functions with new Function() when it loads. Nothing a network sends is
+    evaluated: the page has no eval of its own, and the one eval of 3Dmol.js
+    (callbacks given as strings) never sees a network's data (view3dmol.js
+    plainScene())."""
+    return ("default-src 'self'; script-src 'self' 'nonce-%s' 'unsafe-eval'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob:; "
+            "worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'; "
+            "frame-ancestors 'none'" % nonce)
+
+
+def render(nonce=''):
     import html
-    return (PAGE.replace('__VERSION__', __version__)
+    return (PAGE.replace('__NONCE__', nonce).replace('__VERSION__', __version__)
                 .replace('__APP_LONG__', html.escape(APP_LONG))
                 .replace('__COPYRIGHT__', html.escape(COPYRIGHT).replace('(c)', '&copy;'))
                 .replace('__APP__', html.escape(APP))

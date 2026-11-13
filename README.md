@@ -43,10 +43,19 @@ networks and an autosave. To use a server on another machine, forward its port:
 `ssh -L 8767:127.0.0.1:8767 host`, then open the printed URL locally.
 
 **Trust.** WEWoS is for one user on a trusted machine. The server listens on 127.0.0.1, and the
-token in its URL keeps other users of the machine and other web pages out. Node code runs on the
-server with your permissions, without a sandbox, as it did in Vision; opening a network defines
-its nodes' functions and running it executes them. Open networks (`.wnet.json`, and Vision
-`*_net.py` files, which the importer parses without running) only from sources you trust.
+token in its URL keeps other users of the machine and other web pages out. A network file is a
+program: opening a network runs its nodes' edited code, and running it runs every node. The
+networks you make run in the server with your permissions, as in Vision. A network you open (File >
+Open, Import, an example, or a dropped file) can run isolated, in its own process confined with
+bubblewrap (Linux):
+
+- **Sandboxed** (the default for opened files): its code sees only its own folder and the folders you grant;
+- **Read-only**: it can read your files but write only its folder;
+- **Unrestricted**: as above.
+
+Isolated networks have no internet access unless you allow it (Fetch PDB still works, through the
+server), and Force stop restarts one that will not stop. `wewos serve --isolation sandboxed`
+isolates every network, for a server that others use. See docs/isolation.html.
 
 ## Documentation
 
@@ -134,7 +143,7 @@ Some things changed:
   - the libraries that are not listed above (ImageMagick, FlexTree, ADT, WebServices, Pmv…);
   - DejaVu textures, volume rendering, stereo and clip planes.
 
-Node code runs on the server with your rights, as it did in Vision. The server listens on 127.0.0.1 only, and the token in the URL keeps other users of the machine out.
+Node code runs on the server with your rights, as it did in Vision, unless the network is isolated (see Trust above). The server listens on 127.0.0.1 only, and the token in the URL keeps other users of the machine out.
 
 ## History
 

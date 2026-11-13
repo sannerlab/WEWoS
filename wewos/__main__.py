@@ -30,6 +30,12 @@ def main(argv=None):
                    help='also serve under this path prefix (behind a proxy)')
     s.add_argument('--outdir', default=DEFAULT_OUTDIR,
                    help='where each network keeps its folder (default %(default)s)')
+    s.add_argument('--isolation', default='unrestricted',
+                   choices=['unrestricted', 'readonly', 'sandboxed'],
+                   help='the least isolation of every network, for a server others use: '
+                        'readonly (reads your files, writes its folder) or sandboxed (sees '
+                        'only its folder); needs Linux and bubblewrap (default: networks you '
+                        'open from files are isolated as you choose, the others are not)')
     r = sub.add_parser('run', help='run a saved network without a browser')
     r.add_argument('network')
     r.add_argument('--set', action='append', default=[], metavar='NODE.PORT=VALUE',
@@ -79,7 +85,10 @@ def main(argv=None):
         base = clean_base_path(a.base_path)
     except ValueError as e:
         p.error(str(e))
-    serve(a.host, a.port, a.outdir, base)
+    try:
+        serve(a.host, a.port, a.outdir, base, a.isolation)
+    except RuntimeError as e:
+        p.error(str(e))
     return 0
 
 

@@ -22,17 +22,24 @@ def looks_like_code(text):
     return bool(CODE.match((text or '').strip()))
 
 
-def fetch(code, cachedir, timeout=TIMEOUT):
-    """(path, url, was_cached) for the PDB-format file of entry `code`."""
+# In an isolated network without internet access (wewos/isolation.py), the
+# worker sets this to a function that asks the WEWoS server for the file:
+# remote(code) -> bytes. The server downloads only RCSB entries (download()).
+remote = None
+
+
+def check_code(code):
     code = (code or '').strip().upper()
     if not looks_like_code(code):
         raise FetchError('%r is not a PDB id. They are four characters, the '
                          'first a digit, such as 6GGD, 1A3R or 4A1X.' % code)
+    return code
+
+
+def download(code, timeout=TIMEOUT):
+    """The PDB-format file of entry `code` from the RCSB, as bytes."""
+    code = check_code(code)
     url = URL % code
-    out = os.path.join(cachedir, '%s.pdb' % code)
-    if os.path.isfile(out) and os.path.getsize(out) > 200:
-        return out, url, True
-    os.makedirs(cachedir, exist_ok=True)
     from . import APP, __version__
     req = urllib.request.Request(url, headers={'User-Agent': '%s/%s' % (APP, __version__)})
     try:
@@ -54,6 +61,18 @@ def fetch(code, cachedir, timeout=TIMEOUT):
         data = gzip.decompress(data)
     if len(data) < 200:
         raise FetchError('the RCSB returned an empty file for %s' % code)
+    return data
+
+
+def fetch(code, cachedir, timeout=TIMEOUT):
+    """(path, url, was_cached) for the PDB-format file of entry `code`."""
+    code = check_code(code)
+    url = URL % code
+    out = os.path.join(cachedir, '%s.pdb' % code)
+    if os.path.isfile(out) and os.path.getsize(out) > 200:
+        return out, url, True
+    os.makedirs(cachedir, exist_ok=True)
+    data = remote(code) if remote is not None else download(code, timeout)
     tmp = out + '.part'
     with open(tmp, 'wb') as fh:
         fh.write(data)

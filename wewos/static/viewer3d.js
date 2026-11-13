@@ -548,7 +548,8 @@ const VIEW3D = (() => {
     const d = await cb.edit('image_data', {node: id});
     if(!d || d.error || !d.png) return;
     const rec = ensureImage(id);
-    rec.img.src = d.png;
+    // only a picture made by the network's node: never a URL it names
+    if(typeof d.png === 'string' && d.png.startsWith('data:image/')) rec.img.src = d.png;
     rec.panel.querySelector('.isize').textContent = d.size ? d.size[0] + '×' + d.size[1] + ' ' + (d.mode || '') : '';
   }
 

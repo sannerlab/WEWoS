@@ -18,7 +18,7 @@ Routes
   GET  api/events?s=&since=N    events after N (long poll, up to 25 s)
   GET  api/files?s=&dir=        a folder listing for file widgets
   GET  api/examples             the example networks
-  POST api/example {name}       an example as a new network
+  POST api/example {name, level?, internet?, grants?}   an example as a new network
   GET  api/download?s=&file=    a file of the session folder
   POST api/new {name}           a new empty network
   POST api/open?name=           a saved .wnet.json (raw body) as a new network
@@ -28,6 +28,14 @@ Routes
   POST api/run {s, mode, node}  run, hardrun, run_node, stop, pause, resume
   POST api/save {s, name}       save the network in the session folder
   POST api/pick {s, node, ...}  a click in a 3D viewer
+  GET  api/settings             the isolation preferences, and whether isolation works here
+  POST api/settings {open_level, internet}   remember them (settings.json)
+  POST api/isolation {s, level, internet, grants}   reopen a network at another level
+
+api/open and api/import take level=sandboxed|readonly|unrestricted, internet=0|1 and
+grant=<folder> (repeated) in the query: a network from someone else runs in its own
+confined process (wewos/isolation.py). api/run mode=kill (Force stop) restarts such a
+network from its last autosave.
 """
 import io
 import json
@@ -39,8 +47,8 @@ import urllib.parse
 import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import APP, APP_LONG, __version__, env, page
-from .session import Refused, Session, list_dir
+from . import APP, APP_LONG, __version__, env, isolation, page
+from .session import Refused, Session, make_folder, open_in_folder
 
 MAX_BODY = 4 << 20
 MAX_UPLOAD = 512 << 20
@@ -59,16 +67,70 @@ DOC_TYPES = {'.html': 'text/html; charset=utf-8', '.css': 'text/css', '.png': 'i
 
 
 class App(object):
-    def __init__(self, outdir):
+    def __init__(self, outdir, minimum='unrestricted'):
         self.outdir = os.path.abspath(os.path.expanduser(outdir))
         os.makedirs(self.outdir, exist_ok=True)
         self.token = secrets.token_urlsafe(18)
         self.sessions = {}
         self._lock = threading.Lock()
+        # the least isolation any network gets (wewos serve --isolation)
+        self.minimum = isolation.check_level(minimum)
+        if self.minimum != 'unrestricted' and not isolation.available()[0]:
+            raise RuntimeError(isolation.available()[1])
         self.libconf_path = os.path.join(self.outdir, 'libraries.json')
         self.libconf = self._read_libconf()
+        self.settings_path = os.path.join(self.outdir, 'settings.json')
+        self.settings = self._read_settings()
         self._startup_libraries()
         self._nodeinfo = {}            # (library, label) -> node_info()
+
+    # ---- isolation preferences (settings.json) -----------------------------------------
+    def _read_settings(self):
+        try:
+            with open(self.settings_path) as fh:
+                d = json.load(fh)
+        except (OSError, ValueError):
+            d = {}
+        if d.get('open_level') not in isolation.LEVELS:
+            d['open_level'] = 'sandboxed'          # files from others: isolated by default
+        d['internet'] = bool(d.get('internet', False))
+        return d
+
+    def get_settings(self):
+        ok, why = isolation.available()
+        return dict(self.settings, available=ok, reason=why, minimum=self.minimum,
+                    levels=isolation.LABELS)
+
+    def set_settings(self, body):
+        if 'open_level' in body:
+            self.settings['open_level'] = isolation.check_level(body['open_level'])
+        if 'internet' in body:
+            self.settings['internet'] = bool(body['internet'])
+        tmp = self.settings_path + '.part'
+        with open(tmp, 'w') as fh:
+            json.dump(self.settings, fh, indent=1)
+        os.replace(tmp, self.settings_path)
+        return self.get_settings()
+
+    def _level(self, level):
+        """The level a network will run at: the one asked for (default: the
+        preference for opened files), never below the server's minimum."""
+        level = isolation.stricter(isolation.check_level(level or 'unrestricted'), self.minimum)
+        if level != 'unrestricted':
+            ok, why = isolation.available()
+            if not ok:
+                raise Refused(why)
+        return level
+
+    @staticmethod
+    def _grants(grants):
+        out = []
+        for g in grants or ():
+            g = os.path.abspath(os.path.expanduser(g))
+            if not os.path.isdir(g):
+                raise Refused('cannot grant %s: no such folder' % g)
+            out.append(g)
+        return out
 
     # ---- libraries: loaded on demand, as in Vision ---------------------------------------
     def _read_libconf(self):
@@ -100,7 +162,7 @@ class App(object):
         from .engine.library import known
         return {'version': __version__, 'app': APP, 'outdir': self.outdir,
                 'missing': env.check(), 'environment': env.provenance(),
-                'libraries': known()}
+                'libraries': known(), 'isolation': self.get_settings()}
 
     def libraries(self):
         from .engine.library import catalog
@@ -141,6 +203,9 @@ class App(object):
         (remembered in libraries.json for the next sessions)."""
         from .engine import library
         self._nodeinfo.clear()
+        if (body.get('module') or body.get('file')) and self.minimum != 'unrestricted':
+            raise Refused('this server isolates every network (--isolation %s): it does not '
+                          'load Python modules or files into itself' % self.minimum)
         if body.get('module') or body.get('file'):
             src = {k: body[k].strip() for k in ('module', 'file') if body.get(k)}
             try:
@@ -168,29 +233,84 @@ class App(object):
         self._write_libconf()
         return self.libraries()
 
-    def new(self, name='network'):
+    def new(self, name='network', level='unrestricted', internet=False, grants=(), prepare=None):
+        """A new network: in this process, or isolated in a worker. prepare(folder)
+        puts files in its folder before any of its code can run."""
+        level = self._level(level)
+        grants = self._grants(grants) if level == 'sandboxed' else []
         sid = secrets.token_hex(8)
-        s = Session(sid, self.outdir, name or 'network')
+        name = name or 'network'
+        folder = make_folder(self.outdir, name, sid)
+        if prepare is not None:
+            prepare(folder)
+        if level == 'unrestricted':
+            s = Session(sid, self.outdir, name, folder=folder)
+        else:
+            s = isolation.IsolatedSession(sid, folder, name, level, internet, grants,
+                                          startup=self.libconf['startup'],
+                                          user_libraries=self.libconf['user'])
         with self._lock:
             self.sessions[sid] = s
         return s
 
     def new_state(self, name):
-        return self.new(name).state()
+        return self.new(name, self.minimum).state()
 
-    def open(self, name, raw):
+    def open(self, name, raw, level=None, internet=None, grants=()):
         try:
             data = json.loads(raw.decode('utf-8'))
         except (ValueError, UnicodeDecodeError):
             raise Refused('%s is not a network file (JSON)' % name)
+        if not isinstance(data, dict):
+            raise Refused('%s is not a network file' % name)
         stem = os.path.basename(name or 'network').split('.')[0]
-        s = self.new(data.get('network', {}).get('name') or stem)
+        s = self.new(data.get('network', {}).get('name') or stem,
+                     level or self.settings['open_level'],
+                     self.settings['internet'] if internet is None else internet, grants)
         report = s.load(data)
         d = s.state()
         d['report'] = report
         return d
 
-    def import_legacy(self, name, raw):
+    def set_isolation(self, sid, level, internet=False, grants=()):
+        """Reopen an open network at another isolation level, from its autosave."""
+        old = self.session(sid)
+        level = self._level(level)
+        grants = self._grants(grants) if level == 'sandboxed' else []
+        info = old.info()
+        try:
+            old.autosave()
+        except Exception:
+            pass                     # a stopped worker: its last autosave is on disk
+        if isinstance(old, isolation.IsolatedSession):
+            old.kill()
+        else:
+            try:
+                old.net.stop()
+            except Exception:
+                pass
+        if level == 'unrestricted':
+            s = Session(sid, self.outdir, info['name'], folder=old.folder)
+            try:
+                with open_in_folder(old.folder, 'autosave.wnet.json') as fh:
+                    data = json.loads(fh.read().decode('utf-8'))
+            except (Refused, ValueError):
+                data = None
+            report = s.load(data) if data else ['no autosave: the network starts empty']
+        else:
+            s = isolation.IsolatedSession(sid, old.folder, info['name'], level, internet, grants,
+                                          startup=self.libconf['startup'],
+                                          user_libraries=self.libconf['user'],
+                                          created=info.get('created'), restore=True)
+            report = s.report
+        s.created = info.get('created') or s.created
+        with self._lock:
+            self.sessions[sid] = s
+        d = s.state()
+        d['report'] = report
+        return d
+
+    def import_legacy(self, name, raw, level=None, internet=None, grants=()):
         from .legacy import importer
         try:
             src = raw.decode('utf-8')
@@ -202,10 +322,13 @@ class App(object):
             if stem.endswith(suffix):
                 stem = stem[:-len(suffix)]
                 break
-        s = self.new(stem)
-        with open(os.path.join(s.folder, 'uploads', os.path.basename(name or 'net.py')),
-                  'wb') as fh:
-            fh.write(raw)
+        def keep_original(folder):
+            with open(os.path.join(folder, 'uploads', os.path.basename(name or 'net.py')),
+                      'wb') as fh:
+                fh.write(raw)
+        s = self.new(stem, level or self.settings['open_level'],
+                     self.settings['internet'] if internet is None else internet, grants,
+                     prepare=keep_original)
         load_report = s.load(data)
         d = s.state()
         d['report'] = report.as_dict()
@@ -236,32 +359,39 @@ class App(object):
                         pass
         return {'examples': out}
 
-    def example(self, name):
+    def example(self, name, level=None, internet=None, grants=()):
         """Open an example as a new network; its data files are copied to
-        the network's folder (examples read data/... relative to it)."""
+        the network's folder (examples read data/... relative to it). It runs
+        at the level asked for; unrestricted when none is given (the examples
+        come with WEWoS), never below the server's minimum."""
         import shutil
         names = {e['file'] for e in self.examples()['examples']}
         if name not in names:
             raise Refused('no example %r' % name)
         with open(os.path.join(EXAMPLES, name)) as fh:
             data = json.load(fh)
-        s = self.new(data['network'].get('name') or os.path.basename(name).split('.')[0])
         sub = os.path.dirname(name)
-        if not sub:
-            src = os.path.join(EXAMPLES, 'data')
-            if os.path.isdir(src):
-                shutil.copytree(src, os.path.join(s.folder, 'data'))
-        else:
-            # a group's examples read the files next to them (cv.pdb, Data/...)
-            folder = os.path.join(EXAMPLES, sub)
-            for f in os.listdir(folder):
-                p = os.path.join(folder, f)
-                if f.endswith('.wnet.json'):
-                    continue
-                if os.path.isdir(p):
-                    shutil.copytree(p, os.path.join(s.folder, f))
-                else:
-                    shutil.copy(p, os.path.join(s.folder, f))
+
+        def copy_data(dest):
+            if not sub:
+                src = os.path.join(EXAMPLES, 'data')
+                if os.path.isdir(src):
+                    shutil.copytree(src, os.path.join(dest, 'data'))
+            else:
+                # a group's examples read the files next to them (cv.pdb, Data/...)
+                folder = os.path.join(EXAMPLES, sub)
+                for f in os.listdir(folder):
+                    p = os.path.join(folder, f)
+                    if f.endswith('.wnet.json'):
+                        continue
+                    if os.path.isdir(p):
+                        shutil.copytree(p, os.path.join(dest, f))
+                    else:
+                        shutil.copy(p, os.path.join(dest, f))
+        s = self.new(data['network'].get('name') or os.path.basename(name).split('.')[0],
+                     level or self.minimum,
+                     self.settings['internet'] if internet is None else internet, grants,
+                     prepare=copy_data)
         report = s.load(data)
         d = s.state()
         d['report'] = report
@@ -270,7 +400,7 @@ class App(object):
     def list_sessions(self):
         with self._lock:
             ss = list(self.sessions.values())
-        out = [dict(s.info(), nodes=len(s.net.nodes), status=s.net.execStatus) for s in ss]
+        out = [s.summary() for s in ss]
         return {'sessions': sorted(out, key=lambda d: d['created'], reverse=True)}
 
     def session(self, sid):
@@ -330,7 +460,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send({'error': str(e)}, 400)
         except Exception as e:
             return self._send({'error': '%s: %s' % (type(e).__name__, e),
-                               'trace': traceback.format_exc()}, 500)
+                               'trace': getattr(e, 'remote_trace', None) or traceback.format_exc()},
+                              500)
 
     def _url(self):
         u = urllib.parse.urlparse(self.path)
@@ -365,7 +496,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._send({'error': 'bad or missing token'}, 403)
         g = lambda k, d=None: q.get(k, [d])[0]
         if u.path == '/':
-            return self._send(page.render(), 200, 'text/html')
+            nonce = secrets.token_urlsafe(16)
+            return self._send(page.render(nonce), 200, 'text/html', headers=[
+                ('Content-Security-Policy', page.csp(nonce)),
+                ('Referrer-Policy', 'no-referrer'), ('X-Frame-Options', 'DENY')])
         if u.path == '/api/status':
             return self._run(app.status)
         if u.path == '/api/libraries':
@@ -382,7 +516,9 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == '/api/examples':
             return self._run(app.examples)
         if u.path == '/api/files':
-            return self._run(lambda: list_dir(g('dir'), app.session(g('s')).folder))
+            return self._run(lambda: app.session(g('s')).files(g('dir')))
+        if u.path == '/api/settings':
+            return self._run(app.get_settings)
         if u.path == '/api/download':
             return self._download(app, g('s'), g('file'))
         return self._send({'error': 'no such endpoint'}, 404)
@@ -428,27 +564,32 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _download(self, app, sid, name):
+        """A file of a network's folder, or the whole folder as a zip. Symbolic
+        links are never followed: an isolated network may have planted them."""
         try:
             s = app.session(sid)
             if not name:
-                # the whole session folder as a zip
                 buf = io.BytesIO()
                 with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as z:
                     for root, dirs, files in os.walk(s.folder):
+                        dirs[:] = [d for d in dirs if d != '.wewos']   # the worker's home
                         for f in files:
-                            p = os.path.join(root, f)
-                            z.write(p, os.path.relpath(p, s.folder))
+                            rel = os.path.relpath(os.path.join(root, f), s.folder)
+                            try:
+                                with open_in_folder(s.folder, rel) as fh:
+                                    z.writestr(rel, fh.read())
+                            except Refused:
+                                continue                 # a link, or not a regular file
                 return self._send(buf.getvalue(), 200, 'application/zip', headers=[
                     ('Content-Disposition', 'attachment; filename="%s.zip"'
                      % os.path.basename(s.folder))])
-            path = s.file_path(name)
+            with open_in_folder(s.folder, name) as fh:
+                body = fh.read()
         except (Refused, ValueError) as e:
             return self._send({'error': str(e)}, 400)
-        with open(path, 'rb') as fh:
-            body = fh.read()
-        ctype = 'application/json' if path.endswith('.json') else 'application/octet-stream'
+        ctype = 'application/json' if name.endswith('.json') else 'application/octet-stream'
         return self._send(body, 200, ctype, headers=[
-            ('Content-Disposition', 'attachment; filename="%s"' % os.path.basename(path))])
+            ('Content-Disposition', 'attachment; filename="%s"' % os.path.basename(name))])
 
     # ---- POST ------------------------------------------------------------------------
     def do_POST(self):
@@ -460,10 +601,13 @@ class Handler(BaseHTTPRequestHandler):
             return self._send({'error': 'bad or missing token'}, 403)
         app = self.server.app
         g = lambda k, d='': q.get(k, [d])[0]
+        iso = lambda: dict(level=g('level') or None,
+                           internet=None if g('internet') == '' else g('internet') in ('1', 'true'),
+                           grants=q.get('grant', []))
         if u.path == '/api/open':
-            return self._run(lambda: app.open(g('name'), self._raw(MAX_UPLOAD)))
+            return self._run(lambda: app.open(g('name'), self._raw(MAX_UPLOAD), **iso()))
         if u.path == '/api/import':
-            return self._run(lambda: app.import_legacy(g('name'), self._raw(MAX_UPLOAD)))
+            return self._run(lambda: app.import_legacy(g('name'), self._raw(MAX_UPLOAD), **iso()))
         if u.path == '/api/upload':
             return self._run(lambda: app.session(g('s')).upload(g('name'),
                                                                  self._raw(MAX_UPLOAD)))
@@ -474,27 +618,23 @@ class Handler(BaseHTTPRequestHandler):
         s = lambda: app.session(body.get('s'))
         routes = {
             '/api/new': lambda: app.new_state(body.get('name')),
-            '/api/example': lambda: app.example(body.get('name')),
+            '/api/example': lambda: app.example(body.get('name'), body.get('level'),
+                                                body.get('internet'), body.get('grants') or ()),
             '/api/library': lambda: app.load_library(body),
             '/api/library_startup': lambda: app.library_startup(body),
             '/api/edit': lambda: s().edit(body.get('op'), body),
             '/api/run': lambda: s().run(body.get('mode'), body.get('node'), body.get('net')),
             '/api/save': lambda: s().save(body.get('name')),
-            '/api/pick': lambda: _pick(s(), body),
+            '/api/pick': lambda: s().pick(body),
+            '/api/settings': lambda: app.set_settings(body),
+            '/api/isolation': lambda: app.set_isolation(body.get('s'), body.get('level'),
+                                                        bool(body.get('internet')),
+                                                        body.get('grants') or ()),
         }
         fn = routes.get(u.path)
         if fn is None:
             return self._send({'error': 'no such endpoint'}, 404)
         return self._run(fn)
-
-
-def _pick(s, body):
-    n = s.node(body.get('node'))
-    if not hasattr(n, 'picked'):
-        raise Refused('%s is not a viewer' % n.name)
-    with s._edit_context():
-        n.picked(body)
-    return {'seq': s.net.bus.seq}
 
 
 def clean_base_path(base):
@@ -506,20 +646,27 @@ def clean_base_path(base):
     return '/' + base
 
 
-def build(host='127.0.0.1', port=8767, outdir='~/wewos_runs', base_path=''):
+def build(host='127.0.0.1', port=8767, outdir='~/wewos_runs', base_path='',
+          minimum='unrestricted'):
     httpd = ThreadingHTTPServer((host, port), Handler)
     httpd.daemon_threads = True
-    httpd.app = App(outdir)
+    httpd.app = App(outdir, minimum)
     httpd.base_path = clean_base_path(base_path)
     return httpd
 
 
-def serve(host='127.0.0.1', port=8767, outdir='~/wewos_runs', base_path=''):
-    httpd = build(host, port, outdir, base_path)
+def serve(host='127.0.0.1', port=8767, outdir='~/wewos_runs', base_path='',
+          minimum='unrestricted'):
+    httpd = build(host, port, outdir, base_path, minimum)
     bound = httpd.server_address[1]
     url = 'http://%s:%d%s/?t=%s' % (host, bound, httpd.base_path, httpd.app.token)
     print('%s %s (%s) is at\n\n    %s\n' % (APP, __version__, APP_LONG, url), flush=True)
     print('networks are kept in %s' % httpd.app.outdir, flush=True)
+    ok, why = isolation.available()
+    print('networks from others: %s' % (
+        'every network is isolated (%s)' % minimum if minimum != 'unrestricted'
+        else 'isolated when opened (bubblewrap)' if ok else 'cannot be isolated: %s' % why),
+        flush=True)
     miss = env.check()
     if miss:
         print('\nmissing (some libraries will not load): %s' % '; '.join(miss), flush=True)

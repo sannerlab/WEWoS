@@ -40,13 +40,20 @@ def _safe(name, default='network'):
     return name[:60] or default
 
 
+def make_folder(outdir, name, sid):
+    """A new network's folder, <outdir>/<name>_<stamp>_<sid6>/, with uploads/."""
+    stamp = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
+    folder = os.path.join(outdir, '%s_%s_%s' % (_safe(name), stamp, sid[:6]))
+    os.makedirs(os.path.join(folder, 'uploads'), exist_ok=True)
+    return folder
+
+
 class Session(object):
 
-    def __init__(self, sid, outdir, name='network'):
+    def __init__(self, sid, outdir, name='network', folder=None):
         self.id = sid
         self.created = datetime.datetime.now().isoformat(timespec='seconds')
-        stamp = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
-        self.folder = os.path.join(outdir, '%s_%s_%s' % (_safe(name), stamp, sid[:6]))
+        self.folder = folder or make_folder(outdir, name, sid)
         os.makedirs(os.path.join(self.folder, 'uploads'), exist_ok=True)
         self.lock = threading.RLock()
         self.namespace = {'__name__': '__wewos__'}
@@ -55,6 +62,9 @@ class Session(object):
         self.net.runner = self.runner
         self.saved_path = None
         self.clipboard = None
+        # how this network is isolated (wewos/isolation.py); a session in the
+        # server process itself is unrestricted
+        self.isolation = {'level': 'unrestricted', 'internet': True}
 
     # ---- run context ---------------------------------------------------------------
     @contextlib.contextmanager
@@ -109,7 +119,12 @@ class Session(object):
     # ---- state -----------------------------------------------------------------------
     def info(self):
         return {'session': self.id, 'name': self.net.name, 'folder': self.folder,
-                'created': self.created, 'saved': self.saved_path}
+                'created': self.created, 'saved': self.saved_path,
+                'isolation': dict(self.isolation)}
+
+    def summary(self):
+        """A line of the list of open networks."""
+        return dict(self.info(), nodes=len(self.net.nodes), status=self.net.execStatus)
 
     def state(self):
         d = self.info()
@@ -123,6 +138,19 @@ class Session(object):
 
     def events(self, since, timeout=20.0):
         return self.net.bus.since(since, timeout)
+
+    def pick(self, body):
+        """A click in a 3D viewer (api/pick)."""
+        n = self.node(body.get('node'))
+        if not hasattr(n, 'picked'):
+            raise Refused('%s is not a viewer' % n.name)
+        with self._edit_context():
+            n.picked(body)
+        return {'seq': self.net.bus.seq}
+
+    def files(self, path):
+        """A folder listing for the file widgets (api/files)."""
+        return list_dir(path, self.folder)
 
     # ---- editing -----------------------------------------------------------------------
     def edit(self, op, a):
@@ -552,6 +580,9 @@ class Session(object):
             self.net.pause()
         elif mode == 'resume':
             self.net.resume()
+        elif mode == 'kill':
+            raise Refused('force stop restarts an isolated network; this one runs in the '
+                          'server itself, so it can only be stopped between nodes')
         else:
             raise Refused('unknown run mode %r' % mode)
         return {'execStatus': self.net.execStatus, 'seq': self.net.bus.seq}
@@ -597,6 +628,37 @@ class Session(object):
         if not full.startswith(os.path.abspath(self.folder) + os.sep) or not os.path.isfile(full):
             raise Refused('no file %r in this session' % name)
         return full
+
+
+def open_in_folder(folder, rel):
+    """Open the regular file `rel` under `folder` for reading, without
+    following a symbolic link anywhere below `folder`.
+
+    The server reads session folders to send downloads, and the code of an
+    isolated network can write in its folder: a link it planted there must not
+    make the server read a file outside it. Each component is opened relative
+    to the previous one with O_NOFOLLOW, so swapping a folder for a link
+    between a check and the open does not help either."""
+    parts = [p for p in rel.replace(os.sep, '/').split('/') if p not in ('', '.')]
+    if not parts or '..' in parts:
+        raise Refused('no file %r in this session' % rel)
+    flags = os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_CLOEXEC', 0)
+    fd = os.open(folder, os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0))
+    try:
+        for part in parts[:-1]:
+            nfd = os.open(part, flags | getattr(os, 'O_DIRECTORY', 0), dir_fd=fd)
+            os.close(fd)
+            fd = nfd
+        ffd = os.open(parts[-1], flags | getattr(os, 'O_NONBLOCK', 0), dir_fd=fd)
+    except OSError:
+        raise Refused('no file %r in this session' % rel)
+    finally:
+        os.close(fd)
+    import stat
+    if not stat.S_ISREG(os.fstat(ffd).st_mode):
+        os.close(ffd)
+        raise Refused('no file %r in this session' % rel)
+    return os.fdopen(ffd, 'rb')
 
 
 def list_dir(path, base):

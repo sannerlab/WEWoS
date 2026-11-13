@@ -15,6 +15,8 @@ const ST = {
   nets: {},              // netid -> {id, name, nodes:{}, conns:{}, macroNode, parent}
   tabs: ['main'], cur: 'main',
   libs: [], types: {}, sel: [], errors: {},
+  iso: null,             // isolation settings of the server (api/settings)
+  isolation: null,       // how the current network is isolated
 };
 
 /* ------------------------------------------------------------ api */
@@ -64,6 +66,8 @@ async function loadSession(sid){
   if(d.error) return false;
   ST.gen++;
   ST.sid = d.session; ST.name = d.name; ST.folder = d.folder; ST.seq = d.seq;
+  ST.isolation = d.isolation || {level: 'unrestricted', internet: true};
+  showIsolation();
   ST.nets = {}; ST.errors = {};
   Object.values(d.networks).forEach(addNetwork);
   const q = new URLSearchParams(location.search);
@@ -618,6 +622,101 @@ function uploadFile(){
   });
 }
 
+/* ------------------------------------------------------------ isolation */
+/* A network from someone else runs in its own sandboxed process
+   (wewos/isolation.py). Opening a file asks how it should run; the badge in
+   the toolbar shows how the current network runs. */
+const ISO_TEXT = {
+  sandboxed: ['Sandboxed', "Its code sees only this network's own folder (and the folders you add below). " +
+                           'Your other files do not exist for it.'],
+  readonly: ['Read-only', 'Its code can read every file you can, and write only in this network\'s folder.'],
+  unrestricted: ['Unrestricted', 'Its code runs with your rights, like a program you start yourself. ' +
+                                 'For networks you trust.'],
+};
+const ISO_RANK = {unrestricted: 0, readonly: 1, sandboxed: 2};
+const isolated = () => !!ST.isolation && ST.isolation.level !== 'unrestricted';
+async function loadIsoSettings(){
+  const d = await api('api/settings');
+  if(!d.error) ST.iso = d;
+  return ST.iso;
+}
+function showIsolation(){
+  const b = $('isolation'), iso = ST.isolation || {level: 'unrestricted'};
+  // the canvas is tinted and framed for an isolated network (app.css)
+  $('center').classList.toggle('iso-sandboxed', iso.level === 'sandboxed');
+  $('center').classList.toggle('iso-readonly', iso.level === 'readonly');
+  b.hidden = false;
+  b.className = 'pill iso ' + iso.level;
+  b.textContent = iso.level === 'unrestricted' ? '\u{1F513} unrestricted' :
+                  '\u{1F6E1} ' + (iso.level === 'sandboxed' ? 'sandboxed' : 'read-only') +
+                  (iso.internet ? ' \u00b7 internet' : '');
+  b.title = ISO_TEXT[iso.level] ? ISO_TEXT[iso.level][1] + (iso.internet ? ' It may use the internet.' : ' No internet.') +
+            ' Click to change.' : '';
+}
+function isolationChooser(title, init, okLabel, intro){
+  return new Promise(resolve => {
+    const minimum = (ST.iso && ST.iso.minimum) || 'unrestricted';
+    const box = document.createElement('div');
+    box.className = 'isodlg';
+    box.innerHTML = (intro ? '<p>' + esc(intro) + '</p>' : '') +
+      '<div class=isolevels>' + ['sandboxed', 'readonly', 'unrestricted'].map(l => {
+        const off = ISO_RANK[l] < ISO_RANK[minimum];
+        return '<label' + (off ? ' class=off title="this server isolates every network at least as ' + esc(minimum) + '"' : '') +
+          '><input type=radio name=isolevel value=' + l + (off ? ' disabled' : '') + '><span><b>' + ISO_TEXT[l][0] +
+          '</b><br><span class=what>' + esc(ISO_TEXT[l][1]) + '</span></span></label>';
+      }).join('') + '</div>' +
+      '<label class=chk><input type=checkbox id=iso_net> Allow internet access</label>' +
+      '<div class="note warn" id=iso_warn hidden>With read-only access and the internet, the network could send ' +
+      'any file you can read to another computer.</div>' +
+      '<div id=iso_grants><div class=note>Also let it read these folders (one per line):</div>' +
+      '<textarea id=iso_g spellcheck=false placeholder="/path/to/data"></textarea></div>' +
+      '<p class="note dim">Fetch PDB works at every level: without internet access, WEWoS downloads the entry for the network.</p>' +
+      '<div class=btns style="display:flex;gap:6px"><button class=primary id=iso_ok>' + esc(okLabel) +
+      '</button><button id=iso_cancel>Cancel</button></div>';
+    modal(title, box);
+    modalCancel = () => resolve(null);
+    const radios = [...box.querySelectorAll('input[name=isolevel]')];
+    let level = ISO_RANK[init.level] < ISO_RANK[minimum] ? minimum : (init.level || 'sandboxed');
+    radios.forEach(r => { r.checked = r.value === level; });
+    const net = box.querySelector('#iso_net');
+    net.checked = !!init.internet && init.level !== 'unrestricted';
+    box.querySelector('#iso_g').value = (init.grants || []).join('\n');
+    const upd = () => {
+      level = (radios.find(r => r.checked) || {}).value || minimum;
+      net.disabled = level === 'unrestricted';
+      box.querySelector('#iso_warn').hidden = !(level === 'readonly' && net.checked);
+      box.querySelector('#iso_grants').hidden = level !== 'sandboxed';
+    };
+    radios.forEach(r => r.addEventListener('change', upd));
+    net.addEventListener('change', upd);
+    upd();
+    const done = v => { modalCancel = null; $('modal').hidden = true; resolve(v); };
+    box.querySelector('#iso_cancel').onclick = () => done(null);
+    box.querySelector('#iso_ok').onclick = () => done({
+      level, internet: level === 'unrestricted' ? true : net.checked,
+      grants: level === 'sandboxed' ? box.querySelector('#iso_g').value.split('\n').map(x => x.trim()).filter(Boolean) : []});
+  });
+}
+async function changeIsolation(){
+  const st = ST.iso || await loadIsoSettings();
+  if(!st || !st.available){ reportDialog('Isolation', [st ? st.reason : 'the server did not answer']); return; }
+  const ch = await isolationChooser('Isolation of ' + ST.name, ST.isolation || {level: 'unrestricted'}, 'Reopen',
+    'The network is saved, closed and opened again at the level you choose; the results of its last run are not kept.');
+  if(!ch) return;
+  status('reopening ' + esc(ST.name) + '&hellip;');
+  const d = await api('api/isolation', Object.assign({s: ST.sid}, ch));
+  if(d.error) return;
+  await loadSession(ST.sid);
+  status('reopened ' + esc(ST.name) + ': ' + esc(ISO_TEXT[ch.level][0].toLowerCase()));
+}
+async function forceStop(){
+  status('restarting the network&hellip;');
+  const d = await run('kill');
+  if(d.error) return;
+  await loadSession(ST.sid);
+  status('the network was restarted from its last autosave');
+}
+
 /* ------------------------------------------------------------ menus */
 function menu(ev, items){
   const m = $('menu'); m.innerHTML = '';
@@ -698,6 +797,9 @@ const fileMenu = ev => menu(ev, [
   ['Download the network folder (zip)', () => { location.href = 'api/download?s=' + ST.sid + '&t=' + encodeURIComponent(T); }],
   '-',
   ['Rename network…', () => { const nm = prompt('Network name', ST.name); if(nm) edit('rename_network', {name: nm}); }],
+  '-',
+  ['Isolation of this network…', changeIsolation, !(ST.iso && ST.iso.available)],
+  ['Force stop (restart its sandbox)', forceStop, isolated() ? false : true],
 ]);
 const editMenu = ev => {
   const sel = ED.selection();
@@ -757,7 +859,18 @@ async function examplesDialog(){
     it.innerHTML = '&#128200; ' + esc(x.name) + '<span class=sz>' + x.nodes + ' nodes</span>';
     it.onclick = async () => {
       closeModal();
-      const r = await api('api/example', {name: x.file});
+      const body = {name: x.file};
+      const st = ST.iso || await loadIsoSettings();
+      if(st && st.available){
+        // the same choice as for a file; it is not remembered (examples come with WEWoS)
+        const ch = await isolationChooser('Open the example ' + x.name,
+          {level: st.open_level, internet: st.internet}, 'Open',
+          'Examples come with WEWoS, but like any network they run code. How should this one run?');
+        if(!ch) return;
+        Object.assign(body, ch);
+      }
+      status('opening ' + esc(x.name) + '&hellip;');
+      const r = await api('api/example', body);
       if(!r.error) loadSession(r.session);
     };
     const gr = groups.get(g);
@@ -775,8 +888,23 @@ async function newNetwork(){
 }
 async function openUpload(file, kind){
   if(!file) return;
+  const st = ST.iso || await loadIsoSettings();
+  let q = '&level=unrestricted';
+  if(st && st.available){
+    const ch = await isolationChooser((kind === 'import' ? 'Import ' : 'Open ') + file.name,
+      {level: st.open_level, internet: st.internet}, kind === 'import' ? 'Import' : 'Open',
+      'A network file is a program: opening it runs the code of its nodes, and running it runs ' +
+      'the rest. How should this one run?');
+    if(!ch) return;
+    // the choice is the default for the next file
+    const pref = {open_level: ch.level, internet: ch.level === 'unrestricted' ? st.internet : ch.internet};
+    if(pref.open_level !== st.open_level || pref.internet !== st.internet){
+      const s2 = await api('api/settings', pref); if(!s2.error) ST.iso = s2; }
+    q = '&level=' + ch.level + '&internet=' + (ch.internet ? 1 : 0) +
+        ch.grants.map(g => '&grant=' + encodeURIComponent(g)).join('');
+  }
   status((kind === 'import' ? 'importing ' : 'opening ') + esc(file.name) + '&hellip;');
-  const d = await api('api/' + kind + '?name=' + encodeURIComponent(file.name), null, file);
+  const d = await api('api/' + kind + '?name=' + encodeURIComponent(file.name) + q, null, file);
   if(d.error) return;
   await loadSession(d.session);
   if(kind === 'import' && d.report){
@@ -808,7 +936,10 @@ async function refreshSessions(){
   const s = $('sessions'); s.innerHTML = '';
   d.sessions.forEach(x => {
     const o = document.createElement('option');
-    o.value = x.session; o.textContent = x.name + ' (' + x.nodes + ' nodes)';
+    const lv = (x.isolation || {}).level;
+    o.value = x.session;
+    o.textContent = (lv === 'sandboxed' ? '\u{1F6E1} ' : lv === 'readonly' ? '\u{1F6E1}r ' : '') +
+                    x.name + ' (' + x.nodes + ' nodes' + (x.status === 'stopped' ? ', stopped' : '') + ')';
     if(x.session === ST.sid) o.selected = true;
     s.append(o);
   });
@@ -820,7 +951,25 @@ $('sessions').onfocus = refreshSessions;
 $('b_run').onclick = () => run('run');
 $('b_hardrun').onclick = () => run('hardrun');
 $('b_pause').onclick = () => run(ST.exec === 'pause' ? 'resume' : 'pause');
-$('b_stop').onclick = () => run('stop');
+$('b_stop').onclick = async () => {
+  await run('stop');
+  if(!isolated()) return;
+  // stopping waits for the running node to finish: offer to end an isolated
+  // network's process when that does not happen
+  const sid = ST.sid;
+  setTimeout(() => {
+    if(ST.sid !== sid || (ST.exec !== 'running' && ST.exec !== 'stop')) return;
+    const box = document.createElement('div');
+    box.innerHTML = '<p>The network has not stopped: a node is still busy, and stopping waits for it to finish.</p>' +
+      '<p><b>Force stop</b> ends the network\'s sandbox and starts it again from its last autosave. ' +
+      'The results of this run are lost; the network itself is kept.</p>' +
+      '<div class=btns style="display:flex;gap:6px"><button class=primary id=fs_go>Force stop</button><button id=fs_wait>Keep waiting</button></div>';
+    modal('Stop ' + ST.name, box);
+    box.querySelector('#fs_go').onclick = () => { closeModal(); forceStop(); };
+    box.querySelector('#fs_wait').onclick = closeModal;
+  }, 5000);
+};
+$('isolation').onclick = () => changeIsolation();
 $('b_auto').onchange = e => edit('run_on_new_data', {value: e.target.checked});
 $('logclear').onclick = e => { e.preventDefault(); $('log').textContent = ''; $('loglen').textContent = ''; };
 $('theme').onclick = () => {
@@ -897,6 +1046,7 @@ VIEW3D.init($('viewers'), {
 });
 (async function start(){
   await loadLibraries();
+  await loadIsoSettings();
   const q = new URLSearchParams(location.search);
   const sid = q.get('session');
   if(sid && await loadSession(sid)) return;
