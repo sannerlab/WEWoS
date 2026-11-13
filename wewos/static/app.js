@@ -663,7 +663,7 @@ function showIsolation(){
   b.title = ISO_TEXT[iso.level] ? ISO_TEXT[iso.level][1] + (iso.internet ? ' It may use the internet.' : ' No internet.') +
             ' Click to change.' : '';
 }
-// opts: {askBox: show "Don't ask me again", dontAsk: its state, noGrants: no folders to grant}
+// opts: {askBox: show "Don't ask me again", dontAsk: its state, askNote: a line (HTML) under it}
 function isolationChooser(title, init, okLabel, intro, opts){
   opts = opts || {};
   return new Promise(resolve => {
@@ -689,7 +689,7 @@ function isolationChooser(title, init, okLabel, intro, opts){
       '<textarea id=iso_g spellcheck=false placeholder="/path/to/data"></textarea></div>' +
       '<p class="note dim">Fetch PDB works at every level: without internet access, WEWoS downloads the entry for the network.</p>' +
       (opts.askBox ? '<label class=chk><input type=checkbox id=iso_noask> Don\'t ask me again: open networks in this mode</label>' +
-        '<p class="note dim" id=iso_noask_note>File &gt; Execution mode for opened networks&hellip; shows this choice again.</p>' : '') +
+        (opts.askNote ? '<p class="note dim" id=iso_noask_note>' + opts.askNote + '</p>' : '') : '') +
       '<div class=btns style="display:flex;gap:6px"><button class=primary id=iso_ok>' + esc(okLabel) +
       '</button><button id=iso_cancel>Cancel</button></div>';
     modal(title, box);
@@ -705,7 +705,7 @@ function isolationChooser(title, init, okLabel, intro, opts){
       level = (radios.find(r => r.checked) || {}).value || minimum;
       net.disabled = level === 'unrestricted';
       box.querySelector('#iso_warn').hidden = !(level === 'readonly' && net.checked);
-      box.querySelector('#iso_grants').hidden = level !== 'sandboxed' || !!opts.noGrants;
+      box.querySelector('#iso_grants').hidden = level !== 'sandboxed';
     };
     const noask = box.querySelector('#iso_noask');
     if(noask) noask.checked = !!opts.dontAsk;
@@ -716,7 +716,7 @@ function isolationChooser(title, init, okLabel, intro, opts){
     box.querySelector('#iso_cancel').onclick = () => done(null);
     box.querySelector('#iso_ok').onclick = () => done({
       level, internet: level === 'unrestricted' ? true : net.checked, dontAsk: !!(noask && noask.checked),
-      grants: level === 'sandboxed' && !opts.noGrants ? box.querySelector('#iso_g').value.split('\n').map(x => x.trim()).filter(Boolean) : []});
+      grants: level === 'sandboxed' ? box.querySelector('#iso_g').value.split('\n').map(x => x.trim()).filter(Boolean) : []});
   });
 }
 // how a network about to be opened runs: the saved choice when the user said
@@ -727,7 +727,8 @@ async function chooseOpenLevel(title, intro, save){
   const st = ST.iso || await loadIsoSettings();
   if(!st || !st.available) return {level: 'unrestricted', internet: true, grants: []};
   if(st.ask === false) return {level: st.open_level, internet: st.internet, grants: [], saved: true};
-  const ch = await isolationChooser(title, {level: st.open_level, internet: st.internet}, 'Open', intro, {askBox: true});
+  const ch = await isolationChooser(title, {level: st.open_level, internet: st.internet}, 'Open', intro,
+    {askBox: true, askNote: 'File &gt; Execution mode&hellip; (or the badge in the toolbar) shows this choice again.'});
   if(!ch) return null;
   const pref = {};
   if(save || ch.dontAsk){
@@ -741,33 +742,41 @@ async function chooseOpenLevel(title, intro, save){
 }
 function savedModeNote(ch){
   return ch && ch.saved ? ' (' + esc(ISO_TEXT[ch.level][0].toLowerCase()) + (ch.internet && ch.level !== 'unrestricted' ? ', internet' : '') +
-    ', your saved choice: File &gt; Execution mode for opened networks&hellip; changes it)' : '';
+    ', your saved choice: File &gt; Execution mode&hellip; changes it)' : '';
 }
-// File > Execution mode for opened networks...: the saved choice, and whether to ask
-async function openModeDefaults(){
-  const st = ST.iso || await loadIsoSettings();
-  if(!st || !st.available){ reportDialog('Execution mode', [st ? st.reason : 'the server did not answer']); return; }
-  const ch = await isolationChooser('Execution mode for opened networks', {level: st.open_level, internet: st.internet},
-    'Save', 'How the networks you open from a file, import or take from the examples run.',
-    {askBox: true, dontAsk: st.ask === false, noGrants: true});
-  if(!ch) return;
-  const s2 = await api('api/settings', {open_level: ch.level, internet: ch.level === 'unrestricted' ? st.internet : ch.internet,
-                                        ask: !ch.dontAsk});
-  if(!s2.error){ ST.iso = s2;
-    status(ch.dontAsk ? 'networks you open now run ' + esc(ISO_TEXT[ch.level][0].toLowerCase()) + ' without asking'
-                      : 'WEWoS will ask how each network you open runs'); }
-}
+// File > Execution mode... and the badge: how this network runs, and whether the
+// networks opened later ask ("Don't ask me again"). The network is reopened only
+// when its own mode changes. Ticking or unticking the box, or picking another
+// mode while it is ticked, saves the choice for the networks opened later.
 async function changeIsolation(){
   const st = ST.iso || await loadIsoSettings();
-  if(!st || !st.available){ reportDialog('Isolation', [st ? st.reason : 'the server did not answer']); return; }
-  const ch = await isolationChooser('Isolation of ' + ST.name, ST.isolation || {level: 'unrestricted'}, 'Reopen',
-    'The network is saved, closed and opened again at the level you choose; the results of its last run are not kept.');
+  if(!st || !st.available){ reportDialog('Execution mode', [st ? st.reason : 'the server did not answer']); return; }
+  const cur = ST.isolation || {level: 'unrestricted', internet: true};
+  const asked = st.ask !== false;
+  const lower = l => esc(ISO_TEXT[l] ? ISO_TEXT[l][0].toLowerCase() : l);
+  const saved = lower(st.open_level) + (st.internet && st.open_level !== 'unrestricted' ? ' with internet access' : '');
+  const ch = await isolationChooser('Execution mode of ' + ST.name, cur, 'OK',
+    'Another mode saves this network, closes it and opens it again in that mode; the results of its last run are not kept.',
+    {askBox: true, dontAsk: !asked,
+     askNote: asked ? 'Networks you open, import or take from the examples ask how they run.'
+                    : 'Networks you open, import or take from the examples run ' + saved + ', without asking.'});
   if(!ch) return;
+  const same = (a, b) => JSON.stringify(a || []) === JSON.stringify(b || []);
+  const moved = ch.level !== cur.level || (ch.level !== 'unrestricted' && !!ch.internet !== !!cur.internet) ||
+                !same(ch.grants, cur.level === 'sandboxed' ? cur.grants : []);
+  const pref = {};
+  if(ch.dontAsk && (asked || moved))
+    Object.assign(pref, {ask: false, open_level: ch.level, internet: ch.level === 'unrestricted' ? st.internet : ch.internet});
+  else if(!ch.dontAsk && !asked) pref.ask = true;
+  if(Object.keys(pref).length){ const s2 = await api('api/settings', pref); if(!s2.error) ST.iso = s2; }
+  const note = pref.ask === false ? 'networks you open now run ' + lower(ch.level) + ' without asking'
+             : pref.ask === true ? 'WEWoS will ask how each network you open runs' : '';
+  if(!moved){ if(note) status(note); return; }
   status('reopening ' + esc(ST.name) + '&hellip;');
-  const d = await api('api/isolation', Object.assign({s: ST.sid}, ch));
+  const d = await api('api/isolation', {s: ST.sid, level: ch.level, internet: ch.internet, grants: ch.grants});
   if(d.error) return;
   await loadSession(ST.sid);
-  status('reopened ' + esc(ST.name) + ': ' + esc(ISO_TEXT[ch.level][0].toLowerCase()));
+  status('reopened ' + esc(ST.name) + ': ' + lower(ch.level) + (note ? '; ' + note : ''));
 }
 async function forceStop(){
   status('restarting the network&hellip;');
@@ -858,8 +867,7 @@ const fileMenu = ev => menu(ev, [
   '-',
   ['Rename network…', () => { const nm = prompt('Network name', ST.name); if(nm) edit('rename_network', {name: nm}); }],
   '-',
-  ['Isolation of this network…', changeIsolation, !(ST.iso && ST.iso.available)],
-  ['Execution mode for opened networks…', openModeDefaults, !(ST.iso && ST.iso.available)],
+  ['Execution mode…', changeIsolation, !(ST.iso && ST.iso.available)],
   ['Force stop (restart its sandbox)', forceStop, isolated() ? false : true],
 ]);
 const editMenu = ev => {

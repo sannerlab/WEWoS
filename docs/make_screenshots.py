@@ -475,6 +475,9 @@ def images(p):
 def files(p):
     with open(os.path.join(TUTORIAL, 'cartoon', 'cartoon2b_net.py')) as fh:
         text = fh.read()
+    # the dialog as a first-time user sees it: sandboxed offered, asked each time
+    # (the run's folder keeps the choice the last run made)
+    p.js("api('api/settings', {open_level: 'sandboxed', internet: false, ask: true}).then(s => { ST.iso = s; return 1; })")
     # void: openUpload's promise waits for the dialog this scene answers below
     p.js("void openUpload(new File([%s], 'cartoon2b_net.py'), 'import')" % json.dumps(text))
     # importing asks how the network runs (unless told not to ask again)
