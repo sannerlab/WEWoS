@@ -1,10 +1,11 @@
 # Author: Michel Sanner, PhD. Copyright (c) 2026.
 """The process that holds one isolated network (see wewos/isolation.py).
 
-    python -m wewos.worker --fd N
+    python -m wewos.worker --rfd R --wfd W
 
-It is started by the server inside a bubblewrap sandbox, and answers the
-server's calls on the socket N (wewos/ipc.py) with an ordinary Session: the
+It is started by the server inside a sandbox (bubblewrap on Linux,
+sandbox-exec on macOS), reads the server's calls on the pipe R and answers on
+the pipe W (wewos/ipc.py), with an ordinary Session: the
 network, its runs and its events live here, and the server only passes the
 page's requests on. Its limits (memory, file size) are set before any code of
 the network runs, and cannot be raised again from inside.
@@ -14,7 +15,6 @@ import base64
 import json
 import os
 import resource
-import socket
 import sys
 import threading
 
@@ -39,15 +39,30 @@ METHODS = {
 
 
 def limit(memory, filesize):
-    """Lower both the soft and the hard limits: the network cannot raise them."""
+    """Lower both the soft and the hard limits: the network cannot raise them.
+    A limit the system does not take (macOS and the address space) is skipped."""
     for res, value in ((resource.RLIMIT_AS, memory), (resource.RLIMIT_FSIZE, filesize),
                        (resource.RLIMIT_CORE, 0)):
         if value is None:
             continue
-        soft, hard = resource.getrlimit(res)
-        if hard != resource.RLIM_INFINITY:
-            value = min(value, hard)
-        resource.setrlimit(res, (value, value))
+        try:
+            soft, hard = resource.getrlimit(res)
+            if hard != resource.RLIM_INFINITY:
+                value = min(value, hard)
+            resource.setrlimit(res, (value, value))
+        except (ValueError, OSError):
+            pass
+
+
+def watch_parent():
+    """End when the server ends. Its pipe closing ends the worker already; this
+    also covers a server killed while the worker's main thread is busy."""
+    import time
+    first = os.getppid()
+    while True:
+        time.sleep(2)
+        if os.getppid() != first:
+            os._exit(0)
 
 
 def init(a):
@@ -113,15 +128,16 @@ def handle(name, a):
 def main(argv=None):
     global CHANNEL
     p = argparse.ArgumentParser(prog='wewos.worker')
-    p.add_argument('--fd', type=int, required=True)
+    p.add_argument('--rfd', type=int, required=True, help='pipe of the server\'s calls')
+    p.add_argument('--wfd', type=int, required=True, help='pipe of the answers')
     p.add_argument('--memory', type=int, default=None, help='address space limit, bytes')
     p.add_argument('--filesize', type=int, default=None, help='largest file, bytes')
     a = p.parse_args(argv)
     limit(a.memory, a.filesize)
-    from wewos.ipc import Channel
+    from wewos.ipc import Channel, Pipes
     done = threading.Event()
-    sock = socket.socket(fileno=a.fd)
-    CHANNEL = Channel(sock, handle, on_close=lambda reason: done.set())
+    threading.Thread(target=watch_parent, daemon=True).start()
+    CHANNEL = Channel(Pipes(a.rfd, a.wfd), handle, on_close=lambda reason: done.set())
     done.wait()
     os._exit(0)              # run threads of the network end with the process
 

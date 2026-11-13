@@ -4,7 +4,7 @@
 A network file is a program: opening it runs its nodes' edited code, and
 running it runs every node, some of which evaluate their widget values as
 Python. A network the user does not trust therefore runs in a worker process
-(wewos/worker.py) confined with bubblewrap (Linux), at one of three levels:
+(wewos/worker.py) confined by the operating system, at one of three levels:
 
   sandboxed     its code sees only its own folder (read-write), the Python
                 environment and the system libraries (read-only), and the
@@ -13,22 +13,29 @@ Python. A network the user does not trust therefore runs in a worker process
                 its own folder
   unrestricted  no worker: the network runs in the server, as it always did
 
-In both confined levels the worker has its own process, IPC, user and
-network namespaces; no internet unless allowed for that network (Fetch PDB
-still works: the server downloads the checked PDB id for it); memory and file
-size limits; and it dies with the server. The server passes the page's
-requests on (IsolatedSession has the Session methods the server uses) and
-never follows a path the worker could have planted in its folder.
+The confinement:
+  Linux   bubblewrap: the worker has its own process, IPC, user and network
+          namespaces and sees only the files of its level (bind mounts)
+  macOS   sandbox-exec, with a profile written for the level (macos_profile):
+          what the worker may read and write, and whether it may use the
+          network
+In both, no internet unless allowed for that network (Fetch PDB still works:
+the server downloads the checked PDB id for it), memory and file size limits,
+and the worker ends with the server. The server and the worker talk over two
+pipes (wewos/ipc.py), which no network rule affects. The server passes the
+page's requests on (IsolatedSession has the Session methods the server uses)
+and never follows a path the worker could have planted in its folder.
 """
 import base64
 import os
 import shutil
-import socket
+import signal
 import subprocess
 import sys
+import tempfile
 import threading
 
-from .ipc import Channel, ChannelClosed, RemoteError
+from .ipc import Channel, ChannelClosed, Pipes, RemoteError
 
 LEVELS = ('sandboxed', 'readonly', 'unrestricted')
 STRICTNESS = {'unrestricted': 0, 'readonly': 1, 'sandboxed': 2}
@@ -40,6 +47,13 @@ START_TIMEOUT = 180.0          # importing the libraries and opening the network
 UPLOAD_PIECE = 8 << 20
 FILE_LIMIT = 4 << 30           # the largest file the network may write
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SANDBOX_EXEC = '/usr/bin/sandbox-exec'
+# what a sandboxed network may read on macOS besides its environment: the
+# system, its libraries, fonts and time zones, and Homebrew's prefixes
+MACOS_SYSTEM = ('/System', '/usr/lib', '/usr/libexec', '/usr/share', '/usr/bin', '/bin',
+                '/usr/sbin', '/sbin', '/private/etc', '/private/var/db/timezone',
+                '/private/var/db/dyld', '/Library/Fonts', '/Library/Frameworks',
+                '/opt/homebrew', '/usr/local')
 _probe = None
 
 
@@ -66,25 +80,54 @@ def available():
     """(True, '') when networks can be isolated here, else (False, why)."""
     global _probe
     if _probe is None:
-        if not sys.platform.startswith('linux'):
-            _probe = (False, 'isolating a network needs Linux (bubblewrap); this server runs on %s'
-                      % sys.platform)
-        elif shutil.which('bwrap') is None:
-            _probe = (False, 'isolating a network needs bubblewrap (bwrap), which is not '
-                             'installed; on Debian or Ubuntu: apt install bubblewrap')
+        if sys.platform.startswith('linux'):
+            _probe = _probe_linux()
+        elif sys.platform == 'darwin':
+            _probe = _probe_macos()
         else:
-            try:
-                r = subprocess.run(['bwrap', '--unshare-all', '--ro-bind', '/', '/', '--dev', '/dev',
-                                    '--proc', '/proc', '--die-with-parent', 'true'],
-                                   stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=20)
-                ok = r.returncode == 0
-                why = r.stdout.decode('utf-8', 'replace').strip()
-            except (OSError, subprocess.SubprocessError) as e:
-                ok, why = False, str(e)
-            _probe = (True, '') if ok else (
-                False, 'bubblewrap cannot create a sandbox here (%s); unprivileged user '
-                       'namespaces may be disabled' % (why or 'it failed'))
+            _probe = (False, 'isolating a network needs Linux (bubblewrap) or macOS '
+                             '(sandbox-exec); this server runs on %s' % sys.platform)
     return _probe
+
+
+def _probe_linux():
+    if shutil.which('bwrap') is None:
+        return (False, 'isolating a network needs bubblewrap (bwrap), which is not '
+                       'installed; on Debian or Ubuntu: apt install bubblewrap')
+    try:
+        r = subprocess.run(['bwrap', '--unshare-all', '--ro-bind', '/', '/', '--dev', '/dev',
+                            '--proc', '/proc', '--die-with-parent', 'true'],
+                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=20)
+        ok, why = r.returncode == 0, r.stdout.decode('utf-8', 'replace').strip()
+    except (OSError, subprocess.SubprocessError) as e:
+        ok, why = False, str(e)
+    return (True, '') if ok else (
+        False, 'bubblewrap cannot create a sandbox here (%s); unprivileged user '
+               'namespaces may be disabled' % (why or 'it failed'))
+
+
+def _probe_macos():
+    """sandbox-exec with the real profile of a sandboxed network: Python,
+    numpy and the worker must start under it."""
+    if not os.path.exists(SANDBOX_EXEC):
+        return (False, 'isolating a network needs %s, which this macOS does not have' % SANDBOX_EXEC)
+    folder = tempfile.mkdtemp(prefix='wewos-probe-')
+    try:
+        _prepare_home(folder)
+        args, env, kw = command('sandboxed', False, folder, None, None)
+        args = args[:args.index(sys.executable)] + [
+            sys.executable, '-c', 'import numpy, wewos.worker, wewos.session; print("sandbox ok")']
+        r = subprocess.run(args, env=env, cwd=folder, stdout=subprocess.PIPE,
+                           stderr=subprocess.STDOUT, timeout=120)
+        out = r.stdout.decode('utf-8', 'replace').strip()
+        if r.returncode == 0 and out.endswith('sandbox ok'):
+            return (True, '')
+        return (False, 'sandbox-exec could not run WEWoS under its profile: %s'
+                       % (out.splitlines()[-1] if out else 'exit code %s' % r.returncode))
+    except (OSError, subprocess.SubprocessError) as e:
+        return (False, 'sandbox-exec failed: %s' % e)
+    finally:
+        shutil.rmtree(folder, ignore_errors=True)
 
 
 def memory_limit():
@@ -131,8 +174,44 @@ def read_only_paths(user_libraries=None):
     return out
 
 
-def command(level, internet, folder, fd, grants=(), user_libraries=None):
-    """The bwrap command line that starts a worker on socket fd."""
+def environment(level, folder):
+    """The worker's environment variables: no secret of the server's, its home
+    and temporary files inside its folder."""
+    folder = _real(folder)
+    home = os.path.join(folder, '.wewos')
+    env = {'PATH': os.pathsep.join([os.path.join(sys.prefix, 'bin'), '/usr/bin', '/bin']),
+           'PYTHONPATH': REPO, 'PYTHONNOUSERSITE': '1', 'PYTHONIOENCODING': 'utf-8',
+           'PYTHONDONTWRITEBYTECODE': '1', 'LANG': 'C.UTF-8', 'LC_ALL': 'C.UTF-8', 'HOME': home,
+           'TMPDIR': '/tmp' if sys.platform.startswith('linux') else os.path.join(home, 'tmp'),
+           'MPLCONFIGDIR': os.path.join(home, 'matplotlib'), 'MPLBACKEND': 'Agg',
+           'WEWOS_ISOLATION': level}
+    for k in ('LD_LIBRARY_PATH', 'ADS_ROOT', 'OMP_NUM_THREADS', 'OPENBLAS_NUM_THREADS'):
+        if os.environ.get(k):
+            env[k] = os.environ[k]
+    return env
+
+
+def worker_args(rfd, wfd):
+    args = [sys.executable, '-m', 'wewos.worker', '--rfd', str(rfd), '--wfd', str(wfd),
+            '--filesize', str(FILE_LIMIT)]
+    mem = memory_limit()
+    if mem:
+        args += ['--memory', str(mem)]
+    return args
+
+
+def command(level, internet, folder, rfd, wfd, grants=(), user_libraries=None):
+    """(args, env, popen keywords) that start a worker reading the server's
+    calls on rfd and answering on wfd."""
+    if sys.platform == 'darwin':
+        profile = macos_profile(level, internet, folder, grants, user_libraries)
+        return ([SANDBOX_EXEC, '-p', profile] + worker_args(rfd, wfd),
+                environment(level, folder), {'cwd': _real(folder), 'start_new_session': True})
+    return bwrap_command(level, internet, folder, rfd, wfd, grants, user_libraries), None, {}
+
+
+def bwrap_command(level, internet, folder, rfd, wfd, grants=(), user_libraries=None):
+    """The bwrap command line of a worker (Linux)."""
     folder = _real(folder)
     args = ['bwrap', '--unshare-all']
     if internet:
@@ -160,23 +239,60 @@ def command(level, internet, folder, fd, grants=(), user_libraries=None):
     for p in above:
         args += ['--ro-bind', p, p]
     args += ['--bind', folder, folder, '--chdir', folder]
-    home = os.path.join(folder, '.wewos')
-    env = {'PATH': os.pathsep.join([os.path.join(sys.prefix, 'bin'), '/usr/bin', '/bin']),
-           'PYTHONPATH': REPO, 'PYTHONNOUSERSITE': '1', 'PYTHONIOENCODING': 'utf-8',
-           'LANG': 'C.UTF-8', 'LC_ALL': 'C.UTF-8', 'HOME': home, 'TMPDIR': '/tmp',
-           'MPLCONFIGDIR': os.path.join(home, 'matplotlib'), 'MPLBACKEND': 'Agg',
-           'WEWOS_ISOLATION': level}
-    for k in ('LD_LIBRARY_PATH', 'ADS_ROOT', 'OMP_NUM_THREADS', 'OPENBLAS_NUM_THREADS'):
-        if os.environ.get(k):
-            env[k] = os.environ[k]
     args.append('--clearenv')
-    for k, v in sorted(env.items()):
+    for k, v in sorted(environment(level, folder).items()):
         args += ['--setenv', k, v]
-    args += [sys.executable, '-m', 'wewos.worker', '--fd', str(fd), '--filesize', str(FILE_LIMIT)]
-    mem = memory_limit()
-    if mem:
-        args += ['--memory', str(mem)]
-    return args
+    return args + worker_args(rfd, wfd)
+
+
+def _sb(path):
+    """A path as a string of the sandbox profile language."""
+    return '"%s"' % path.replace('\\', '\\\\').replace('"', '\\"')
+
+
+def macos_profile(level, internet, folder, grants=(), user_libraries=None):
+    """The sandbox-exec profile (SBPL) of a worker (macOS). Everything is denied
+    but what Python needs to run, the files of the level, and the network when
+    it is allowed. Paths are real paths: /tmp and /var are /private/... there."""
+    folder = _real(folder)
+    rules = [
+        '(version 1)',
+        '(deny default)',
+        '(allow process-fork)',
+        '(allow process-exec*)',                 # what it starts keeps this profile
+        '(allow signal (target self))',
+        '(allow sysctl-read)',
+        '(allow file-read-metadata)',            # stat, so that paths resolve; not contents
+        '(allow ipc-posix-shm*)',
+        '(allow ipc-posix-sem*)',
+        '(allow mach-lookup (global-name "com.apple.system.opendirectoryd.libinfo")'
+        ' (global-name "com.apple.system.notification_center")'
+        ' (global-name "com.apple.system.logger")'
+        ' (global-name "com.apple.CoreServices.coreservicesd")'
+        ' (global-name "com.apple.fonts") (global-name "com.apple.FontObjectsServer"))',
+        '(allow file-read* file-write-data file-ioctl (literal "/dev/null") (literal "/dev/zero")'
+        ' (literal "/dev/dtracehelper") (literal "/dev/tty"))',
+        '(allow file-read* (literal "/dev/random") (literal "/dev/urandom"))',
+    ]
+    if level == 'readonly':
+        rules.append('(allow file-read*)')
+    else:
+        roots = [p for p in MACOS_SYSTEM if os.path.exists(p)] + read_only_paths(user_libraries) + \
+                [_real(g) for g in grants or () if os.path.exists(_real(g))]
+        seen = []
+        for p in roots:
+            p = _real(p)
+            if p not in seen:
+                seen.append(p)
+        rules.append('(allow file-read*\n  %s)' % '\n  '.join('(subpath %s)' % _sb(p) for p in seen))
+    rules.append('(allow file-read* file-write* (subpath %s))' % _sb(folder))
+    if internet:
+        rules += ['(allow system-socket)', '(allow network-outbound)',
+                  '(allow mach-lookup (global-name "com.apple.dnssd.service")'
+                  ' (global-name "com.apple.SystemConfiguration.configd")'
+                  ' (global-name "com.apple.SystemConfiguration.DNSConfiguration")'
+                  ' (global-name "com.apple.trustd") (global-name "com.apple.trustd.agent"))']
+    return '\n'.join(rules) + '\n'
 
 
 class _Launcher(object):
@@ -229,7 +345,10 @@ def _prepare_home(folder):
     if os.path.islink(home) or os.path.islink(mpl):
         return                       # planted by the network: leave it alone
     os.makedirs(mpl, exist_ok=True)
+    os.makedirs(os.path.join(home, 'tmp'), exist_ok=True)     # TMPDIR on macOS
     src = os.environ.get('MPLCONFIGDIR') or os.path.expanduser('~/.cache/matplotlib')
+    if not os.path.isdir(src):
+        src = os.path.expanduser('~/.matplotlib')                 # macOS
     try:
         for f in os.listdir(src):
             if f.startswith('fontlist') and f.endswith('.json'):
@@ -268,15 +387,20 @@ class IsolatedSession(object):
         first = not os.path.exists(os.path.join(self.folder, '.wewos'))
         if first:
             _prepare_home(self.folder)
-        parent, child = socket.socketpair()
-        cmd = command(self.isolation['level'], self.isolation['internet'], self.folder,
-                      child.fileno(), self.isolation['grants'], self.user_libraries)
-        self.proc = launch(lambda: subprocess.Popen(
-            cmd, pass_fds=(child.fileno(),), stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT, close_fds=True))
-        child.close()
+        # two pipes: the server's calls go down one, the answers come up the other
+        down_r, down_w = os.pipe()
+        up_r, up_w = os.pipe()
+        args, env, kw = command(self.isolation['level'], self.isolation['internet'], self.folder,
+                                down_r, up_w, self.isolation['grants'], self.user_libraries)
+        try:
+            self.proc = launch(lambda: subprocess.Popen(
+                args, pass_fds=(down_r, up_w), stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT, close_fds=True, env=env, **kw))
+        finally:
+            os.close(down_r)
+            os.close(up_w)
         threading.Thread(target=self._output, args=(self.proc,), daemon=True).start()
-        self.chan = Channel(parent, self._service)
+        self.chan = Channel(Pipes(up_r, down_w), self._service)
         try:
             d = self._call('init', {
                 'sid': self.id, 'folder': self.folder, 'name': self.name, 'created': self.created,
@@ -308,7 +432,13 @@ class IsolatedSession(object):
     def kill(self):
         p = self.proc
         if p is not None and p.poll() is None:
-            p.kill()
+            if sys.platform == 'darwin':
+                try:
+                    os.killpg(p.pid, signal.SIGKILL)     # the worker and what it started
+                except OSError:
+                    p.kill()
+            else:
+                p.kill()
             try:
                 p.wait(10)
             except subprocess.TimeoutExpired:

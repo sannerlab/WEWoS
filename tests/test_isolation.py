@@ -399,3 +399,39 @@ def test_an_example_opens_at_the_level_asked_for():
         check(os.path.isdir(os.path.join(s.folder, 'data')))     # its data came along
     finally:
         _close(app)
+
+
+def test_macos_profile_for_each_level():
+    """The sandbox-exec profile (macOS), checked as text here: it runs only on
+    a Mac, where available() also starts Python and the worker under it."""
+    import sys
+    import tempfile
+    folder = os.path.realpath(tempfile.mkdtemp(prefix='wewos-prof-', dir=outdir('macos')))
+    grant = os.path.realpath(outdir('macos_grant'))
+    sb = isolation.macos_profile('sandboxed', False, folder, [grant])
+    ro = isolation.macos_profile('readonly', False, folder)
+    net = isolation.macos_profile('readonly', True, folder)
+    for p in (sb, ro, net):
+        eq(p.count('('), p.count(')'))
+        check(p.startswith('(version 1)\n(deny default)\n'), p[:40])
+        check('(allow file-read* file-write* (subpath "%s"))' % folder in p, p)
+        check('(allow file-write*)' not in p and 'file-write* (subpath "/' + '"' not in p)
+    check('(allow file-read*)' not in sb, 'a sandboxed network must not read everything')
+    check('(subpath "%s")' % grant in sb and '(subpath "%s")' % os.path.realpath(sys.prefix) in sb, sb)
+    check('(allow file-read*)' in ro)
+    check('network-outbound' not in sb and 'network-outbound' not in ro and 'system-socket' not in ro)
+    check('(allow network-outbound)' in net and '(allow system-socket)' in net)
+    home = os.path.realpath(os.path.expanduser('~'))
+    check('(subpath "%s")' % home not in sb, 'the home folder must not be readable')
+    # the command line and environment a Mac would use
+    real = sys.platform
+    try:
+        sys.platform = 'darwin'
+        args, env, kw = isolation.command('sandboxed', False, folder, 7, 9)
+    finally:
+        sys.platform = real
+    eq(args[:2], [isolation.SANDBOX_EXEC, '-p'])
+    check(args[3:7] == [sys.executable, '-m', 'wewos.worker', '--rfd'] and '9' in args, args[3:])
+    eq((env['HOME'], env['TMPDIR']), (folder + '/.wewos', folder + '/.wewos/tmp'))
+    check(kw.get('start_new_session') and kw.get('cwd') == folder, kw)
+    check('SSH_AUTH_SOCK' not in env and 'DISPLAY' not in env, env)

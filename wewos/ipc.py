@@ -1,6 +1,6 @@
 # Author: Michel Sanner, PhD. Copyright (c) 2026.
 """Calls between the server and an isolated network's worker process
-(wewos/isolation.py, wewos/worker.py), over a socket pair.
+(wewos/isolation.py, wewos/worker.py), over two pipes (or a socket).
 
 Each message is a JSON object preceded by its length (8 bytes, big endian).
 A call is {id, call, args}; its answer {id, ok} or {id, error, kind, trace}.
@@ -10,12 +10,46 @@ waiting for a viewer snapshot) does not hold up the others.
 """
 import itertools
 import json
+import os
 import socket
 import struct
 import threading
 import traceback
 
 MAX_MESSAGE = 1 << 31          # 2 GB: a large scene, never more
+
+
+class Pipes(object):
+    """Two pipe ends with the calls a Channel makes on a socket. Pipes are
+    files to the operating system: no network rule of a sandbox applies."""
+
+    def __init__(self, rfd, wfd):
+        self.rfd, self.wfd = rfd, wfd
+
+    def sendall(self, data):
+        view = memoryview(data)
+        while view:
+            n = os.write(self.wfd, view)
+            view = view[n:]
+
+    def recv(self, n):
+        return os.read(self.rfd, n)
+
+    def shutdown(self, how=None):
+        self._close('wfd')            # the other side reads the end, and answers it
+
+    def close(self):
+        self._close('wfd')
+        self._close('rfd')
+
+    def _close(self, name):
+        fd = getattr(self, name)
+        if fd is not None:
+            setattr(self, name, None)
+            try:
+                os.close(fd)
+            except OSError:
+                pass
 
 
 class ChannelClosed(Exception):
@@ -155,5 +189,5 @@ class Channel(object):
     def close(self):
         try:
             self.sock.shutdown(socket.SHUT_RDWR)
-        except OSError:
+        except (OSError, AttributeError):
             pass

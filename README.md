@@ -46,8 +46,8 @@ networks and an autosave. To use a server on another machine, forward its port:
 token in its URL keeps other users of the machine and other web pages out. A network file is a
 program: opening a network runs its nodes' edited code, and running it runs every node. The
 networks you make run in the server with your permissions, as in Vision. A network you open (File >
-Open, Import, an example, or a dropped file) can run isolated, in its own process confined with
-bubblewrap (Linux):
+Open, Import, an example, or a dropped file) can run isolated, in its own process confined by the
+operating system (bubblewrap on Linux, sandbox-exec on macOS):
 
 - **Sandboxed** (the default for opened files): its code sees only its own folder and the folders you grant;
 - **Read-only**: it can read your files but write only its folder;

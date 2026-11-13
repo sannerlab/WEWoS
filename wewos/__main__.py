@@ -34,8 +34,8 @@ def main(argv=None):
                    choices=['unrestricted', 'readonly', 'sandboxed'],
                    help='the least isolation of every network, for a server others use: '
                         'readonly (reads your files, writes its folder) or sandboxed (sees '
-                        'only its folder); needs Linux and bubblewrap (default: networks you '
-                        'open from files are isolated as you choose, the others are not)')
+                        'only its folder); needs Linux (bubblewrap) or macOS (sandbox-exec) '
+                        '(default: the networks you open are isolated as you choose)')
     r = sub.add_parser('run', help='run a saved network without a browser')
     r.add_argument('network')
     r.add_argument('--set', action='append', default=[], metavar='NODE.PORT=VALUE',

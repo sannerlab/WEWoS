@@ -41,6 +41,7 @@ import io
 import json
 import os
 import secrets
+import sys
 import threading
 import traceback
 import urllib.parse
@@ -665,7 +666,8 @@ def serve(host='127.0.0.1', port=8767, outdir='~/wewos_runs', base_path='',
     ok, why = isolation.available()
     print('networks from others: %s' % (
         'every network is isolated (%s)' % minimum if minimum != 'unrestricted'
-        else 'isolated when opened (bubblewrap)' if ok else 'cannot be isolated: %s' % why),
+        else 'isolated when opened (%s)' % ('sandbox-exec' if sys.platform == 'darwin' else 'bubblewrap')
+        if ok else 'cannot be isolated: %s' % why),
         flush=True)
     miss = env.check()
     if miss:
