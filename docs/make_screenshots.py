@@ -101,6 +101,15 @@ class Page(object):
     def session(self):
         return self.httpd.app.sessions[self.js('ST.sid')]
 
+    def only_this_network(self):
+        """Close every network but the one on screen: each picture shows one network,
+        without a thin tab for every example opened before it."""
+        app = self.httpd.app
+        sid = self.js('ST.sid')
+        for k in [k for k in list(app.sessions) if k != sid]:
+            app.close(k, save=False)
+        self.js('refreshSessions().then(() => 1)')
+
     def example(self, name, run=True, fit=True):
         """Open an example network (examples/<name>) and run it all."""
         self.js("closeModal(); document.getElementById('menu').hidden = true; status('');"
@@ -111,6 +120,7 @@ class Page(object):
         cdp.wait(self.ws, "ST.sid !== %s && !!ST.nets.main && "
                  "(Object.keys(ST.nets.main.nodes).length > 0 || %s)"
                  % (json.dumps(old), json.dumps(name.endswith('00_start.wnet.json'))), 60, 'open ' + name)
+        self.only_this_network()
         self.js("if(ST.cur !== 'main') switchTab('main')")
         self.idle()
         if run:

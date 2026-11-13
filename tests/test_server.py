@@ -210,3 +210,34 @@ def test_node_info_for_the_palette_drag():
         check(_code(base + '/api/nodeinfo?lib=Standard&label=Dial') == 403)
     finally:
         httpd.shutdown()
+
+
+def test_close_network_and_the_unused_empty_one():
+    # opening a network closes the empty one a page starts with (and only such a
+    # network); closing keeps the network's folder, with a last autosave
+    httpd, base, tok = _server()
+    t = '?t=' + tok
+    try:
+        app = httpd.app
+        empty = _post(base + '/api/new' + t, {'name': 'network'})['session']
+        empty_folder = app.sessions[empty].folder
+        kept = _post(base + '/api/new' + t, {'name': 'network'})['session']
+        _post(base + '/api/edit' + t, {'s': kept, 'op': 'add', 'lib': 'Standard', 'label': 'Dial',
+                                        'pos': [0, 0]})
+        named = _post(base + '/api/new' + t, {'name': 'mine'})['session']
+        r = _post(base + '/api/example' + t, {'name': 'iterate_squares.wnet.json'})
+        eq(r['closed'], [empty])
+        open_now = {x['session'] for x in _get(base + '/api/sessions' + t)['sessions']}
+        eq(open_now, {kept, named, r['session']})
+        check(not os.path.exists(empty_folder))
+        # close: gone from the list, its folder and autosave stay; closing twice is refused
+        folder = app.sessions[kept].folder
+        c = _post(base + '/api/close' + t, {'s': kept})
+        eq(c['folder'], folder)
+        check(kept not in {x['session'] for x in _get(base + '/api/sessions' + t)['sessions']})
+        check(os.path.isfile(os.path.join(folder, 'autosave.wnet.json')))
+        check('error' in _post(base + '/api/close' + t, {'s': kept}))
+        check(_code(base + '/api/session?s=%s&t=%s' % (kept, tok)) == 400)
+        check(_code(base + '/api/close', json.dumps({'s': named}).encode()) == 403)
+    finally:
+        httpd.shutdown()

@@ -532,8 +532,11 @@ const ED = (() => {
       applyView();
     }, {passive: false});
     svg.addEventListener('dblclick', e => {
-      const nodeEl = e.target.closest && e.target.closest('.node');
-      if(!nodeEl || (e.target.closest && e.target.closest('foreignObject'))) return;
+      // pressing a node captures the pointer (to drag it), and the browser then sends
+      // the double-click to the canvas itself: look at what is under the pointer
+      const t = document.elementFromPoint(e.clientX, e.clientY) || e.target;
+      const nodeEl = t.closest && t.closest('.node');
+      if(!nodeEl || (t.closest && t.closest('foreignObject'))) return;
       cb.dblclick(nodeEl.dataset.id);
     });
     svg.addEventListener('contextmenu', e => {

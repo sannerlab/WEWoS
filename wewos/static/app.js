@@ -14,6 +14,8 @@ const ST = {
   sid: null, name: '', folder: '', seq: 0, gen: 0, exec: 'waiting', auto: true,
   nets: {},              // netid -> {id, name, nodes:{}, conns:{}, macroNode, parent}
   tabs: ['main'], cur: 'main',
+  sessions: [],          // the open networks (api/sessions), for their tabs
+  opening: 0,            // a network is being opened: the one on screen may close as unused
   libs: [], types: {}, sel: [], errors: {},
   iso: null,             // isolation settings of the server (api/settings)
   isolation: null,       // how the current network is isolated
@@ -71,9 +73,14 @@ async function loadSession(sid){
   ST.nets = {}; ST.errors = {};
   Object.values(d.networks).forEach(addNetwork);
   const q = new URLSearchParams(location.search);
-  const tab = q.get('tab');
-  ST.tabs = ['main']; ST.cur = 'main';
-  if(tab && ST.nets[tab]){ ST.tabs.push(tab); ST.cur = tab; }
+  // the macro tabs this network had open when the page last showed it, and the one in
+  // front; the tab in the address (a reload) belongs to the network it was opened in
+  const kept = recallTabs(d.session) || {};
+  ST.tabs = ['main'].concat((kept.tabs || []).filter(t => t !== 'main' && ST.nets[t]));
+  ST.cur = ST.tabs.includes(kept.cur) ? kept.cur : 'main';
+  const tab = q.get('session') === d.session ? q.get('tab') : null;
+  if(tab && ST.nets[tab]){ if(!ST.tabs.includes(tab)) ST.tabs.push(tab); ST.cur = tab; }
+  if(ST.cur === 'main') q.delete('tab'); else q.set('tab', ST.cur);
   setExec(d.execStatus); setAuto(d.runOnNewData);
   // opening a network loads the libraries it uses: show them in the palette
   const have = (ST.libs || []).map(l => l.name).sort().join('|');
@@ -96,7 +103,7 @@ async function poll(gen){
     const d = await api('api/events?s=' + encodeURIComponent(ST.sid) + '&since=' + ST.seq + '&timeout=25');
     if(gen !== ST.gen) return;
     if(d.error){
-      if(/no such network/.test(d.error)) return;
+      if(/no such network/.test(d.error)){ if(gen === ST.gen && !ST.opening) refreshSessions(); return; }
       await new Promise(r => setTimeout(r, 2000));
       continue;
     }
@@ -158,7 +165,7 @@ function applyEvents(evs){
       case 'log': logText(e.text); if(/ERROR|Traceback|Error/.test(e.text)) $('logbox').open = true; break;
       case 'saved': status('saved ' + esc(e.file)); break;
       case 'network_added': addNetwork(e.network); break;
-      case 'network_renamed': ST.name = e.name; document.title = e.name + ' · WEWoS'; break;
+      case 'network_renamed': ST.name = e.name; document.title = e.name + ' · WEWoS'; drawTabs(); refreshSessions(); break;
       case 'scene': VIEW3D.apply(e); break;
       case 'viewer': VIEW3D.viewerEvent(e); break;
       case 'image': VIEW3D.imageEvent(e); break;
@@ -327,21 +334,61 @@ function drawPalette(q){
 $('search').addEventListener('input', e => drawPalette(e.target.value));
 
 /* ------------------------------------------------------------ tabs */
+// One tab per open network, in the order they were opened, as in Vision. The
+// network on screen has a full tab, followed by the tabs of its open macros;
+// the others have thin tabs that switch to them.
+// Each network's open macro tabs, kept for this browser tab (sessionStorage), so that
+// switching to another network and back, or reloading, finds them again.
+function rememberTabs(){
+  if(!ST.sid) return;
+  try { sessionStorage.setItem('wewos.tabs.' + ST.sid, JSON.stringify({tabs: ST.tabs, cur: ST.cur})); } catch(e) {}
+}
+function recallTabs(sid){
+  try { return JSON.parse(sessionStorage.getItem('wewos.tabs.' + sid) || 'null'); } catch(e) { return null; }
+}
 function drawTabs(){
   const nav = $('tabs'); nav.innerHTML = '';
   ST.tabs = ST.tabs.filter(t => ST.nets[t]);
+  rememberTabs();
+  // 'created' is an ISO time; the server lists networks opened in the same second
+  // oldest first, and a stable sort keeps that
+  const nets = (ST.sessions || []).slice().sort((a, b) => a.created < b.created ? -1 : a.created > b.created ? 1 : 0);
+  if(!nets.some(x => x.session === ST.sid)) nets.push({session: ST.sid});
+  nets.forEach(x => {
+    if(x.session === ST.sid){ nav.append(currentTabs()); return; }
+    const lv = (x.isolation || {}).level;
+    const b = document.createElement('button');
+    b.className = 'tab thin' + (x.status === 'stopped' ? ' stopped' : '');
+    b.innerHTML = (lv === 'sandboxed' || lv === 'readonly' ? '<span class=ic>&#128737;</span>' : '') +
+                  '<span class=nm>' + esc(x.name) + '</span><span class=x title="close this network">&#10005;</span>';
+    b.title = x.name + ' (' + x.nodes + ' nodes' + (lv ? ', ' + lv : '') +
+              (x.status === 'stopped' ? ', stopped' : '') + '): click to show it';
+    b.onclick = e => {
+      if(e.target.classList.contains('x')){ closeNetwork(x.session); return; }
+      loadSession(x.session);
+    };
+    nav.append(b);
+  });
+  const on = nav.querySelector('.tab.on');
+  if(on) on.scrollIntoView({block: 'nearest', inline: 'nearest'});
+}
+function currentTabs(){
+  const g = document.createElement('span');
+  g.className = 'tabgroup';
   ST.tabs.forEach(id => {
     const b = document.createElement('button');
     b.className = 'tab' + (id === ST.cur ? ' on' : '');
     const n = id === 'main' ? null : findNode(id)[1];
     b.innerHTML = esc(id === 'main' ? (ST.name || 'network') : ('▣ ' + (n ? n.name : id))) +
-                  (id === 'main' ? '' : ' <span class=x title="close">&#10005;</span>');
+                  ' <span class=x title="' + (id === 'main' ? 'close this network' : 'close this tab') +
+                  '">&#10005;</span>';
     b.addEventListener('click', e => {
-      if(e.target.classList.contains('x')){ closeTab(id); return; }
+      if(e.target.classList.contains('x')){ if(id === 'main') closeNetwork(ST.sid); else closeTab(id); return; }
       switchTab(id);
     });
-    nav.append(b);
+    g.append(b);
   });
+  return g;
 }
 function switchTab(id){
   if(!ST.nets[id]) return;
@@ -356,6 +403,37 @@ function switchTab(id){
 function closeTab(id){
   ST.tabs = ST.tabs.filter(t => t !== id);
   if(ST.cur === id) switchTab('main'); else drawTabs();
+}
+// Close an open network on the server. Its folder stays on disk with a last autosave,
+// so File > Open brings it back. Closing the one on screen shows its neighbour in the
+// tabs, or a new empty network when it was the last.
+async function closeNetwork(sid){
+  sid = sid || ST.sid;
+  const nets = (ST.sessions || []).slice().sort((a, b) => a.created < b.created ? -1 : a.created > b.created ? 1 : 0);
+  const i = nets.findIndex(x => x.session === sid);
+  const x = nets[i] || {};
+  const name = sid === ST.sid ? ST.name : (x.name || 'this network');
+  const nodes = sid === ST.sid ? Object.keys((ST.nets.main || {nodes: {}}).nodes).length : (x.nodes || 0);
+  if(nodes && !confirm('Close ' + name + '?\n\nIts folder stays on disk with its last autosave, ' +
+                       'so File > Open can bring it back.')) return;
+  if(sid === ST.sid) ST.gen++;          // stop following it: it is about to go
+  const d = await api('api/close', {s: sid});
+  if(d.error){ if(sid === ST.sid) poll(ST.gen); return; }
+  status('closed ' + esc(name) + (nodes ? '; its folder is kept: ' + esc(d.folder) : ''));
+  try { sessionStorage.removeItem('wewos.tabs.' + sid); } catch(e) {}
+  if(sid !== ST.sid){ refreshSessions(); return; }
+  const next = nets[i + 1] || nets[i - 1];
+  if(next && await loadSession(next.session)) return;
+  await showAnotherNetwork();
+}
+// The network on screen is gone (closed here or from another page, or the server
+// restarted): show another open one, or a new empty one.
+async function showAnotherNetwork(){
+  const d = await api('api/sessions');
+  const left = (!d.error && d.sessions) || [];
+  if(left.length && await loadSession(left[0].session)) return;
+  const n = await api('api/new', {name: 'network'});
+  if(!n.error) loadSession(n.session);
 }
 
 /* ------------------------------------------------------------ parameter panel */
@@ -866,6 +944,7 @@ const fileMenu = ev => menu(ev, [
   ['Download the network folder (zip)', () => { location.href = 'api/download?s=' + ST.sid + '&t=' + encodeURIComponent(T); }],
   '-',
   ['Rename network…', () => { const nm = prompt('Network name', ST.name); if(nm) edit('rename_network', {name: nm}); }],
+  ['Close network…', () => closeNetwork(ST.sid)],
   '-',
   ['Execution mode…', changeIsolation, !(ST.iso && ST.iso.available)],
   ['Force stop (restart its sandbox)', forceStop, isolated() ? false : true],
@@ -934,9 +1013,12 @@ async function examplesDialog(){
         'Examples come with WEWoS, but like any network they run code. How should this one run?', false);
       if(!ch) return;
       status('opening ' + esc(x.name) + '&hellip;');
-      const r = await api('api/example', {name: x.file, level: ch.level, internet: ch.internet, grants: ch.grants || []});
-      if(r.error) return;
-      await loadSession(r.session);
+      ST.opening++;
+      try {
+        const r = await api('api/example', {name: x.file, level: ch.level, internet: ch.internet, grants: ch.grants || []});
+        if(r.error) return;
+        await loadSession(r.session);
+      } finally { ST.opening--; }
       if(ch.saved) status('opened ' + esc(x.name) + savedModeNote(ch));
     };
     const gr = groups.get(g);
@@ -962,9 +1044,13 @@ async function openUpload(file, kind){
   const q = '&level=' + ch.level + '&internet=' + (ch.internet ? 1 : 0) +
             (ch.grants || []).map(g => '&grant=' + encodeURIComponent(g)).join('');
   status((kind === 'import' ? 'importing ' : 'opening ') + esc(file.name) + '&hellip;');
-  const d = await api('api/' + kind + '?name=' + encodeURIComponent(file.name) + q, null, file);
-  if(d.error) return;
-  await loadSession(d.session);
+  ST.opening++;
+  let d;
+  try {
+    d = await api('api/' + kind + '?name=' + encodeURIComponent(file.name) + q, null, file);
+    if(d.error) return;
+    await loadSession(d.session);
+  } finally { ST.opening--; }
   if(ch.saved) status('opened ' + esc(file.name) + savedModeNote(ch));
   if(kind === 'import' && d.report){
     const r = d.report, lines = [];
@@ -992,6 +1078,9 @@ document.addEventListener('drop', e => {
 async function refreshSessions(){
   const d = await api('api/sessions');
   if(d.error) return;
+  ST.sessions = d.sessions;
+  if(ST.sid && !ST.opening && !d.sessions.some(x => x.session === ST.sid)){ showAnotherNetwork(); return; }
+  drawTabs();
   const s = $('sessions'); s.innerHTML = '';
   d.sessions.forEach(x => {
     const o = document.createElement('option');
@@ -1005,6 +1094,8 @@ async function refreshSessions(){
 }
 $('sessions').onchange = e => loadSession(e.target.value);
 $('sessions').onfocus = refreshSessions;
+// networks opened from another page or browser tab show up when this one is used again
+window.addEventListener('focus', refreshSessions);
 
 /* ------------------------------------------------------------ toolbar */
 $('b_run').onclick = () => run('run');
@@ -1092,7 +1183,8 @@ ED.init($('canvas'), {
   contextPort: portMenu,
   contextConn: (cid, ev) => menu(ev, [['Delete connection', () => edit('delete', {conns: [cid]})]]),
   contextCanvas: (pos, ev) => menu(ev, [['Paste', paste], ['Fit the network in view', () => ED.fit()],
-                                        ['Run (soft)', () => run('run')], ['Run all', () => run('hardrun')]]),
+                                        ['Run (soft)', () => run('run')], ['Run all', () => run('hardrun')],
+                                        '-', ['Close network…', () => closeNetwork(ST.sid)]]),
   widgetCtx: (nid, port, compact) => widgetCtx(nid, port, compact),
   paste,
 });

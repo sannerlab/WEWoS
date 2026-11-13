@@ -412,6 +412,14 @@ def test_an_example_opens_at_the_level_asked_for():
         s = app.session(d['session'])
         check(isinstance(s, isolation.IsolatedSession))
         check(os.path.isdir(os.path.join(s.folder, 'data')))     # its data came along
+        # closing it ends its sandbox; its folder stays
+        proc = s.proc
+        app.close(d['session'])
+        t = time.time()
+        while proc.poll() is None and time.time() - t < 10:
+            time.sleep(0.1)
+        check(proc.poll() is not None, 'the worker still runs after close')
+        check(d['session'] not in app.sessions and os.path.isdir(s.folder))
     finally:
         _close(app)
 

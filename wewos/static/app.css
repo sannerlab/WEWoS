@@ -68,8 +68,19 @@ input[type=text],input[type=number],input[type=search]{padding:2px 5px}
 
 /* center */
 #center{flex:1;display:flex;flex-direction:column;min-width:200px}
-#tabs{display:flex;gap:2px;padding:4px 8px 0;background:var(--card);border-bottom:1px solid var(--line);min-height:29px}
-#tabs .tab{border-radius:6px 6px 0 0;border-bottom:0;background:var(--panel);display:flex;gap:6px;align-items:center}
+#tabs{display:flex;gap:2px;padding:4px 8px 0;background:var(--card);border-bottom:1px solid var(--line);min-height:29px;align-items:flex-end}
+#tabs .tab{border-radius:6px 6px 0 0;border-bottom:0;background:var(--panel);display:flex;gap:6px;align-items:center;white-space:nowrap}
+/* the network on screen and its macros: full tabs that never shrink */
+#tabs .tabgroup{display:flex;gap:2px;flex:0 0 auto;margin:0 4px}
+#tabs .tabgroup:first-child{margin-left:0}
+/* the other open networks: thin tabs that shrink when there are many */
+#tabs .tab.thin{font-size:11px;padding:1px 6px;gap:3px;max-width:9em;min-width:2.6em;flex:0 1 auto;color:var(--dim);opacity:.85}
+#tabs .tab.thin .nm{overflow:hidden;text-overflow:ellipsis;min-width:0}
+#tabs .tab.thin .x{font-size:9px;flex:0 0 auto;opacity:.6}
+#tabs .tab .x:hover{color:var(--bad);opacity:1}
+#tabs .tab.thin .ic{font-size:10px}
+#tabs .tab.thin:hover{opacity:1;color:var(--fg,inherit)}
+#tabs .tab.thin.stopped .nm{text-decoration:line-through}
 #tabs .tab.on{background:var(--canvas);color:var(--accent);font-weight:600;position:relative;top:1px}
 #tabs .tab .x{color:var(--dim);font-weight:400}
 #canvaswrap{flex:1;position:relative;min-height:0}

@@ -32,6 +32,7 @@ Routes
   POST api/settings {open_level, internet, ask}   remember them (settings.json); ask=false:
                                 open networks at open_level without asking
   POST api/isolation {s, level, internet, grants}   reopen a network at another level
+  POST api/close {s}            close a network (its folder stays, with a last autosave)
 
 api/open and api/import take level=sandboxed|readonly|unrestricted, internet=0|1 and
 grant=<folder> (repeated) in the query: a network from someone else runs in its own
@@ -284,6 +285,7 @@ class App(object):
         report = s.load(data)
         d = s.state()
         d['report'] = report
+        d['closed'] = self.close_unused(s.id)
         return d
 
     def set_isolation(self, sid, level, internet=False, grants=()):
@@ -347,6 +349,7 @@ class App(object):
         d = s.state()
         d['report'] = report.as_dict()
         d['report']['load'] = load_report
+        d['closed'] = self.close_unused(s.id)
         return d
 
     def examples(self):
@@ -409,7 +412,63 @@ class App(object):
         report = s.load(data)
         d = s.state()
         d['report'] = report
+        d['closed'] = self.close_unused(s.id)
         return d
+
+    def close(self, sid, save=True):
+        """Close an open network: autosave it once more, stop it (an isolated one's
+        process ends) and forget it. Its folder stays on disk, so File > Open can bring
+        it back from autosave.wnet.json."""
+        with self._lock:
+            s = self.sessions.pop(sid or '', None)
+        if s is None:
+            raise Refused('no such network; it was closed or the server restarted')
+        if save:
+            try:
+                s.autosave()
+            except Exception:
+                pass
+        if isinstance(s, isolation.IsolatedSession):
+            s.kill()
+        else:
+            try:
+                s.net.stop()
+            except Exception:
+                pass
+        return {'closed': sid, 'folder': s.folder}
+
+    def close_unused(self, keep):
+        """Close the empty networks nobody used, such as the one a page starts with,
+        once another network is opened: no nodes, never saved, still named "network",
+        and nothing in its folder but an autosave. Its folder goes too (only empty
+        files and folders are removed). Isolated networks are left alone: their
+        folders are only read through the worker."""
+        with self._lock:
+            cands = [s for k, s in self.sessions.items()
+                     if k != keep and isinstance(s, Session) and not isinstance(s, isolation.IsolatedSession)]
+        closed = []
+        for s in cands:
+            if s.net.nodes or s.saved_path or s.net.name != 'network' or s.net.execStatus not in ('waiting', 'idle', 'stop'):
+                continue
+            folder = s.folder
+            try:
+                names = set(os.listdir(folder))
+                uploads = os.listdir(os.path.join(folder, 'uploads')) if 'uploads' in names else []
+            except OSError:
+                continue
+            if names - {'autosave.wnet.json', 'uploads'} or uploads:
+                continue
+            self.close(s.id, save=False)
+            closed.append(s.id)
+            try:
+                if 'autosave.wnet.json' in names:
+                    os.remove(os.path.join(folder, 'autosave.wnet.json'))
+                if 'uploads' in names:
+                    os.rmdir(os.path.join(folder, 'uploads'))
+                os.rmdir(folder)
+            except OSError:
+                pass
+        return closed
 
     def list_sessions(self):
         with self._lock:
@@ -641,6 +700,7 @@ class Handler(BaseHTTPRequestHandler):
             '/api/save': lambda: s().save(body.get('name')),
             '/api/pick': lambda: s().pick(body),
             '/api/settings': lambda: app.set_settings(body),
+            '/api/close': lambda: app.close(body.get('s')),
             '/api/isolation': lambda: app.set_isolation(body.get('s'), body.get('level'),
                                                         bool(body.get('internet')),
                                                         body.get('grants') or ()),
