@@ -29,7 +29,8 @@ Routes
   POST api/save {s, name}       save the network in the session folder
   POST api/pick {s, node, ...}  a click in a 3D viewer
   GET  api/settings             the isolation preferences, and whether isolation works here
-  POST api/settings {open_level, internet}   remember them (settings.json)
+  POST api/settings {open_level, internet, ask}   remember them (settings.json); ask=false:
+                                open networks at open_level without asking
   POST api/isolation {s, level, internet, grants}   reopen a network at another level
 
 api/open and api/import take level=sandboxed|readonly|unrestricted, internet=0|1 and
@@ -98,6 +99,7 @@ class App(object):
         if d.get('open_level') not in isolation.available_levels():
             d['open_level'] = 'sandboxed'          # files from others: isolated by default
         d['internet'] = bool(d.get('internet', False))
+        d['ask'] = bool(d.get('ask', True))       # False: open without asking, at open_level
         return d
 
     def get_settings(self):
@@ -114,6 +116,8 @@ class App(object):
             self.settings['open_level'] = level
         if 'internet' in body:
             self.settings['internet'] = bool(body['internet'])
+        if 'ask' in body:
+            self.settings['ask'] = bool(body['ask'])
         tmp = self.settings_path + '.part'
         with open(tmp, 'w') as fh:
             json.dump(self.settings, fh, indent=1)

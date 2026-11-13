@@ -338,10 +338,11 @@ def test_settings_persist_and_the_server_minimum():
     _need_bwrap()
     a = _app('settings')
     eq(a.get_settings()['open_level'], 'sandboxed')     # files from others: isolated
+    eq(a.get_settings()['ask'], True)                    # asks until told not to
     other = 'readonly' if 'readonly' in isolation.available_levels() else 'unrestricted'
-    a.set_settings({'open_level': other, 'internet': True})
+    a.set_settings({'open_level': other, 'internet': True, 'ask': False})
     b = _app('settings')
-    eq((b.settings['open_level'], b.settings['internet']), (other, True))
+    eq((b.settings['open_level'], b.settings['internet'], b.settings['ask']), (other, True, False))
     if 'readonly' not in isolation.available_levels():            # Windows
         from wewos.session import Refused
         try:

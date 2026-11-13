@@ -123,7 +123,7 @@ const ED = (() => {
       case 'number': return 38 + numberChars(w) * 7;
       case 'checkbox': return 18;
       case 'entry': return 16 + textChars(w.value, 4, 16) * 6.6;
-      case 'file': case 'dir': case 'filesave': return 38 + textChars(w.value, 6, 18) * 6.6;
+      case 'file': case 'dir': case 'filesave': return 46 + textChars(w.value, 6, 18) * 6.6;  // input padding + the … button
       case 'combo': {
         const longest = (o.choices || []).concat([w.value == null ? '' : w.value])
           .reduce((m, c) => Math.max(m, String(c == null ? '' : c).length), 0);

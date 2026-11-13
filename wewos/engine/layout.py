@@ -129,7 +129,7 @@ def widget_width(w):
     if kind == 'entry':
         return 16 + _text_chars(w.get('value'), 4, 16) * 6.6
     if kind in ('file', 'dir', 'filesave'):
-        return 38 + _text_chars(w.get('value'), 6, 18) * 6.6
+        return 46 + _text_chars(w.get('value'), 6, 18) * 6.6  # input padding + the … button
     if kind == 'combo':
         values = list(o.get('choices') or []) + [w.get('value')]
         longest = max(len('' if c is None else str(c)) for c in values)

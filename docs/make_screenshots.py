@@ -475,8 +475,17 @@ def images(p):
 def files(p):
     with open(os.path.join(TUTORIAL, 'cartoon', 'cartoon2b_net.py')) as fh:
         text = fh.read()
-    p.js("openUpload(new File([%s], 'cartoon2b_net.py'), 'import')" % json.dumps(text))
-    cdp.wait(p.ws, "!document.getElementById('modal').hidden", 60, 'import report')
+    # void: openUpload's promise waits for the dialog this scene answers below
+    p.js("void openUpload(new File([%s], 'cartoon2b_net.py'), 'import')" % json.dumps(text))
+    # importing asks how the network runs (unless told not to ask again)
+    cdp.wait(p.ws, "!!document.getElementById('iso_ok') || /^Imported/.test(document.getElementById('mtitle').textContent)",
+             60, 'execution mode dialog')
+    if p.js("!!document.getElementById('iso_ok')"):
+        p.idle(0.3)
+        p.shot('open_mode', '#modal .dialog', pad=8)
+        p.js("document.querySelector('input[value=unrestricted]').click(); document.getElementById('iso_ok').click()")
+    cdp.wait(p.ws, "!document.getElementById('modal').hidden && /^Imported/.test(document.getElementById('mtitle').textContent)",
+             120, 'import report')
     p.idle(0.8)
     p.shot('import_report', '#modal .dialog', pad=8)
     p.js('closeModal()')

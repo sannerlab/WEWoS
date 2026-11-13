@@ -663,7 +663,9 @@ function showIsolation(){
   b.title = ISO_TEXT[iso.level] ? ISO_TEXT[iso.level][1] + (iso.internet ? ' It may use the internet.' : ' No internet.') +
             ' Click to change.' : '';
 }
-function isolationChooser(title, init, okLabel, intro){
+// opts: {askBox: show "Don't ask me again", dontAsk: its state, noGrants: no folders to grant}
+function isolationChooser(title, init, okLabel, intro, opts){
+  opts = opts || {};
   return new Promise(resolve => {
     const minimum = (ST.iso && ST.iso.minimum) || 'unrestricted';
     const box = document.createElement('div');
@@ -686,6 +688,8 @@ function isolationChooser(title, init, okLabel, intro){
       '<div id=iso_grants><div class=note>Also let it read these folders (one per line):</div>' +
       '<textarea id=iso_g spellcheck=false placeholder="/path/to/data"></textarea></div>' +
       '<p class="note dim">Fetch PDB works at every level: without internet access, WEWoS downloads the entry for the network.</p>' +
+      (opts.askBox ? '<label class=chk><input type=checkbox id=iso_noask> Don\'t ask me again: open networks in this mode</label>' +
+        '<p class="note dim" id=iso_noask_note>File &gt; Execution mode for opened networks&hellip; shows this choice again.</p>' : '') +
       '<div class=btns style="display:flex;gap:6px"><button class=primary id=iso_ok>' + esc(okLabel) +
       '</button><button id=iso_cancel>Cancel</button></div>';
     modal(title, box);
@@ -701,17 +705,57 @@ function isolationChooser(title, init, okLabel, intro){
       level = (radios.find(r => r.checked) || {}).value || minimum;
       net.disabled = level === 'unrestricted';
       box.querySelector('#iso_warn').hidden = !(level === 'readonly' && net.checked);
-      box.querySelector('#iso_grants').hidden = level !== 'sandboxed';
+      box.querySelector('#iso_grants').hidden = level !== 'sandboxed' || !!opts.noGrants;
     };
+    const noask = box.querySelector('#iso_noask');
+    if(noask) noask.checked = !!opts.dontAsk;
     radios.forEach(r => r.addEventListener('change', upd));
     net.addEventListener('change', upd);
     upd();
     const done = v => { modalCancel = null; $('modal').hidden = true; resolve(v); };
     box.querySelector('#iso_cancel').onclick = () => done(null);
     box.querySelector('#iso_ok').onclick = () => done({
-      level, internet: level === 'unrestricted' ? true : net.checked,
-      grants: level === 'sandboxed' ? box.querySelector('#iso_g').value.split('\n').map(x => x.trim()).filter(Boolean) : []});
+      level, internet: level === 'unrestricted' ? true : net.checked, dontAsk: !!(noask && noask.checked),
+      grants: level === 'sandboxed' && !opts.noGrants ? box.querySelector('#iso_g').value.split('\n').map(x => x.trim()).filter(Boolean) : []});
   });
+}
+// how a network about to be opened runs: the saved choice when the user said
+// not to be asked again, else the dialog (its answer saved when save is set,
+// and "Don't ask me again" saved in any case). Returns {level, internet, grants,
+// saved} or null when cancelled.
+async function chooseOpenLevel(title, intro, save){
+  const st = ST.iso || await loadIsoSettings();
+  if(!st || !st.available) return {level: 'unrestricted', internet: true, grants: []};
+  if(st.ask === false) return {level: st.open_level, internet: st.internet, grants: [], saved: true};
+  const ch = await isolationChooser(title, {level: st.open_level, internet: st.internet}, 'Open', intro, {askBox: true});
+  if(!ch) return null;
+  const pref = {};
+  if(save || ch.dontAsk){
+    pref.open_level = ch.level;
+    pref.internet = ch.level === 'unrestricted' ? st.internet : ch.internet;
+  }
+  if(ch.dontAsk) pref.ask = false;
+  if(Object.keys(pref).some(k => pref[k] !== st[k])){
+    const s2 = await api('api/settings', pref); if(!s2.error) ST.iso = s2; }
+  return ch;
+}
+function savedModeNote(ch){
+  return ch && ch.saved ? ' (' + esc(ISO_TEXT[ch.level][0].toLowerCase()) + (ch.internet && ch.level !== 'unrestricted' ? ', internet' : '') +
+    ', your saved choice: File &gt; Execution mode for opened networks&hellip; changes it)' : '';
+}
+// File > Execution mode for opened networks...: the saved choice, and whether to ask
+async function openModeDefaults(){
+  const st = ST.iso || await loadIsoSettings();
+  if(!st || !st.available){ reportDialog('Execution mode', [st ? st.reason : 'the server did not answer']); return; }
+  const ch = await isolationChooser('Execution mode for opened networks', {level: st.open_level, internet: st.internet},
+    'Save', 'How the networks you open from a file, import or take from the examples run.',
+    {askBox: true, dontAsk: st.ask === false, noGrants: true});
+  if(!ch) return;
+  const s2 = await api('api/settings', {open_level: ch.level, internet: ch.level === 'unrestricted' ? st.internet : ch.internet,
+                                        ask: !ch.dontAsk});
+  if(!s2.error){ ST.iso = s2;
+    status(ch.dontAsk ? 'networks you open now run ' + esc(ISO_TEXT[ch.level][0].toLowerCase()) + ' without asking'
+                      : 'WEWoS will ask how each network you open runs'); }
 }
 async function changeIsolation(){
   const st = ST.iso || await loadIsoSettings();
@@ -815,6 +859,7 @@ const fileMenu = ev => menu(ev, [
   ['Rename network…', () => { const nm = prompt('Network name', ST.name); if(nm) edit('rename_network', {name: nm}); }],
   '-',
   ['Isolation of this network…', changeIsolation, !(ST.iso && ST.iso.available)],
+  ['Execution mode for opened networks…', openModeDefaults, !(ST.iso && ST.iso.available)],
   ['Force stop (restart its sandbox)', forceStop, isolated() ? false : true],
 ]);
 const editMenu = ev => {
@@ -875,19 +920,16 @@ async function examplesDialog(){
     it.innerHTML = '&#128200; ' + esc(x.name) + '<span class=sz>' + x.nodes + ' nodes</span>';
     it.onclick = async () => {
       closeModal();
-      const body = {name: x.file};
-      const st = ST.iso || await loadIsoSettings();
-      if(st && st.available){
-        // the same choice as for a file; it is not remembered (examples come with WEWoS)
-        const ch = await isolationChooser('Open the example ' + x.name,
-          {level: st.open_level, internet: st.internet}, 'Open',
-          'Examples come with WEWoS, but like any network they run code. How should this one run?');
-        if(!ch) return;
-        Object.assign(body, ch);
-      }
+      // the same choice as for a file; not remembered unless "Don't ask me again"
+      // is ticked (examples come with WEWoS)
+      const ch = await chooseOpenLevel('Open the example ' + x.name,
+        'Examples come with WEWoS, but like any network they run code. How should this one run?', false);
+      if(!ch) return;
       status('opening ' + esc(x.name) + '&hellip;');
-      const r = await api('api/example', body);
-      if(!r.error) loadSession(r.session);
+      const r = await api('api/example', {name: x.file, level: ch.level, internet: ch.internet, grants: ch.grants || []});
+      if(r.error) return;
+      await loadSession(r.session);
+      if(ch.saved) status('opened ' + esc(x.name) + savedModeNote(ch));
     };
     const gr = groups.get(g);
     gr.sec.append(it);
@@ -904,25 +946,18 @@ async function newNetwork(){
 }
 async function openUpload(file, kind){
   if(!file) return;
-  const st = ST.iso || await loadIsoSettings();
-  let q = '&level=unrestricted';
-  if(st && st.available){
-    const ch = await isolationChooser((kind === 'import' ? 'Import ' : 'Open ') + file.name,
-      {level: st.open_level, internet: st.internet}, kind === 'import' ? 'Import' : 'Open',
-      'A network file is a program: opening it runs the code of its nodes, and running it runs ' +
-      'the rest. How should this one run?');
-    if(!ch) return;
-    // the choice is the default for the next file
-    const pref = {open_level: ch.level, internet: ch.level === 'unrestricted' ? st.internet : ch.internet};
-    if(pref.open_level !== st.open_level || pref.internet !== st.internet){
-      const s2 = await api('api/settings', pref); if(!s2.error) ST.iso = s2; }
-    q = '&level=' + ch.level + '&internet=' + (ch.internet ? 1 : 0) +
-        ch.grants.map(g => '&grant=' + encodeURIComponent(g)).join('');
-  }
+  // the choice is the default for the next file
+  const ch = await chooseOpenLevel((kind === 'import' ? 'Import ' : 'Open ') + file.name,
+    'A network file is a program: opening it runs the code of its nodes, and running it runs ' +
+    'the rest. How should this one run?', true);
+  if(!ch) return;
+  const q = '&level=' + ch.level + '&internet=' + (ch.internet ? 1 : 0) +
+            (ch.grants || []).map(g => '&grant=' + encodeURIComponent(g)).join('');
   status((kind === 'import' ? 'importing ' : 'opening ') + esc(file.name) + '&hellip;');
   const d = await api('api/' + kind + '?name=' + encodeURIComponent(file.name) + q, null, file);
   if(d.error) return;
   await loadSession(d.session);
+  if(ch.saved) status('opened ' + esc(file.name) + savedModeNote(ch));
   if(kind === 'import' && d.report){
     const r = d.report, lines = [];
     lines.push(r.nodes + ' nodes, ' + r.connections + ' connections imported');

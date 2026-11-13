@@ -66,6 +66,10 @@ unless you allow it</td></tr>
 <p>Unrestricted is how WEWoS runs the networks you make yourself.</p>
 
 <h2 id="choose">Choosing a level</h2>
+<figure class="mid">
+<img src="img/open_mode.png" alt="The dialog that asks how a network file should run">
+<figcaption>Opening or importing a network asks how it runs.</figcaption>
+</figure>
 <ul>
 <li><b>File &gt; Open network</b> and <b>File &gt; Import a Vision network</b> (and dropping a file
 on the page) ask how the network should run. Sandboxed is chosen the first time; after that, the
@@ -73,6 +77,11 @@ dialog offers the level you chose last. It is remembered in <code>settings.json<
 folder of your networks.</li>
 <li><b>File &gt; Open an example</b> asks the same question, offering the level you chose last
 for a file; the choice made for an example is not remembered.</li>
+<li><b>Don't ask me again</b>, ticked in that dialog, makes the level you chose (and the internet
+choice) the one every network you open, import or take from the examples runs at, without
+asking; a line under the network says so when it opens. <b>File &gt; Execution mode for opened
+networks&hellip;</b> shows the choice again: pick another level, or untick the box to be asked
+each time.</li>
 <li>New networks, which start empty, run unrestricted.</li>
 <li>The badge next to the run status shows how the current network runs:
 <span style="white-space:nowrap">&#128737; sandboxed</span> or &#128737; read-only, with
