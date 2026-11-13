@@ -417,7 +417,11 @@ def test_macos_profile_for_each_level():
         check('(allow file-read* file-write* (subpath "%s"))' % folder in p, p)
         check('(allow file-write*)' not in p and 'file-write* (subpath "/' + '"' not in p)
     check('(allow file-read*)' not in sb, 'a sandboxed network must not read everything')
-    check('(subpath "%s")' % grant in sb and '(subpath "%s")' % os.path.realpath(sys.prefix) in sb, sb)
+    check('(subpath "%s")' % grant in sb, sb)
+    import re
+    roots = re.findall(r'\(subpath "([^"]+)"\)', sb)
+    prefix = os.path.realpath(sys.prefix)
+    check(any(prefix == r or prefix.startswith(r + '/') for r in roots), 'the environment must be readable')
     check('(allow file-read*)' in ro)
     check('network-outbound' not in sb and 'network-outbound' not in ro and 'system-socket' not in ro)
     check('(allow network-outbound)' in net and '(allow system-socket)' in net)

@@ -49,11 +49,12 @@ FILE_LIMIT = 4 << 30           # the largest file the network may write
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SANDBOX_EXEC = '/usr/bin/sandbox-exec'
 # what a sandboxed network may read on macOS besides its environment: the
-# system, its libraries, fonts and time zones, and Homebrew's prefixes
+# system, its libraries, fonts and time zones, Homebrew's prefixes, and Rosetta
+# (an Intel Python on Apple silicon: its runtime and its translation cache)
 MACOS_SYSTEM = ('/System', '/usr/lib', '/usr/libexec', '/usr/share', '/usr/bin', '/bin',
                 '/usr/sbin', '/sbin', '/private/etc', '/private/var/db/timezone',
                 '/private/var/db/dyld', '/Library/Fonts', '/Library/Frameworks',
-                '/opt/homebrew', '/usr/local')
+                '/Library/Apple', '/private/var/db/oah', '/opt/homebrew', '/usr/local')
 _probe = None
 
 
@@ -123,7 +124,7 @@ def _probe_macos():
         if r.returncode == 0 and out.endswith('sandbox ok'):
             return (True, '')
         return (False, 'sandbox-exec could not run WEWoS under its profile: %s'
-                       % (out.splitlines()[-1] if out else 'exit code %s' % r.returncode))
+                       % (' | '.join(out.splitlines()[-3:]) if out else 'exit code %s' % r.returncode))
     except (OSError, subprocess.SubprocessError) as e:
         return (False, 'sandbox-exec failed: %s' % e)
     finally:
@@ -181,7 +182,9 @@ def environment(level, folder):
     home = os.path.join(folder, '.wewos')
     env = {'PATH': os.pathsep.join([os.path.join(sys.prefix, 'bin'), '/usr/bin', '/bin']),
            'PYTHONPATH': REPO, 'PYTHONNOUSERSITE': '1', 'PYTHONIOENCODING': 'utf-8',
-           'PYTHONDONTWRITEBYTECODE': '1', 'LANG': 'C.UTF-8', 'LC_ALL': 'C.UTF-8', 'HOME': home,
+           'PYTHONDONTWRITEBYTECODE': '1', 'HOME': home,
+           'LANG': 'C.UTF-8' if sys.platform.startswith('linux') else 'en_US.UTF-8',
+           'LC_ALL': 'C.UTF-8' if sys.platform.startswith('linux') else 'en_US.UTF-8',
            'TMPDIR': '/tmp' if sys.platform.startswith('linux') else os.path.join(home, 'tmp'),
            'MPLCONFIGDIR': os.path.join(home, 'matplotlib'), 'MPLBACKEND': 'Agg',
            'WEWOS_ISOLATION': level}
@@ -258,21 +261,24 @@ def macos_profile(level, internet, folder, grants=(), user_libraries=None):
     rules = [
         '(version 1)',
         '(deny default)',
+        '(import "system.sb")',                  # Apple's base: what any process needs to start
         '(allow process-fork)',
         '(allow process-exec*)',                 # what it starts keeps this profile
         '(allow signal (target self))',
         '(allow sysctl-read)',
         '(allow file-read-metadata)',            # stat, so that paths resolve; not contents
+        '(allow file-map-executable)',           # load the libraries it may read
         '(allow ipc-posix-shm*)',
         '(allow ipc-posix-sem*)',
         '(allow mach-lookup (global-name "com.apple.system.opendirectoryd.libinfo")'
         ' (global-name "com.apple.system.notification_center")'
         ' (global-name "com.apple.system.logger")'
         ' (global-name "com.apple.CoreServices.coreservicesd")'
-        ' (global-name "com.apple.fonts") (global-name "com.apple.FontObjectsServer"))',
+        ' (global-name "com.apple.fonts") (global-name "com.apple.FontObjectsServer")'
+        ' (global-name "com.apple.oahd"))',     # Rosetta translates an Intel Python
         '(allow file-read* file-write-data file-ioctl (literal "/dev/null") (literal "/dev/zero")'
         ' (literal "/dev/dtracehelper") (literal "/dev/tty"))',
-        '(allow file-read* (literal "/dev/random") (literal "/dev/urandom"))',
+        '(allow file-read* (literal "/dev/random") (literal "/dev/urandom") (subpath "/dev/fd"))',
     ]
     if level == 'readonly':
         rules.append('(allow file-read*)')
@@ -525,3 +531,49 @@ class IsolatedSession(object):
             out = self._call('upload_part', {'name': name, 'offset': offset,
                                              'data': base64.b64encode(piece).decode('ascii')})
         return out
+
+
+def diagnose():
+    """python -m wewos.isolation: whether networks can be isolated here, and
+    if not, where it fails. On macOS: Python under the profile in steps, then
+    the sandbox's own messages about what it denied."""
+    print('platform: %s, python: %s' % (sys.platform, sys.executable))
+    if sys.platform != 'darwin':
+        print('available:', available())
+        return
+    import time
+    folder = tempfile.mkdtemp(prefix='wewos-diagnose-')
+    _prepare_home(folder)
+    profile = os.path.join(folder, 'profile.sb')
+    with open(profile, 'w') as fh:
+        fh.write(macos_profile('sandboxed', False, folder))
+    print('profile: %s' % profile)
+    env = environment('sandboxed', folder)
+    start = time.time()
+    for what, code in (('python', 'print("ok")'),
+                       ('numpy', 'import numpy; print("ok")'),
+                       ('the worker', 'import wewos.worker, wewos.session; print("ok")')):
+        r = subprocess.run([SANDBOX_EXEC, '-f', profile, sys.executable, '-c', code], env=env,
+                           cwd=folder, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=120)
+        out = r.stdout.decode('utf-8', 'replace').strip()
+        print('%-11s exit %s %s' % (what, r.returncode, out[-600:]))
+        if r.returncode != 0:
+            break
+    else:
+        print('isolation works here')
+        return
+    secs = int(time.time() - start) + 5
+    print('\nwhat the sandbox denied (macOS log, last %d s):' % secs)
+    try:
+        r = subprocess.run(['log', 'show', '--last', '%ds' % secs, '--style', 'compact',
+                            '--predicate', 'eventMessage CONTAINS "deny"'],
+                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=60)
+        lines = [l for l in r.stdout.decode('utf-8', 'replace').splitlines()
+                 if 'deny' in l and ('python' in l.lower() or 'sandbox' in l.lower())]
+        print('\n'.join(lines[-40:]) or '(nothing logged)')
+    except (OSError, subprocess.SubprocessError) as e:
+        print('could not read the log: %s' % e)
+
+
+if __name__ == '__main__':
+    diagnose()
