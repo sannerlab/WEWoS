@@ -34,7 +34,8 @@ def main(argv=None):
                    choices=['unrestricted', 'readonly', 'sandboxed'],
                    help='the least isolation of every network, for a server others use: '
                         'readonly (reads your files, writes its folder) or sandboxed (sees '
-                        'only its folder); needs Linux (bubblewrap) or macOS (sandbox-exec) '
+                        'only its folder, not on Windows); needs Linux (bubblewrap), macOS '
+                        '(sandbox-exec) or Windows (AppContainer, after wewos sandbox-setup) '
                         '(default: the networks you open are isolated as you choose)')
     r = sub.add_parser('run', help='run a saved network without a browser')
     r.add_argument('network')
@@ -46,6 +47,8 @@ def main(argv=None):
     i.add_argument('network')
     i.add_argument('-o', '--output')
     sub.add_parser('check', help='report what is missing')
+    sub.add_parser('sandbox-setup', help='Windows, once: let app sandboxes read the Python '
+                                         'environment and WEWoS, so that networks can run sandboxed')
     t = sub.add_parser('test', help='run the test suite (tests/run_tests.py)')
     t.add_argument('-k', default='', help='only tests whose name contains this')
     a = p.parse_args(argv)
@@ -62,6 +65,16 @@ def main(argv=None):
         return 1 if miss else 0
     if a.cmd == 'run':
         return _run(a)
+    if a.cmd == 'sandbox-setup':
+        if sys.platform != 'win32':
+            from . import isolation
+            print('nothing to set up here: %s' % (
+                'networks are isolated with %s' % ('sandbox-exec' if sys.platform == 'darwin' else 'bubblewrap')
+                if isolation.available()[0] else isolation.available()[1]))
+            return 0
+        from . import winsandbox
+        winsandbox.setup()
+        return 0
     if a.cmd == 'import':
         import json
         from .legacy import importer

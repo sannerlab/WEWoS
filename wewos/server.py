@@ -78,6 +78,9 @@ class App(object):
         self.minimum = isolation.check_level(minimum)
         if self.minimum != 'unrestricted' and not isolation.available()[0]:
             raise RuntimeError(isolation.available()[1])
+        if self.minimum not in isolation.available_levels():
+            raise RuntimeError('the %s level: %s' % (self.minimum,
+                                                     isolation.level_notes().get(self.minimum, '')))
         self.libconf_path = os.path.join(self.outdir, 'libraries.json')
         self.libconf = self._read_libconf()
         self.settings_path = os.path.join(self.outdir, 'settings.json')
@@ -92,7 +95,7 @@ class App(object):
                 d = json.load(fh)
         except (OSError, ValueError):
             d = {}
-        if d.get('open_level') not in isolation.LEVELS:
+        if d.get('open_level') not in isolation.available_levels():
             d['open_level'] = 'sandboxed'          # files from others: isolated by default
         d['internet'] = bool(d.get('internet', False))
         return d
@@ -100,7 +103,8 @@ class App(object):
     def get_settings(self):
         ok, why = isolation.available()
         return dict(self.settings, available=ok, reason=why, minimum=self.minimum,
-                    levels=isolation.LABELS)
+                    levels=isolation.LABELS, available_levels=list(isolation.available_levels()),
+                    level_notes=isolation.level_notes())
 
     def set_settings(self, body):
         if 'open_level' in body:
@@ -117,6 +121,8 @@ class App(object):
         """The level a network will run at: the one asked for (default: the
         preference for opened files), never below the server's minimum."""
         level = isolation.stricter(isolation.check_level(level or 'unrestricted'), self.minimum)
+        if level not in isolation.available_levels():
+            raise Refused('the %s level is %s' % (level, isolation.level_notes().get(level, 'not available here')))
         if level != 'unrestricted':
             ok, why = isolation.available()
             if not ok:
@@ -666,7 +672,8 @@ def serve(host='127.0.0.1', port=8767, outdir='~/wewos_runs', base_path='',
     ok, why = isolation.available()
     print('networks from others: %s' % (
         'every network is isolated (%s)' % minimum if minimum != 'unrestricted'
-        else 'isolated when opened (%s)' % ('sandbox-exec' if sys.platform == 'darwin' else 'bubblewrap')
+        else 'isolated when opened (%s)' % {'darwin': 'sandbox-exec', 'win32': 'AppContainer'}.get(
+            sys.platform, 'bubblewrap')
         if ok else 'cannot be isolated: %s' % why),
         flush=True)
     miss = env.check()

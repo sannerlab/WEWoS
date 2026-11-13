@@ -14,8 +14,12 @@ import argparse
 import base64
 import json
 import os
-import resource
 import sys
+
+try:
+    import resource              # not on Windows: the Job object limits the worker there
+except ImportError:
+    resource = None
 import threading
 
 SESSION = None
@@ -41,6 +45,8 @@ METHODS = {
 def limit(memory, filesize):
     """Lower both the soft and the hard limits: the network cannot raise them.
     A limit the system does not take (macOS and the address space) is skipped."""
+    if resource is None:
+        return
     for res, value in ((resource.RLIMIT_AS, memory), (resource.RLIMIT_FSIZE, filesize),
                        (resource.RLIMIT_CORE, 0)):
         if value is None:
@@ -137,7 +143,11 @@ def main(argv=None):
     from wewos.ipc import Channel, Pipes
     done = threading.Event()
     threading.Thread(target=watch_parent, daemon=True).start()
-    CHANNEL = Channel(Pipes(a.rfd, a.wfd), handle, on_close=lambda reason: done.set())
+    rfd, wfd = a.rfd, a.wfd
+    if os.name == 'nt':                      # Windows: the server passed the pipes' handles
+        import msvcrt
+        rfd, wfd = msvcrt.open_osfhandle(rfd, os.O_RDONLY), msvcrt.open_osfhandle(wfd, 0)
+    CHANNEL = Channel(Pipes(rfd, wfd), handle, on_close=lambda reason: done.set())
     done.wait()
     os._exit(0)              # run threads of the network end with the process
 

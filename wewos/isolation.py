@@ -14,11 +14,13 @@ Python. A network the user does not trust therefore runs in a worker process
   unrestricted  no worker: the network runs in the server, as it always did
 
 The confinement:
-  Linux   bubblewrap: the worker has its own process, IPC, user and network
-          namespaces and sees only the files of its level (bind mounts)
-  macOS   sandbox-exec, with a profile written for the level (macos_profile):
-          what the worker may read and write, and whether it may use the
-          network
+  Linux    bubblewrap: the worker has its own process, IPC, user and network
+           namespaces and sees only the files of its level (bind mounts)
+  macOS    sandbox-exec, with a profile written for the level (macos_profile):
+           what the worker may read and write, and whether it may use the
+           network
+  Windows  an AppContainer of its own, in a Job object (wewos/winsandbox.py);
+           sandboxed only: no read-only level there (available_levels)
 In both, no internet unless allowed for that network (Fetch PDB still works:
 the server downloads the checked PDB id for it), memory and file size limits,
 and the worker ends with the server. The server and the worker talk over two
@@ -66,6 +68,23 @@ class WorkerError(Exception):
         self.remote_trace = trace
 
 
+def available_levels():
+    """The levels this platform can enforce; Windows has no read-only level."""
+    if sys.platform == 'win32':
+        return ('sandboxed', 'unrestricted')
+    return LEVELS
+
+
+LEVEL_NOTES = {
+    'win32': {'readonly': 'not on Windows: a network there could read your files but not be kept '
+                          'off the internet without administrator rights; use Sandboxed'},
+}
+
+
+def level_notes():
+    return dict(LEVEL_NOTES.get(sys.platform, {}))
+
+
 def check_level(level):
     level = (level or '').strip().lower().replace('-', '')
     if level not in LEVELS:
@@ -85,10 +104,46 @@ def available():
             _probe = _probe_linux()
         elif sys.platform == 'darwin':
             _probe = _probe_macos()
+        elif sys.platform == 'win32':
+            _probe = _probe_windows()
         else:
-            _probe = (False, 'isolating a network needs Linux (bubblewrap) or macOS '
-                             '(sandbox-exec); this server runs on %s' % sys.platform)
+            _probe = (False, 'isolating a network needs Linux (bubblewrap), macOS (sandbox-exec) '
+                             'or Windows (AppContainer); this server runs on %s' % sys.platform)
     return _probe
+
+
+def _probe_windows():
+    """Python, numpy and the worker must start in a real AppContainer."""
+    v = sys.getwindowsversion()
+    if (v.major, v.minor) < (6, 2):
+        return (False, 'isolating a network needs Windows 8 or later')
+    from . import winsandbox
+    if not winsandbox.setup_done():
+        return (False, 'run "wewos sandbox-setup" once: it lets Windows app sandboxes read the '
+                       'Python environment and WEWoS')
+    folder = tempfile.mkdtemp(prefix='wewos-probe-')
+    proc = None
+    try:
+        _prepare_home(folder)
+        proc = winsandbox.start([sys.executable, '-c', 'import numpy, wewos.worker, wewos.session; '
+                                 'print("sandbox ok")'], winsandbox.environment(folder), folder, (),
+                                'WEWoS.probe', False)
+        try:
+            proc.wait(120)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            return (False, 'Python did not start in the app sandbox within 120 s')
+        out = proc.stdout.read().decode('utf-8', 'replace').strip()
+        if proc.returncode == 0 and out.endswith('sandbox ok'):
+            return (True, '')
+        return (False, 'the app sandbox could not run WEWoS: %s'
+                       % (' | '.join(out.splitlines()[-3:]) or 'exit code %s' % proc.returncode))
+    except OSError as e:
+        return (False, 'the app sandbox failed: %s' % e)
+    finally:
+        if proc is not None:
+            proc.release()
+        shutil.rmtree(folder, ignore_errors=True)
 
 
 def _probe_linux():
@@ -195,6 +250,8 @@ def environment(level, folder):
 
 
 def worker_args(rfd, wfd):
+    """The worker's command line; on Windows rfd and wfd are replaced by the
+    pipes' handles when it starts (winsandbox.start)."""
     args = [sys.executable, '-m', 'wewos.worker', '--rfd', str(rfd), '--wfd', str(wfd),
             '--filesize', str(FILE_LIMIT)]
     mem = memory_limit()
@@ -210,6 +267,9 @@ def command(level, internet, folder, rfd, wfd, grants=(), user_libraries=None):
         profile = macos_profile(level, internet, folder, grants, user_libraries)
         return ([SANDBOX_EXEC, '-p', profile] + worker_args(rfd, wfd),
                 environment(level, folder), {'cwd': _real(folder), 'start_new_session': True})
+    if sys.platform == 'win32':
+        from . import winsandbox
+        return worker_args(rfd, wfd), winsandbox.environment(_real(folder)), {'windows': True}
     return bwrap_command(level, internet, folder, rfd, wfd, grants, user_libraries), None, {}
 
 
@@ -399,9 +459,15 @@ class IsolatedSession(object):
         args, env, kw = command(self.isolation['level'], self.isolation['internet'], self.folder,
                                 down_r, up_w, self.isolation['grants'], self.user_libraries)
         try:
-            self.proc = launch(lambda: subprocess.Popen(
-                args, pass_fds=(down_r, up_w), stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT, close_fds=True, env=env, **kw))
+            if kw.pop('windows', False):
+                from . import winsandbox
+                self.proc = winsandbox.start(args, env, _real(self.folder), (down_r, up_w),
+                                             winsandbox.container_name(self.id),
+                                             self.isolation['internet'], self.isolation['grants'])
+            else:
+                self.proc = launch(lambda: subprocess.Popen(
+                    args, pass_fds=(down_r, up_w), stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT, close_fds=True, env=env, **kw))
         finally:
             os.close(down_r)
             os.close(up_w)
@@ -435,8 +501,17 @@ class IsolatedSession(object):
         return self.proc is not None and self.proc.poll() is None and self.chan is not None \
             and self.chan.closed is None
 
-    def kill(self):
+    def kill(self, final=True):
+        """End the worker; final: the network is gone for good (on Windows its
+        app sandbox and the permissions it was given are removed too)."""
         p = self.proc
+        if p is not None and final and hasattr(p, 'release'):
+            try:
+                p.kill()
+                p.wait(10)
+            except Exception:
+                pass
+            p.release()
         if p is not None and p.poll() is None:
             if sys.platform == 'darwin':
                 try:
@@ -455,7 +530,7 @@ class IsolatedSession(object):
     def restart(self):
         """Force stop: end the worker and start a new one from the autosave."""
         with self._lock:
-            self.kill()
+            self.kill(final=False)
             self._start(restore=True)
         return {'execStatus': 'waiting', 'seq': 0, 'restarted': True}
 
@@ -538,6 +613,10 @@ def diagnose():
     if not, where it fails. On macOS: Python under the profile in steps, then
     the sandbox's own messages about what it denied."""
     print('platform: %s, python: %s' % (sys.platform, sys.executable))
+    if sys.platform == 'win32':
+        from . import winsandbox
+        print('sandbox-setup done:', winsandbox.setup_done())
+        print('levels here:', ', '.join(available_levels()))
     if sys.platform != 'darwin':
         print('available:', available())
         return

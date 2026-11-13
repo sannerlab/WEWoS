@@ -660,11 +660,16 @@ function isolationChooser(title, init, okLabel, intro){
     box.className = 'isodlg';
     box.innerHTML = (intro ? '<p>' + esc(intro) + '</p>' : '') +
       '<div class=isolevels>' + ['sandboxed', 'readonly', 'unrestricted'].map(l => {
-        const off = ISO_RANK[l] < ISO_RANK[minimum];
-        return '<label' + (off ? ' class=off title="this server isolates every network at least as ' + esc(minimum) + '"' : '') +
+        const here = !ST.iso || !ST.iso.available_levels || ST.iso.available_levels.includes(l);
+        const off = ISO_RANK[l] < ISO_RANK[minimum] || !here;
+        const why = !here ? ((ST.iso.level_notes || {})[l] || 'not available on this system')
+                          : 'this server isolates every network at least as ' + minimum;
+        return '<label' + (off ? ' class=off title="' + esc(why) + '"' : '') +
           '><input type=radio name=isolevel value=' + l + (off ? ' disabled' : '') + '><span><b>' + ISO_TEXT[l][0] +
           '</b><br><span class=what>' + esc(ISO_TEXT[l][1]) + '</span></span></label>';
       }).join('') + '</div>' +
+      Object.entries((ST.iso && ST.iso.level_notes) || {}).map(([l, why]) =>
+        '<p class="note dim">' + esc(ISO_TEXT[l] ? ISO_TEXT[l][0] : l) + ': ' + esc(why) + '.</p>').join('') +
       '<label class=chk><input type=checkbox id=iso_net> Allow internet access</label>' +
       '<div class="note warn" id=iso_warn hidden>With read-only access and the internet, the network could send ' +
       'any file you can read to another computer.</div>' +
@@ -677,6 +682,7 @@ function isolationChooser(title, init, okLabel, intro){
     modalCancel = () => resolve(null);
     const radios = [...box.querySelectorAll('input[name=isolevel]')];
     let level = ISO_RANK[init.level] < ISO_RANK[minimum] ? minimum : (init.level || 'sandboxed');
+    if(ST.iso && ST.iso.available_levels && !ST.iso.available_levels.includes(level)) level = 'sandboxed';
     radios.forEach(r => { r.checked = r.value === level; });
     const net = box.querySelector('#iso_net');
     net.checked = !!init.internet && init.level !== 'unrestricted';

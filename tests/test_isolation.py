@@ -121,6 +121,8 @@ def test_levels_confine_files_and_network():
         with Canary() as c:
             for level, internet in (('sandboxed', False), ('readonly', False),
                                     ('readonly', True), ('unrestricted', True)):
+                if level not in isolation.available_levels():
+                    continue                      # no read-only level on Windows
                 s = app.new('probe', level, internet)
                 nid = _generic(s, PROBE % {'canary': c.path, 'port': port})
                 s.run('run_node', nid)
@@ -132,15 +134,16 @@ def test_levels_confine_files_and_network():
     finally:
         _close(app)
         srv.close()
-    sb, ro, ron, un = (results[k] for k in (('sandboxed', False), ('readonly', False),
-                                            ('readonly', True), ('unrestricted', True)))
+    sb, un = results[('sandboxed', False)], results[('unrestricted', True)]
     check(sb['read'].startswith('ERR') and sb['write'].startswith('ERR')
           and sb['net'].startswith('ERR'), sb)
-    check(ro['read'] == 'secret' and ro['write'].startswith('ERR')
-          and ro['net'].startswith('ERR'), ro)
-    check(ron['read'] == 'secret' and ron['write'].startswith('ERR') and ron['net'] == 'ok', ron)
     check(un['read'] == 'secret' and un['write'] == 'ok' and un['net'] == 'ok', un)
-    check(sb['home'].endswith('/.wewos'), sb)
+    check(sb['home'].replace(os.sep, '/').endswith('/.wewos'), sb)
+    if 'readonly' in isolation.available_levels():
+        ro, ron = results[('readonly', False)], results[('readonly', True)]
+        check(ro['read'] == 'secret' and ro['write'].startswith('ERR')
+              and ro['net'].startswith('ERR'), ro)
+        check(ron['read'] == 'secret' and ron['write'].startswith('ERR') and ron['net'] == 'ok', ron)
 
 
 def test_code_run_at_open_stays_in_the_sandbox():
@@ -191,9 +194,12 @@ def test_downloads_do_not_follow_planted_links():
         with Canary() as c:
             s = httpd.app.new('links', 'sandboxed')
             nid = _generic(s, ('def doit(self):\n    import os\n'
-                               '    os.symlink(%(c)r + "/secret.txt", "link.txt")\n'
-                               '    os.makedirs("d", exist_ok=True)\n'
-                               '    os.symlink(%(c)r, "d/dirlink")\n'
+                               '    try:\n'
+                               '        os.symlink(%(c)r + "/secret.txt", "link.txt")\n'
+                               '        os.makedirs("d", exist_ok=True)\n'
+                               '        os.symlink(%(c)r, "d/dirlink")\n'
+                               '    except OSError:\n'
+                               '        pass                 # Windows: links need a privilege\n'
                                '    open("ok.txt", "w").write("fine")\n') % {'c': c.path})
             s.run('run_node', nid)
             _wait_file(os.path.join(s.folder, 'ok.txt'))
@@ -439,3 +445,51 @@ def test_macos_profile_for_each_level():
     eq((env['HOME'], env['TMPDIR']), (folder + '/.wewos', folder + '/.wewos/tmp'))
     check(kw.get('start_new_session') and kw.get('cwd') == folder, kw)
     check('SSH_AUTH_SOCK' not in env and 'DISPLAY' not in env, env)
+
+
+def test_windows_sandbox_commands():
+    """The pieces of the Windows sandbox that are plain text (it runs only on
+    Windows, where available() also starts Python in a real AppContainer)."""
+    from wewos import winsandbox as W
+    eq(W.grant_command(r'C:\\nets\\a', 'S-1-15-2-9', 'F'),
+       ['icacls', r'C:\\nets\\a', '/grant', '*S-1-15-2-9:(OI)(CI)F', '/Q'])
+    eq(W.remove_command('x', 'S-1-15-2-9'), ['icacls', 'x', '/remove', '*S-1-15-2-9', '/Q'])
+    eq(W.handle_args(['py', '-m', 'wewos.worker', '--rfd', '5', '--wfd', '9', '--memory', '5'],
+                     {5: 1234, 9: 5678}),
+       ['py', '-m', 'wewos.worker', '--rfd', '1234', '--wfd', '5678', '--memory', '5'])
+    folder = os.path.join(outdir('win'), 'net')
+    env = W.environment(folder)
+    home = os.path.join(folder, '.wewos')
+    eq((env['USERPROFILE'], env['TEMP'], env['APPDATA']), (home, os.path.join(home, 'tmp'), home))
+    check('SSH_AUTH_SOCK' not in env and 'PYTHONNOUSERSITE' in env and 'SYSTEMROOT' in env, env)
+    check(W.container_name('0123456789abcdef0123').startswith('WEWoS.network.'), '')
+    import sys
+    real = sys.platform
+    try:
+        sys.platform = 'win32'
+        eq(isolation.available_levels(), ('sandboxed', 'unrestricted'))
+        check('readonly' in isolation.level_notes())
+    finally:
+        sys.platform = real
+
+
+def test_open_in_folder_without_dir_fd():
+    """The opener used where os.open takes no dir_fd (Windows) refuses links."""
+    from wewos.session import Refused, _open_in_folder_checked
+    folder = outdir('nodirfd')
+    os.makedirs(os.path.join(folder, 'sub'), exist_ok=True)
+    with open(os.path.join(folder, 'sub', 'ok.txt'), 'w') as fh:
+        fh.write('fine')
+    with Canary() as c:
+        for name, target in (('link.txt', os.path.join(c.path, 'secret.txt')), ('dirlink', c.path)):
+            p = os.path.join(folder, name)
+            if not os.path.lexists(p):
+                os.symlink(target, p)
+        with _open_in_folder_checked(folder, ['sub', 'ok.txt'], 'sub/ok.txt') as fh:
+            eq(fh.read(), b'fine')
+        for parts in (['link.txt'], ['dirlink', 'secret.txt'], ['sub']):
+            try:
+                _open_in_folder_checked(folder, parts, '/'.join(parts)).close()
+                raise AssertionError('opened %s' % parts)
+            except Refused:
+                pass

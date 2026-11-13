@@ -1,0 +1,39 @@
+name: windows-sandbox
+run-name: Isolated networks on Windows (AppContainer)
+
+# Runs the isolation tests on a Windows machine of GitHub's: the sandboxed level
+# there is an AppContainer in a Job object (wewos/winsandbox.py), which the
+# Linux machines this project is developed on cannot run.
+on:
+  push:
+    branches: [main]
+    paths: ["wewos/**", "tests/**", "pyproject.toml", ".github/workflows/windows-sandbox.yaml"]
+  workflow_dispatch:
+
+jobs:
+  isolation:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install WEWoS (numpy, Pillow, matplotlib)
+        run: python -m pip install -e ".[all]"
+
+      - name: Let Windows app sandboxes read the environment and WEWoS (once)
+        run: wewos sandbox-setup
+
+      - name: Can networks be isolated here?
+        run: python -m wewos.isolation
+
+      - name: Isolation tests
+        run: wewos test -k isolation
+
+      - name: The whole test suite (for information; not required to pass)
+        if: always()
+        continue-on-error: true
+        run: wewos test

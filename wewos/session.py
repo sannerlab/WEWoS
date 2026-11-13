@@ -642,6 +642,8 @@ def open_in_folder(folder, rel):
     parts = [p for p in rel.replace(os.sep, '/').split('/') if p not in ('', '.')]
     if not parts or '..' in parts:
         raise Refused('no file %r in this session' % rel)
+    if os.open not in getattr(os, 'supports_dir_fd', set()):
+        return _open_in_folder_checked(folder, parts, rel)
     flags = os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_CLOEXEC', 0)
     fd = os.open(folder, os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0))
     try:
@@ -659,6 +661,24 @@ def open_in_folder(folder, rel):
         os.close(ffd)
         raise Refused('no file %r in this session' % rel)
     return os.fdopen(ffd, 'rb')
+
+
+def _open_in_folder_checked(folder, parts, rel):
+    """open_in_folder where os.open takes no dir_fd (Windows): every part of
+    the path is checked not to be a link or a junction, then the file opened."""
+    import stat
+    path = folder
+    for part in parts:
+        path = os.path.join(path, part)
+        try:
+            st = os.lstat(path)
+        except OSError:
+            raise Refused('no file %r in this session' % rel)
+        if stat.S_ISLNK(st.st_mode) or getattr(st, 'st_file_attributes', 0) & 0x400:  # reparse point
+            raise Refused('no file %r in this session' % rel)
+    if not stat.S_ISREG(st.st_mode):
+        raise Refused('no file %r in this session' % rel)
+    return open(path, 'rb')
 
 
 def list_dir(path, base):
