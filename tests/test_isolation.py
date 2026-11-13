@@ -338,9 +338,17 @@ def test_settings_persist_and_the_server_minimum():
     _need_bwrap()
     a = _app('settings')
     eq(a.get_settings()['open_level'], 'sandboxed')     # files from others: isolated
-    a.set_settings({'open_level': 'readonly', 'internet': True})
+    other = 'readonly' if 'readonly' in isolation.available_levels() else 'unrestricted'
+    a.set_settings({'open_level': other, 'internet': True})
     b = _app('settings')
-    eq((b.settings['open_level'], b.settings['internet']), ('readonly', True))
+    eq((b.settings['open_level'], b.settings['internet']), (other, True))
+    if 'readonly' not in isolation.available_levels():            # Windows
+        from wewos.session import Refused
+        try:
+            a.set_settings({'open_level': 'readonly'})
+            raise AssertionError('a level this platform does not offer was saved')
+        except Refused:
+            pass
     strict = _app('strict', minimum='sandboxed')
     try:
         d = strict.example('spheres_colormap.wnet.json')
@@ -412,6 +420,8 @@ def test_macos_profile_for_each_level():
     a Mac, where available() also starts Python and the worker under it."""
     import sys
     import tempfile
+    if sys.platform == 'win32':
+        raise Skip('the macOS profile is written for POSIX paths')
     folder = os.path.realpath(tempfile.mkdtemp(prefix='wewos-prof-', dir=outdir('macos')))
     grant = os.path.realpath(outdir('macos_grant'))
     sb = isolation.macos_profile('sandboxed', False, folder, [grant])

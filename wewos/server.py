@@ -108,7 +108,10 @@ class App(object):
 
     def set_settings(self, body):
         if 'open_level' in body:
-            self.settings['open_level'] = isolation.check_level(body['open_level'])
+            level = isolation.check_level(body['open_level'])
+            if level not in isolation.available_levels():
+                raise Refused('the %s level is %s' % (level, isolation.level_notes().get(level, 'not available here')))
+            self.settings['open_level'] = level
         if 'internet' in body:
             self.settings['internet'] = bool(body['internet'])
         tmp = self.settings_path + '.part'

@@ -4,10 +4,9 @@ run-name: Isolated networks on Windows (AppContainer)
 # Runs the isolation tests on a Windows machine of GitHub's: the sandboxed level
 # there is an AppContainer in a Job object (wewos/winsandbox.py), which the
 # Linux machines this project is developed on cannot run.
+# Started by hand only (Actions > windows-sandbox > Run workflow, or
+# gh workflow run windows-sandbox.yaml): a Windows minute counts double.
 on:
-  push:
-    branches: [main]
-    paths: ["wewos/**", "tests/**", "pyproject.toml", ".github/workflows/windows-sandbox.yaml"]
   workflow_dispatch:
 
 jobs:

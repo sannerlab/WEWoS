@@ -1,0 +1,5 @@
+# Vendored bundles are served byte for byte (molstar.js has a precompressed
+# twin, molstar.js.gz): no line-ending conversion when checked out on Windows.
+wewos/static/molstar.js -text
+wewos/static/3Dmol-min.js -text
+wewos/static/*.gz binary
