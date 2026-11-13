@@ -13,7 +13,7 @@
 'use strict';
 const ED = (() => {
   const NS = 'http://www.w3.org/2000/svg';
-  const HEAD = 22, ROW = 22, PR = 5, WIDGET_W = 150;
+  const HEAD = 22, ROW = 22, PR = 5;
   let svg, world, gConns, gNodes, gTop, cb;
   let NET = null;                  // the network shown: {id, nodes:{}, conns:{}}
   let TYPES = {};
@@ -55,6 +55,86 @@ const ED = (() => {
   }
 
   /* ------------------------------------------------------------ geometry */
+  /* A long port name is shown short in the node (its full name is in the
+     tooltip and the parameter panel): the last part after "_" when that is
+     short enough, else each camelCase word cut short: indexedPolygons_
+     instanceMatrices -> instMat. wewos/engine/layout.py has the same rules. */
+  const SHORT = 12;
+  function cutWord(w, i){
+    if(i === 0){ let c = w.slice(0, 4); if(w.length > 4 && /[aeiou]$/i.test(c)) c = c.slice(0, 3); return c; }
+    return w[0].toUpperCase() + w.slice(1, 3);
+  }
+  // one name part cut short: its camelCase words, or its first letters
+  function abbrev(s){
+    if(s.length <= SHORT) return s;
+    const words = s.replace(/([a-z0-9])([A-Z])/g, '$1 $2').split(' ').filter(Boolean);
+    if(words.length < 2) return s.slice(0, SHORT - 1) + '…';
+    return words.map(cutWord).join('');
+  }
+  // several parts, each kept when short, joined in camelCase
+  function compact(parts){
+    return parts.map((p, i) => {
+      const q = p.length <= 6 ? p : abbrev(p);
+      return i ? q[0].toUpperCase() + q.slice(1) : q;
+    }).join('');
+  }
+  function shortName(name){
+    name = String(name || '');
+    if(name.length <= SHORT) return name;
+    const parts = name.split('_').filter(Boolean);
+    let best = '';
+    for(let k = 1; k <= parts.length; k++){              // the longest tail of whole parts that fits
+      const tail = parts.slice(-k).join('_');
+      if(tail.length > SHORT) break;
+      best = tail;
+    }
+    if(best.length >= 4) return best;
+    if(best) return compact(parts.slice(-2));
+    return abbrev(parts.length ? parts[parts.length - 1] : name);
+  }
+  // short names of one side of a node, different from each other
+  function shortNames(names){
+    const out = {}, seen = {};
+    names.forEach(n => { out[n] = shortName(n); seen[out[n]] = (seen[out[n]] || 0) + 1; });
+    names.forEach(n => {
+      if(seen[out[n]] > 1 && out[n] !== n) out[n] = compact(n.split('_').filter(Boolean));
+    });
+    const again = {};
+    names.forEach(n => { const s = out[n]; again[s] = (again[s] || 0) + 1;
+                         if(again[s] > 1) out[n] = s + again[s]; });
+    return out;
+  }
+  // how wide a widget is drawn in a node (wewos/engine/layout.py: widget_width):
+  // the width the user chose (widget option nodeWidth), else what it holds needs
+  const digits = x => String(Math.trunc(Math.abs(+x || 0))).length;
+  function numberChars(w){
+    const o = w.options || {};
+    const vals = [w.value, o.min, o.max].filter(v => v != null && v !== '' && isFinite(+v));
+    let n = Math.max(1, ...vals.map(digits));
+    if(vals.some(v => +v < 0)) n += 1;
+    if(o.type !== 'int') n += 1 + Math.min(o.precision == null ? 3 : +o.precision, 3);
+    return Math.max(2, Math.min(10, n));
+  }
+  const textChars = (v, lo, hi) => Math.max(lo, Math.min(hi, String(v == null ? '' : v).length));
+  function widgetW(w){
+    const o = (w && w.options) || {};
+    if(o.nodeWidth) return Math.max(30, Math.min(400, +o.nodeWidth));
+    switch(w && w.kind){
+      case 'number': return 38 + numberChars(w) * 7;
+      case 'checkbox': return 18;
+      case 'entry': return 16 + textChars(w.value, 4, 16) * 6.6;
+      case 'file': case 'dir': case 'filesave': return 38 + textChars(w.value, 6, 18) * 6.6;
+      case 'combo': {
+        const longest = (o.choices || []).concat([w.value == null ? '' : w.value])
+          .reduce((m, c) => Math.max(m, String(c == null ? '' : c).length), 0);
+        return Math.max(60, Math.min(130, longest * 6.5 + 28)); }
+      case 'button': return Math.min(120, tw(o.text || w.label || 'press', 6.5) + 20);
+      case 'color': return 30;
+      case 'colormap': return 124;
+      case 'vector': return 110;
+      default: return 100;
+    }
+  }
   function rows(n){
     // visible input rows: ports with no widget, or a widget shown in the node
     const r = [];
@@ -64,18 +144,25 @@ const ED = (() => {
     });
     return r;
   }
+  // the label of a widget in a node: its own label, else the port's short name
+  const widgetLabel = (p, short) => p.widget.label || short[p.name] || p.name;
   function layout(n){
     const rs = rows(n), outs = n.out || [];
+    const inShort = shortNames(rs.map(r => r.p.name)), outShort = shortNames(outs.map(p => p.name));
     let inW = 0, wid = false;
     rs.forEach(r => {
-      if(r.kind === 'widget'){ wid = true; inW = Math.max(inW, Math.min(tw(r.p.widget.label || r.p.name, 6), 70) + WIDGET_W); }
-      else inW = Math.max(inW, tw(r.p.name, 5.8) + 14);
+      if(r.kind === 'widget'){
+        wid = true;
+        const lw = r.p.widget.label === '' ? 0 : Math.min(tw(widgetLabel(r.p, inShort), 6), 70) + 4;
+        inW = Math.max(inW, lw + widgetW(r.p.widget));
+      }
+      else inW = Math.max(inW, tw(inShort[r.p.name], 5.8) + 14);
     });
-    const outW = outs.reduce((m, p) => Math.max(m, tw(p.name, 5.8) + 14), 0);
+    const outW = outs.reduce((m, p) => Math.max(m, tw(outShort[p.name], 5.8) + 14), 0);
     const w = Math.max(110, tw(n.label || n.name, 7.2) + 34, inW + outW + (outs.length && rs.length ? 22 : 10));
     const nrows = Math.max(rs.length, outs.length, 1);
     const h = HEAD + nrows * ROW + 6 + (n.progbar ? 4 : 0);
-    const g = {w, h, ins: {}, outs: {}, rows: rs, wid};
+    const g = {w, h, ins: {}, outs: {}, rows: rs, wid, inShort, outShort};
     rs.forEach((r, i) => { if(r.kind === 'port') g.ins[r.p.name] = [0, HEAD + i * ROW + ROW / 2]; });
     outs.forEach((p, i) => { g.outs[p.name] = [w, HEAD + i * ROW + ROW / 2]; });
     g.run = [w / 2, 0]; g.trig = [w / 2, h];
@@ -120,6 +207,13 @@ const ED = (() => {
     if(old) gNodes.replaceChild(el, old); else gNodes.append(el);
     gEls[n.id] = el;
   }
+  // a port's label; a shortened name shows the full one as a tooltip
+  function portLabel(x, y, name, short, anchor){
+    const l = S('text', {class: 'plabel', x, y: y + 3.5, 'text-anchor': anchor});
+    l.textContent = short || name;
+    if(short && short !== name){ const t = S('title'); t.textContent = name; l.append(t); }
+    return l;
+  }
   // a node's picture; a ghost (a palette node dragged to the network) has no
   // id and shows its widgets as empty boxes
   function nodeShape(n, g, ghost){
@@ -143,23 +237,28 @@ const ED = (() => {
         s.dataset.io = 'in'; s.dataset.port = r.p.name; s.dataset.node = n.id;
         const ti = S('title'); ti.textContent = `${r.p.name}: ${r.p.datatype}${r.p.required ? '' : ' (optional)'}${r.p.balloon ? '\n' + r.p.balloon : ''}`;
         s.append(ti);
-        const l = S('text', {class: 'plabel', x: 9, y: y + 3.5}); l.textContent = r.p.name;
-        el.append(l, s);
+        el.append(portLabel(9, y, r.p.name, g.inShort[r.p.name], 'start'), s);
       } else if(ghost){
-        const lw = r.p.widget.label === '' ? 0 : Math.min(tw(r.p.widget.label || r.p.name, 6), 70) + 6;
-        if(lw){ const l = S('text', {class: 'plabel', x: 8, y: y + 3.5}); l.textContent = r.p.widget.label || r.p.name; el.append(l); }
-        const ow = n.out && n.out[i] ? tw(n.out[i].name, 5.8) + 14 : 0;
+        const lab = widgetLabel(r.p, g.inShort);
+        const lw = r.p.widget.label === '' ? 0 : Math.min(tw(lab, 6), 70) + 6;
+        if(lw){ const l = S('text', {class: 'plabel', x: 8, y: y + 3.5}); l.textContent = lab; el.append(l); }
+        const ow = n.out && n.out[i] ? tw(g.outShort[n.out[i].name], 5.8) + 14 : 0;
         el.append(S('rect', {class: 'wbox', x: 8 + lw, y: y - ROW / 2 + 3, rx: 3, height: ROW - 6,
                              width: Math.max(20, g.w - 16 - lw - ow)}));
       } else {
-        const fo = S('foreignObject', {x: 6, y: y - ROW / 2, width: g.w - 12 - (n.out && n.out[i] ? tw(n.out[i].name, 5.8) + 14 : 0), height: ROW});
+        const fo = S('foreignObject', {x: 6, y: y - ROW / 2, width: g.w - 12 - (n.out && n.out[i] ? tw(g.outShort[n.out[i].name], 5.8) + 14 : 0), height: ROW});
         const div = document.createElementNS('http://www.w3.org/1999/xhtml', 'div');
         div.className = 'nw';
         const row = document.createElement('div'); row.className = 'wrow'; row.dataset.port = r.p.name;
-        const lab = document.createElement('label'); lab.textContent = r.p.widget.label || r.p.name;
-        lab.title = r.p.name + ': ' + r.p.datatype;
+        const lab = document.createElement('label'); lab.textContent = widgetLabel(r.p, g.inShort);
+        lab.title = r.p.name + ': ' + r.p.datatype + '\nright-click: wider or narrower';
         if(r.p.widget.label !== '') row.append(lab);
-        row.append(W.render(r.p.widget, cb.widgetCtx(n.id, r.p.name, true)));
+        // the widget keeps its own width (what it holds, or what the user chose)
+        // even when the node is wider, for its title or another row
+        const wEl = W.render(r.p.widget, cb.widgetCtx(n.id, r.p.name, true));
+        wEl.style.flex = '0 0 auto';
+        wEl.style.width = widgetW(r.p.widget) + 'px';
+        row.append(wEl);
         div.append(row); fo.append(div); el.append(fo);
       }
     });
@@ -170,8 +269,7 @@ const ED = (() => {
       s.dataset.io = 'out'; s.dataset.port = p.name; s.dataset.node = n.id;
       const ti = S('title'); ti.textContent = `${p.name}: ${p.datatype}${p.balloon ? '\n' + p.balloon : ''}\n(right-click: show data)`;
       s.append(ti);
-      const l = S('text', {class: 'plabel', x: g.w - 9, y: y + 3.5, 'text-anchor': 'end'}); l.textContent = p.name;
-      el.append(l, s);
+      el.append(portLabel(g.w - 9, y, p.name, g.outShort[p.name], 'end'), s);
     });
     // special ports: runNode on top, trigger at the bottom
     const sp1 = S('rect', {class: 'port special', x: g.run[0] - 3.5, y: -3.5, width: 7, height: 7});
@@ -561,6 +659,6 @@ const ED = (() => {
   }
   function clearTargets(){ svg.querySelectorAll('.port.ok,.port.no').forEach(p => p.classList.remove('ok', 'no')); }
 
-  return {init, setTypes, show, current, updateNode, statusOnly, progress, moveNode, removeNode,
+  return {shortNames, widgetW, init, setTypes, show, current, updateNode, statusOnly, progress, moveNode, removeNode,
           addConn, removeConn, drawConn, selection, select, fit, center, ghostStart, ghostInfo, ghostEnd};
 })();

@@ -11,13 +11,138 @@ straight, and nodes are spaced by the sizes the page draws them at.
     arrange(net, source='vision')   # positions written for Vision
     arrange(net)                    # re-arrange a WEWoS network
 """
+import math
+import re
+
 
 HEAD, ROW = 22, 22          # the page's node geometry (static/editor.js, layout())
-WIDGET_W = 150
+SHORT = 12                  # longer port names are shown short in a node
 
 
 def _tw(s, px):
     return len(str(s or '')) * px
+
+
+def _cut_word(w, i):
+    if i == 0:
+        c = w[:4]
+        if len(w) > 4 and c[-1:].lower() in 'aeiou':
+            c = c[:3]
+        return c
+    return w[0].upper() + w[1:3]
+
+
+def _abbrev(s):
+    """One name part cut short: its camelCase words, or its first letters."""
+    if len(s) <= SHORT:
+        return s
+    words = [w for w in re.sub(r'([a-z0-9])([A-Z])', r'\1 \2', s).split(' ') if w]
+    if len(words) < 2:
+        return s[:SHORT - 1] + '…'
+    return ''.join(_cut_word(w, i) for i, w in enumerate(words))
+
+
+def _compact(parts):
+    """Several parts, each kept when short, joined in camelCase."""
+    out = []
+    for i, p in enumerate(parts):
+        q = p if len(p) <= 6 else _abbrev(p)
+        out.append(q[0].upper() + q[1:] if i else q)
+    return ''.join(out)
+
+
+def short_name(name):
+    """A port name as a node shows it (static/editor.js shortName): the longest
+    tail of its "_" parts that fits, else its last part cut short."""
+    name = str(name or '')
+    if len(name) <= SHORT:
+        return name
+    parts = [p for p in name.split('_') if p]
+    best = ''
+    for k in range(1, len(parts) + 1):
+        tail = '_'.join(parts[-k:])
+        if len(tail) > SHORT:
+            break
+        best = tail
+    if len(best) >= 4:
+        return best
+    if best:
+        return _compact(parts[-2:])
+    return _abbrev(parts[-1] if parts else name)
+
+
+def short_names(names):
+    """Short names of one side of a node, different from each other."""
+    out = {n: short_name(n) for n in names}
+    seen = {}
+    for n in names:
+        seen[out[n]] = seen.get(out[n], 0) + 1
+    for n in names:
+        if seen[out[n]] > 1 and out[n] != n:
+            out[n] = _compact([p for p in n.split('_') if p])
+    again = {}
+    for n in names:
+        s = out[n]
+        again[s] = again.get(s, 0) + 1
+        if again[s] > 1:
+            out[n] = s + str(again[s])
+    return out
+
+
+def _number(v):
+    try:
+        x = float(v)
+    except (TypeError, ValueError):
+        return None
+    return x if math.isfinite(x) else None
+
+
+def _number_chars(w):
+    o = w.get('options') or {}
+    vals = [x for x in (_number(v) for v in (w.get('value'), o.get('min'), o.get('max'))
+                        if v is not None and v != '') if x is not None]
+    n = max([1] + [len(str(int(abs(x)))) for x in vals])
+    if any(x < 0 for x in vals):
+        n += 1
+    if o.get('type') != 'int':
+        p = o.get('precision')
+        n += 1 + min(3 if p is None else int(p), 3)
+    return max(2, min(10, n))
+
+
+def _text_chars(v, lo, hi):
+    return max(lo, min(hi, len('' if v is None else str(v))))
+
+
+def widget_width(w):
+    """How wide a widget is drawn in a node (static/editor.js widgetW): the
+    width the user chose (option nodeWidth), else what it holds needs."""
+    w = w or {}
+    o = w.get('options') or {}
+    if o.get('nodeWidth'):
+        return max(30, min(400, float(o['nodeWidth'])))
+    kind = w.get('kind')
+    if kind == 'number':
+        return 38 + _number_chars(w) * 7
+    if kind == 'checkbox':
+        return 18
+    if kind == 'entry':
+        return 16 + _text_chars(w.get('value'), 4, 16) * 6.6
+    if kind in ('file', 'dir', 'filesave'):
+        return 38 + _text_chars(w.get('value'), 6, 18) * 6.6
+    if kind == 'combo':
+        values = list(o.get('choices') or []) + [w.get('value')]
+        longest = max(len('' if c is None else str(c)) for c in values)
+        return max(60, min(130, longest * 6.5 + 28))
+    if kind == 'button':
+        return min(120, _tw(o.get('text') or w.get('label') or 'press', 6.5) + 20)
+    if kind == 'color':
+        return 30
+    if kind == 'colormap':
+        return 124
+    if kind == 'vector':
+        return 110
+    return 100
 
 
 def node_geometry(d):
@@ -31,14 +156,18 @@ def node_geometry(d):
         elif w.get('master') == 'node':
             rows.append((p, 'widget'))
     outs = d.get('out') or []
+    in_short = short_names([p['name'] for p, k in rows])
+    out_short = short_names([p['name'] for p in outs])
     in_w = 0
     for p, kind in rows:
         if kind == 'widget':
             w = p['widget']
-            in_w = max(in_w, min(_tw(w.get('label') or p['name'], 6), 70) + WIDGET_W)
+            label = w.get('label') or in_short[p['name']]
+            lw = 0 if w.get('label') == '' else min(_tw(label, 6), 70) + 4
+            in_w = max(in_w, lw + widget_width(w))
         else:
-            in_w = max(in_w, _tw(p['name'], 5.8) + 14)
-    out_w = max([_tw(p['name'], 5.8) + 14 for p in outs] or [0])
+            in_w = max(in_w, _tw(in_short[p['name']], 5.8) + 14)
+    out_w = max([_tw(out_short[p['name']], 5.8) + 14 for p in outs] or [0])
     w = max(110, _tw(d.get('label') or d.get('name'), 7.2) + 34,
             in_w + out_w + (22 if outs and rows else 10))
     h = HEAD + max(len(rows), len(outs), 1) * ROW + 6 + (4 if d.get('progbar') else 0)

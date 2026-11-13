@@ -465,7 +465,17 @@ function widgetMenuItems(n, p){
     ['Show in the node', () => edit('widget_opts', {node: n.id, port: p.name, opts: {master: 'node'}}), p.widget.master === 'node'],
     ['Show in the panel only', () => edit('widget_opts', {node: n.id, port: p.name, opts: {master: 'ParamPanel'}}), p.widget.master !== 'node'],
     ['Unbind (show the port)', () => edit('unbind', {node: n.id, port: p.name}), p.widget.locked],
-  ].concat(p.widget.kind === 'number' ? [['Options\u2026', () => widgetOptions(n, p)]] : []);
+  ].concat(p.widget.kind === 'number' ? [['Options\u2026', () => widgetOptions(n, p)]] : [])
+   .concat(p.widget.master === 'node' ? ['-',
+    ['Wider', () => widgetWidth(n, p, 1.3)],
+    ['Narrower', () => widgetWidth(n, p, 1 / 1.3)],
+    ['Automatic width', () => widgetWidth(n, p, null), !(p.widget.options || {}).nodeWidth]] : []);
+}
+// the width of a widget in its node, saved with the network (null: as its content needs)
+function widgetWidth(n, p, factor){
+  const w = factor == null ? null
+    : Math.max(30, Math.min(400, Math.round(ED.widgetW(p.widget) * factor)));
+  edit('widget_opts', {node: n.id, port: p.name, opts: {nodeWidth: w}});
 }
 // a number widget's options: Vision's option panel (min, max, step, one turn, precision)
 function widgetOptions(n, p){

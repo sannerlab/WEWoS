@@ -157,3 +157,43 @@ def test_file_browser_relative_folder_is_in_the_network_folder():
     d = list_dir('cartoonMovie/frame0.png', base)          # a file: its folder
     eq(d['path'], os.path.join(os.path.abspath(base), 'cartoonMovie'))
     eq(list_dir('', base)['path'], os.path.abspath(base))
+
+
+def test_long_port_names_and_widgets_keep_nodes_narrow():
+    """Long port names are shown short (the full name is the tooltip), and a
+    widget in a node is as wide as its kind needs (static/editor.js mirrors
+    wewos/engine/layout.py; a browser check compared both on the examples)."""
+    from wewos.engine.layout import node_geometry, short_name, short_names, widget_width
+    eq(short_name('indexedPolygons_instanceMatrices'), 'instMat')
+    eq(short_name('Merge_outMatrices'), 'outMatrices')
+    eq(short_name('transformation_matrix_list'), 'matrix_list')
+    eq(short_name('geomOptions'), 'geomOptions')                     # short names stay
+    eq(short_names(['indexedPolygons_instanceMatrices', 'spheres_instanceMatrices']),
+       {'indexedPolygons_instanceMatrices': 'indPolInstMat',
+        'spheres_instanceMatrices': 'spheresInstMat'})               # never two alike
+    eq(widget_width({'kind': 'number', 'value': 1, 'options': {'type': 'int', 'min': 1}}), 52)
+    eq(widget_width({'kind': 'entry', 'value': '2plv'}), 16 + 4 * 6.6)
+    eq(widget_width({'kind': 'number', 'value': 1, 'options': {'nodeWidth': 120}}), 120)
+    eq(widget_width({'kind': 'checkbox'}), 18)
+    check(widget_width({'kind': 'combo', 'options': {'choices': ['a', 'bb']}}) == 60)
+    s = _session()
+    _example(s, 'capsid_surface.wnet.json')
+    ms = [n for n in s.net.nodes if n.name == 'CoarseMolSurf'][0]
+    check(node_geometry(ms.describe())['w'] < 200, node_geometry(ms.describe()))
+
+
+def test_a_widget_width_chosen_by_the_user_is_saved():
+    from wewos.engine import Network, fileio
+    from wewos.engine.layout import node_geometry
+    s = _session()
+    _example(s, 'capsid_surface.wnet.json')
+    fetch = [n for n in s.net.nodes if n.name == 'Fetch PDB'][0]
+    w0 = node_geometry(fetch.describe())['w']
+    s.edit('widget_opts', {'node': fetch.id, 'port': 'pdbId', 'opts': {'nodeWidth': 160}})
+    check(node_geometry(fetch.describe())['w'] > w0)
+    n2 = Network('reopened')
+    fileio.from_dict(n2, fileio.to_dict(s.net))
+    f2 = [n for n in n2.nodes if n.name == 'Fetch PDB'][0]
+    eq(f2.inputPortByName['pdbId'].widget.options.get('nodeWidth'), 160)
+    s.edit('widget_opts', {'node': fetch.id, 'port': 'pdbId', 'opts': {'nodeWidth': None}})
+    eq(node_geometry(fetch.describe())['w'], w0)                     # automatic again

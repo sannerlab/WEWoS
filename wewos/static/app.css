@@ -171,6 +171,10 @@ body.vfull #viewers{position:fixed;inset:0;z-index:25;height:auto !important;bac
 .nw .wrow{display:flex;align-items:center;gap:4px;height:22px}
 .nw .wrow>label{flex:0 0 auto;color:var(--dim);max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .nw input[type=text],.nw input[type=number],.nw select{font-size:11px;padding:1px 3px;min-width:0;flex:1;height:19px}
+/* in a node, a number field is as wide as a few digits (editor.js widgetW) */
+.nw .w-number{gap:2px}
+.nw .w-number input[type=number]{width:0;flex:1}
+.nw .w-number .scrub{padding:0 2px}
 
 /* widgets */
 .w-number{display:flex;gap:4px;align-items:center;width:100%}
