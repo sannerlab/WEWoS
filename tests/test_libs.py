@@ -534,6 +534,36 @@ def test_color_map_node_takes_an_edited_ramp():
     eq(cm.outputPortByName['colors'].data.tolist(), [[0, 1, 0], [1, 0, 1]])
 
 
+def test_color_editor_gives_one_color_to_labels():
+    """Color Editor (Vision's, 3D Visualization > Input): a color picked on the page
+    (#rrggbb) goes out as one RGB color, and colors every label it is given to;
+    labels with no color are flagged so the page draws them in the theme's text
+    color (they were white, lost on a white background)."""
+    vz = get_library('3D Visualization')
+    ce, lb, v = vz.instantiate(label='Color Editor'), vz.instantiate(label='GlfLabels'), vz.instantiate(label='Viewer')
+    n = net(ce, lb, v)
+    n.connectNodes(lb, v, 'glflabels', 'geometries')
+    lb.inputPortByName['labels'].defaultValue = ['a', 'b']
+    lb.inputPortByName['coords'].defaultValue = [[0, 0, 0], [1, 0, 0]]
+    n.run(n.rootNodes)
+    g = v.geomsJSON()[0]
+    check(g.get('defaultColor') and 'colors' not in g, g)
+    eq(ce.inputPortByName['color'].widget.spec()['kind'], 'color')
+    ce.inputPortByName['color'].widget.set('#00ff80', run=False)
+    n.connectNodes(ce, lb, 'color', 'colors')
+    n.run(n.rootNodes)
+    eq([round(x, 3) for x in ce.outputPortByName['color'].data[0]], [0.0, 1.0, 0.502])
+    g = v.geomsJSON()[0]       # one color: the geometry's color, for all its labels
+    eq([round(float(x), 3) for x in g['color']], [0.0, 1.0, 0.502])
+    check(not g.get('defaultColor') and 'colors' not in g, g)
+    # an input connected but without data yet ('no data yet', as in Vision) leaves
+    # that part as it was: a new color recolors the labels already there
+    lb.update({'vertices': 'no data yet', 'labels': 'no data yet', 'materials': [[1, 0, 0]]},
+              'no data yet', 'no data yet', 'no data yet', 'no data yet')
+    g = lb.geom.to_json()
+    eq((g['labels'], g['color']), (['a', 'b'], [1.0, 0.0, 0.0]))
+
+
 def test_color_map_table_ramp_is_looked_up_as_in_vision():
     """A ramp given as a table (Vision's color maps) maps a value to entry
     int((v - mini) * n / (maxi - mini)), as DejaVu's ColorMap.Map did; a

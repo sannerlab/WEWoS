@@ -81,8 +81,13 @@ class GeometryNode(NetworkNode):
         return self.geom
 
     def update(self, kw, name=None, instanceMatrices=None, geomOptions=None, parent=None):
+        # an optional input that is connected but has no data yet passes Vision's
+        # 'no data yet': like None, it leaves that part of the geometry as it was
+        nodata = lambda v: v is None or (isinstance(v, str) and v == 'no data yet')
+        instanceMatrices, geomOptions, parent, name = [None if nodata(v) else v for v in
+                                                       (instanceMatrices, geomOptions, parent, name)]
         g = self.getGeom(name)
-        kw = {k: v for k, v in kw.items() if v is not None}
+        kw = {k: v for k, v in kw.items() if not nodata(v)}
         if self.geomState:
             st = dict(self.geomState)
             if any(k in kw or k in (geomOptions or {}) for k in ('colors', 'color', 'materials')):
@@ -212,7 +217,7 @@ class Labels(GeometryNode):
                                         'labelCfg': {'text': 'font size'}}
         self._commonPorts()
         self.setFunction("""def doit(self, coords, labels, colors, fontSize, name, instanceMatrices, geomOptions, parent):
-    if isinstance(labels, str):
+    if isinstance(labels, str) and labels != 'no data yet':
         labels = [labels]
     self.update({'vertices': coords, 'labels': labels, 'materials': colors, 'fontSize': fontSize},
                 name, instanceMatrices, geomOptions, parent)
@@ -336,6 +341,26 @@ redraw, e.g. Grab Image (Vision's One Redraw)."""
         self.inputPortsDescr.append(datatype='None', name='trigger', required=False)
         self.setFunction("""def doit(self, viewer, trigger):
     pass
+""")
+
+
+class ColorEditor(NetworkNode):
+    """One color, picked from a palette (basic colors, colorblind-safe, Tableau,
+pastel, dark, element colors, greys, and the colors picked recently) or from a
+color spectrum, or typed as #rrggbb, as Vision's Color Editor. The color goes
+out as a list of one RGB color, which every color input takes (GlfLabels,
+Spheres, Cylinders, the colors of a molecule's representation...): a geometry
+given one color draws all its parts in it."""
+
+    def __init__(self, name='Color Editor', **kw):
+        kw['name'] = name
+        NetworkNode.__init__(self, **kw)
+        self.inputPortsDescr.append(datatype='None', name='color')
+        self.widgetDescr['color'] = {'class': 'NEColorEditor', 'master': 'node',
+                                     'initialValue': [0.9, 0.45, 0.1], 'labelCfg': {'text': ''}}
+        self.outputPortsDescr.append(datatype='colorfloat3or4(0)', name='color')
+        self.setFunction("""def doit(self, color):
+    self.outputData(color=[[float(x) for x in list(color)[:3]]])
 """)
 
 
@@ -801,4 +826,5 @@ vizlib.addNode(GeomContainer, 'GeomContainer', 'Geometry')
 vizlib.addNode(GeomOptions, 'Set Geom Options', 'Input')
 vizlib.addNode(ReadMesh, 'Read Mesh', 'Input')
 vizlib.addNode(ColorMap, 'Color Map', 'Mapper')
+vizlib.addNode(ColorEditor, 'Color Editor', 'Input')
 vizlib.addNode(OneRedraw, 'One Redraw', 'Output')

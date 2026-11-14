@@ -530,13 +530,163 @@ const W = (() => {
     return box;
   }
 
+  /* color: one color, from a palette or a color spectrum, or typed as #rrggbb.
+     In a node, a swatch that opens the picker; in the parameter column, the
+     picker itself. The palette chosen last and the colors picked recently are
+     kept by the browser. */
+  const PALETTES = {
+    'Basic': ['#000000', '#404040', '#808080', '#c0c0c0', '#ffffff', '#e6194b', '#f58231', '#ffe119',
+              '#3cb44b', '#42d4f4', '#4363d8', '#911eb4', '#f032e6', '#9a6324', '#800000', '#000075'],
+    'Colorblind-safe (Okabe-Ito)': ['#000000', '#e69f00', '#56b4e9', '#009e73', '#f0e442', '#0072b2',
+              '#d55e00', '#cc79a7'],
+    'Tableau 10': ['#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f', '#edc948', '#b07aa1',
+              '#ff9da7', '#9c755f', '#bab0ac'],
+    'Pastel': ['#fbb4ae', '#b3cde3', '#ccebc5', '#decbe4', '#fed9a6', '#ffffcc', '#e5d8bd', '#fddaec', '#f2f2f2'],
+    'Dark': ['#1b9e77', '#d95f02', '#7570b3', '#e7298a', '#66a61e', '#e6ab02', '#a6761d', '#666666'],
+    'Elements (CPK)': [['#909090', 'C'], ['#3050f8', 'N'], ['#ff0d0d', 'O'], ['#ffff30', 'S'],
+              ['#ff8000', 'P'], ['#ffffff', 'H'], ['#1ff01f', 'Cl'], ['#90e050', 'F'], ['#a62929', 'Br'],
+              ['#940094', 'I'], ['#e06633', 'Fe'], ['#7d80b0', 'Zn'], ['#8aff00', 'Mg'], ['#3dff00', 'Ca']],
+    'Greys': ['#000000', '#1c1c1c', '#383838', '#555555', '#717171', '#8d8d8d', '#aaaaaa', '#c6c6c6',
+              '#e2e2e2', '#ffffff'],
+  };
+  const store = {
+    get(k, d){ try { const v = localStorage.getItem('wewos.' + k); return v == null ? d : JSON.parse(v); } catch(e){ return d; } },
+    set(k, v){ try { localStorage.setItem('wewos.' + k, JSON.stringify(v)); } catch(e) {} },
+  };
+  const hex2 = x => ('0' + Math.round(Math.max(0, Math.min(1, x)) * 255).toString(16)).slice(-2);
+  const toHex = rgb => '#' + hex2(rgb[0]) + hex2(rgb[1]) + hex2(rgb[2]);
+  const fromHex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255);
+  // (the color map editor below has its own rgb2hsv and hsv2rgb, taking three numbers)
+  function rgbToHsv([r, g, b]){
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+    let h = 0;
+    if(d) h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    return [((h * 60) + 360) % 360, mx ? d / mx : 0, mx];
+  }
+  function hsvToRgb([h, s, v]){
+    const f = n => { const k = (n + h / 60) % 6; return v - v * s * Math.max(0, Math.min(k, 4 - k, 1)); };
+    return [f(5), f(3), f(1)];
+  }
+  function colorPicker(hex, pick, live){
+    // pick(hex): a final choice; live(hex): while dragging in the spectrum
+    const box = el('div', {class: 'w-picker'});
+    let hsv = rgbToHsv(fromHex(hex));
+    // palettes
+    const sel = el('select', {class: 'pal-name', title: 'palette'});
+    Object.keys(PALETTES).concat(['Recent']).forEach(n => sel.append(el('option', {value: n}, esc(n))));
+    sel.value = store.get('palette', 'Basic');
+    if(!PALETTES[sel.value] && sel.value !== 'Recent') sel.value = 'Basic';
+    const grid = el('div', {class: 'pal-grid'});
+    const fillGrid = () => {
+      grid.textContent = '';
+      const cols = sel.value === 'Recent' ? store.get('recentColors', []) : PALETTES[sel.value];
+      if(!cols.length) grid.append(el('span', {class: 'dim'}, 'no colors picked yet'));
+      cols.forEach(c => {
+        const [h, name] = Array.isArray(c) ? c : [c, ''];
+        const b = el('button', {class: 'sw', title: (name ? name + ' ' : '') + h, type: 'button'});
+        b.style.background = h;
+        if(name) b.textContent = name;
+        b.addEventListener('click', () => choose(h));
+        grid.append(b);
+      });
+    };
+    sel.addEventListener('change', () => { store.set('palette', sel.value); fillGrid(); });
+    // the spectrum: saturation (left to right) and value (bottom to top), and the hue
+    const sq = el('div', {class: 'sv'}), dot = el('i');
+    sq.append(dot);
+    const hue = el('div', {class: 'hue'}), hmark = el('i');
+    hue.append(hmark);
+    const field = el('input', {type: 'text', class: 'hex', spellcheck: 'false', maxlength: 7, title: '#rrggbb'});
+    const now = el('span', {class: 'sw now'});
+    const show = () => {
+      const h = toHex(hsvToRgb(hsv));
+      sq.style.background = 'linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, hsl(' + hsv[0] + ',100%,50%))';
+      dot.style.left = (hsv[1] * 100) + '%';
+      dot.style.top = ((1 - hsv[2]) * 100) + '%';
+      hmark.style.left = (hsv[0] / 360 * 100) + '%';
+      if(document.activeElement !== field) field.value = h;
+      now.style.background = h;
+      return h;
+    };
+    function choose(h){
+      hsv = rgbToHsv(fromHex(h));
+      show();
+      const recent = [h].concat(store.get('recentColors', []).filter(x => x !== h)).slice(0, 16);
+      store.set('recentColors', recent);
+      if(sel.value === 'Recent') fillGrid();
+      pick(h);
+    }
+    const drag = (target, set) => target.addEventListener('pointerdown', e => {
+      e.preventDefault(); e.stopPropagation();
+      target.setPointerCapture(e.pointerId);
+      dragging = true;
+      const at = ev => { const r = target.getBoundingClientRect();
+        set(Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width)), Math.max(0, Math.min(1, (ev.clientY - r.top) / r.height)));
+        live(show()); };
+      at(e);
+      const move = ev => at(ev);
+      const up = () => { target.removeEventListener('pointermove', move); target.removeEventListener('pointerup', up);
+        target.removeEventListener('pointercancel', up); dragging = false; busyUntil = performance.now() + 400;
+        choose(toHex(hsvToRgb(hsv))); };
+      target.addEventListener('pointermove', move);
+      target.addEventListener('pointerup', up);
+      target.addEventListener('pointercancel', up);
+    });
+    drag(sq, (x, y) => { hsv = [hsv[0], x, 1 - y]; });
+    drag(hue, x => { hsv = [Math.min(359.9, x * 360), hsv[1], hsv[2]]; });
+    field.addEventListener('change', () => {
+      let v = field.value.trim();
+      if(/^[0-9a-f]{6}$/i.test(v)) v = '#' + v;
+      if(/^#[0-9a-f]{6}$/i.test(v)) choose(v.toLowerCase()); else show();
+    });
+    field.addEventListener('keydown', e => { if(e.key === 'Enter') field.blur(); });
+    const head = el('div', {class: 'pal-head'});
+    head.append(sel);
+    const foot = el('div', {class: 'pick-foot'});
+    foot.append(now, field);
+    box.append(head, grid, sq, hue, foot);
+    fillGrid();
+    show();
+    return box;
+  }
+  let openPopup = null;
+  function closePopup(){ if(openPopup){ openPopup.remove(); openPopup = null; } }
+  document.addEventListener('pointerdown', e => {
+    if(openPopup && !openPopup.contains(e.target) && !(e.target.closest && e.target.closest('.w-color'))) closePopup();
+  }, true);
+  document.addEventListener('keydown', e => { if(e.key === 'Escape') closePopup(); });
   function color(spec, ctx){
-    const c = el('input', {type: 'color'});
     const v = Array.isArray(spec.value) ? spec.value : [1, 1, 1];
-    const h = x => ('0' + Math.round(Math.max(0, Math.min(1, x)) * 255).toString(16)).slice(-2);
-    c.value = '#' + h(v[0]) + h(v[1]) + h(v[2]);
-    c.addEventListener('change', () => ctx.change(c.value, true));
-    return c;
+    let cur = toHex(v);
+    const live = throttled(h => ctx.change(h, true), 150);
+    const set = h => { cur = h; sw.style.background = h; ctx.change(h, true); };
+    const box = el('div', {class: 'w-color'});
+    const sw = el('button', {class: 'sw', type: 'button', title: 'pick a color: ' + cur});
+    sw.style.background = cur;
+    box.append(sw);
+    if(!ctx.compact){
+      // the parameter column: the picker in full
+      box.classList.add('full');
+      box.append(colorPicker(cur, set, h => { sw.style.background = h; live(h); }));
+      sw.disabled = true;
+      return box;
+    }
+    sw.addEventListener('click', e => {
+      e.stopPropagation();
+      if(openPopup && openPopup.dataset.owner === ctx.key){ closePopup(); return; }
+      closePopup();
+      const pop = el('div', {class: 'w-popup'});
+      pop.dataset.owner = ctx.key || '';
+      pop.append(colorPicker(cur, h => { set(h); }, h => { sw.style.background = h; live(h); }));
+      pop.addEventListener('keydown', ev => ev.stopPropagation());
+      pop.addEventListener('pointerdown', ev => ev.stopPropagation());
+      document.body.append(pop);
+      const r = sw.getBoundingClientRect(), pw = pop.offsetWidth, ph = pop.offsetHeight;
+      pop.style.left = Math.max(4, Math.min(innerWidth - pw - 4, r.left)) + 'px';
+      pop.style.top = (r.bottom + ph + 6 < innerHeight ? r.bottom + 4 : Math.max(4, r.top - ph - 4)) + 'px';
+      openPopup = pop;
+    });
+    return box;
   }
 
   function multicheck(spec, ctx){

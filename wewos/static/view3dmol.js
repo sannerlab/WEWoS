@@ -223,7 +223,8 @@ function plainScene(o){
         o.pts = sample(p);
         (g.labels || []).forEach((t, i) => {
           o.labels.push(v.addLabel(t, {position: vec(p, i), fontSize: g.fontSize || 14,
-            fontColor: cols ? hex([cols[3*i], cols[3*i+1], cols[3*i+2]]) : hex(g.color),
+            // no colors given: the theme's text color, as for lines (DejaVu's white is lost on white)
+            fontColor: cols ? hex([cols[3*i], cols[3*i+1], cols[3*i+2]]) : hex(V3DU.lineColor(g)),
             backgroundOpacity: 0.0, inFront: true}));
         });
       }

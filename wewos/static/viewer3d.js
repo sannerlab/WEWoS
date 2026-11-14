@@ -628,9 +628,9 @@ const VIEW3D = (() => {
     theme(){ Object.values(V).forEach(r => {
       if(r.be){
         r.be.background(bg());
-        // lines drawn in the theme's default color
+        // lines and labels drawn in the theme's default color
         let any = false;
-        r.geoms.forEach(g => { if(g.defaultColor && g.type === 'lines'){ r.be.set(g); any = true; } });
+        r.geoms.forEach(g => { if(g.defaultColor && (g.type === 'lines' || g.type === 'labels')){ r.be.set(g); any = true; } });
         if(any) r.be.flush();
       }
       r.legends.forEach(L => { drawLegend(r, L); placeLegend(r, L); });

@@ -298,7 +298,8 @@
         // copies made by the graphics card
         (g.instances || []).forEach(M => sh.instance({matrix: colMajor(M)}));
       } else if(g.type === 'labels'){
-        const p = dec(g.positions), cols = dec(g.colors), base = hex(g.color);
+        // no colors given: the theme's text color, as for lines
+        const p = dec(g.positions), cols = dec(g.colors), base = hex(V3DU.lineColor(g));
         const pr = b.primitives({ref});
         (g.labels || []).forEach((t, i) => pr.label({position: xyz(p, i), text: String(t),
           label_size: (g.fontSize || 14) * 0.12, label_color: cols ? hex(xyz(cols, i)) : base}));
