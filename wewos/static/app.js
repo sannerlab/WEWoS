@@ -32,6 +32,9 @@ async function api(path, body, raw){
     let d;
     try { d = await r.json(); }
     catch(e){ d = {error: 'the server did not answer with JSON (' + r.status + ')'}; }
+    if(r.status === 403 && d.error && /token/.test(d.error))
+      d.error = "this page's address is no longer valid (the server was restarted, which makes a new " +
+                "token): open the address the server printed";
     if(d.error){ status('<span class=bad>' + esc(d.error) + '</span>'); if(d.trace) logText(d.trace + '\n'); }
     return d;
   } catch(e){
@@ -195,6 +198,7 @@ function status_err(n, e){
 }
 function setExec(s){
   ST.exec = s;
+  if(s === 'waiting' && RUNQ.pending) runPendingChange();
   const p = $('execstatus');
   p.textContent = s === 'waiting' ? 'idle' : s;
   p.className = 'pill ' + s;
@@ -442,11 +446,31 @@ function widgetCtx(nid, port, compact){
     compact,
     key: nid + ':' + port,
     colormapFile: (action, path, colorMap) => edit('colormap_file', {action, path, colorMap}),
-    change: (value, runIt) => edit('set_widget', {node: nid, port, value, run: runIt && ST.auto}),
+    change: (value, runIt) => widgetChange(nid, port, value, runIt),
     pickFile: (kind, cur, opts) => filePicker(kind, cur, Object.assign({relative: true}, opts)),
     upload: () => uploadFile(),
   };
 }
+// A widget turned fast (the wheel, a drag) gives many values, and a slow network
+// cannot run them all: while it runs, a change only sets the value, and the
+// latest change runs once the run ends. After Stop or Pause, values turned
+// before it that were still on their way set their widget without a run.
+const RUNQ = {pending: null};
+function widgetChange(nid, port, value, runIt){
+  let run = !!(runIt && ST.auto) && !W.isStaleSend();
+  if(run && (ST.exec === 'running' || ST.exec === 'pause')){
+    RUNQ.pending = {sid: ST.sid, node: nid};
+    run = false;
+  }
+  return edit('set_widget', {node: nid, port, value, run});
+}
+function runPendingChange(){
+  const p = RUNQ.pending;
+  RUNQ.pending = null;
+  if(!p || p.sid !== ST.sid || !ST.auto) return;
+  api('api/run', {s: ST.sid, mode: 'run_node', node: p.node});
+}
+function quietWidgets(){ RUNQ.pending = null; W.quiet(); }
 function panel(){
   const box = $('panel');
   const ids = ED.selection().nodes;
@@ -1102,8 +1126,9 @@ window.addEventListener('focus', refreshSessions);
 /* ------------------------------------------------------------ toolbar */
 $('b_run').onclick = () => run('run');
 $('b_hardrun').onclick = () => run('hardrun');
-$('b_pause').onclick = () => run(ST.exec === 'pause' ? 'resume' : 'pause');
+$('b_pause').onclick = () => { if(ST.exec !== 'pause') quietWidgets(); run(ST.exec === 'pause' ? 'resume' : 'pause'); };
 $('b_stop').onclick = async () => {
+  quietWidgets();
   await run('stop');
   if(!isolated()) return;
   // stopping waits for the running node to finish: offer to end an isolated

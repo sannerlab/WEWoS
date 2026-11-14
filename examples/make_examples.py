@@ -133,6 +133,9 @@ def contacts():
     pa = node(n, MOL, 'Picked Atom', 830, 330)
     dl = node(n, STD, 'Dial', 830, 470, dial=4.0)
     dl.rename('cutoff')
+    # 0.1 A per step (a wheel notch) between 2 and 8 A: the default dial steps by
+    # 0.01, a hundred runs of the analysis per angstrom
+    dl.inputPortByName['dial'].widget.configure(min=2.0, max=8.0, increment=0.1)
     gn = node(n, STD, 'Generic', 1090, 330)
     gn.rename('residues near the pick')
     gn.addInputPort(name='picked', datatype='None')

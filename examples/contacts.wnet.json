@@ -158,9 +158,9 @@
     },
     "widgetOpts": {
      "dial": {
-      "min": null,
-      "max": null,
-      "increment": 0.0,
+      "min": 2.0,
+      "max": 8.0,
+      "increment": 0.1,
       "precision": 2
      }
     }

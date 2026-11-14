@@ -7,6 +7,7 @@
   --good:#1a7f5a; --soft:#f2f4fa; --hover:#eef2fb; --warn:#c77700;
   --grid:#e9ecf3; --node:#fbfcfe; --nodeline:#b9c1d3; --sel:#f5b400;
   --frozen:#cfe2fb; --canvas:#f4f6fa;
+  --tw-edge:#9aa3b5; --tw-mid:#fbfcfe; --tw-rib:#2e3444; --tw-hi:#ffffff;
 }
 :root[data-theme=dark]{
   color-scheme:dark;
@@ -15,6 +16,7 @@
   --good:#4cc79a; --soft:#1e222d; --hover:#232a3a; --warn:#f0a43a;
   --grid:#1d2230; --node:#202634; --nodeline:#3a4256; --sel:#f5c542;
   --frozen:#24385a; --canvas:#151922;
+  --tw-edge:#11141b; --tw-mid:#5d6779; --tw-rib:#07090d; --tw-hi:#aab3c5;
 }
 @media (prefers-color-scheme: dark){ :root:not([data-theme=light]){
   color-scheme:dark;
@@ -22,7 +24,8 @@
   --dim:#8e98ad; --accent:#6b9bff; --accent2:#1e2a45; --bad:#ff7b6b;
   --good:#4cc79a; --soft:#1e222d; --hover:#232a3a; --warn:#f0a43a;
   --grid:#1d2230; --node:#202634; --nodeline:#3a4256; --sel:#f5c542;
-  --frozen:#24385a; --canvas:#151922; } }
+  --frozen:#24385a; --canvas:#151922;
+  --tw-edge:#11141b; --tw-mid:#5d6779; --tw-rib:#07090d; --tw-hi:#aab3c5; } }
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--fg);font:13px/1.35 system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -201,6 +204,22 @@ body.vfull #viewers{position:fixed;inset:0;z-index:25;height:auto !important;bac
   color:var(--dim);font-size:10px;line-height:10px;margin-left:-2px}
 .w-number .spin span{padding:0 2px;border-radius:2px}
 .w-number .spin span:hover{color:var(--accent);background:var(--soft)}
+/* Vision's Dial and ThumbWheel (widgets.js dialControl, wheelControl) */
+.w-number svg.dial,.w-number svg.thumbwheel{flex:none;touch-action:none;display:block}
+.w-number svg.dial{cursor:grab}
+.w-number svg.dial:active{cursor:grabbing}
+.dial .face{fill:var(--soft);stroke:var(--nodeline);stroke-width:1}
+.dial .used{fill:var(--accent);fill-opacity:.22;stroke:none}
+.dial .tick{stroke:var(--dim);stroke-width:1;stroke-opacity:.6}
+.dial .needle{stroke:var(--fg);stroke-width:1.8;stroke-linecap:round}
+.dial .knob{fill:var(--fg)}
+.w-number svg.thumbwheel{cursor:ew-resize}
+.thumbwheel .body{stroke:var(--nodeline);stroke-width:1}
+.thumbwheel .tw-edge{stop-color:var(--tw-edge)}
+.thumbwheel .tw-mid{stop-color:var(--tw-mid)}
+.thumbwheel .rib{stroke:var(--tw-rib);stroke-width:1}
+.thumbwheel .rib-hi{stroke:var(--tw-hi);stroke-width:1}
+.nw .w-dial,.nw .w-wheel{gap:3px}
 .w-file{display:flex;gap:3px;width:100%}
 .w-file input{flex:1;min-width:0}
 .w-vector{display:flex;gap:3px;width:100%}

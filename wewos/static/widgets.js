@@ -96,13 +96,22 @@ const W = (() => {
 
   // send continuous changes at most every 150 ms (and the last one always),
   // so the network can follow a drag or a scroll without a backlog
+  //
+  // quiet() (Stop, Pause) marks the values given before it: one of them still
+  // waiting to be sent then sets its widget without running the network.
+  let GEN = 0, staleSend = false;
   function throttled(fn, ms){
-    let last = 0, timer = null, pending;
+    let last = 0, timer = null, pending, gen = 0;
     return v => {
       pending = v;
+      gen = GEN;
       if(timer) return;
       const wait = Math.max(0, ms - (performance.now() - last));
-      timer = setTimeout(() => { timer = null; last = performance.now(); fn(pending); }, wait);
+      timer = setTimeout(() => {
+        timer = null; last = performance.now();
+        staleSend = gen !== GEN;
+        try { fn(pending); } finally { staleSend = false; }
+      }, wait);
     };
   }
 
@@ -111,6 +120,89 @@ const W = (() => {
     if(o.type === 'int') return String(Math.round(v));
     const p = o.precision == null ? 3 : o.precision;
     return Number(v).toFixed(Math.min(Math.max(p, 0), 8)).replace(/\.?0+$/, m => m.startsWith('.') ? '' : m);
+  }
+
+  /* Vision's Dial and ThumbWheel (mglutil/gui/BasicWidgets/Tk): the dial is
+     turned by dragging around its center, one turn being worth oneTurn, and a
+     wedge from 12 o'clock shows where the value is in its turn; the thumbwheel
+     is a ribbed cylinder turned by dragging along it, one pixel being one
+     degree. Each returns {el, draw(v), start(ev), delta(ev)}: delta is the
+     change of value since the last pointer event. */
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  const sv = (tag, attrs) => {
+    const e = document.createElementNS(SVGNS, tag);
+    for(const k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  };
+  let gradIds = 0;
+  function dialControl(size, oneTurn){
+    const c = size / 2, r = c - 1.5;
+    const svg = sv('svg', {class: 'dial', width: size, height: size, viewBox: '0 0 ' + size + ' ' + size});
+    svg.append(sv('circle', {class: 'face', cx: c, cy: c, r}));
+    const used = sv('path', {class: 'used'});
+    svg.append(used);
+    if(size >= 30) for(let k = 0; k < 12; k++){
+      const a = k * Math.PI / 6, r0 = k % 3 ? r * 0.86 : r * 0.72;
+      svg.append(sv('line', {class: 'tick', x1: c + r0 * Math.sin(a), y1: c - r0 * Math.cos(a),
+                             x2: c + r * Math.sin(a), y2: c - r * Math.cos(a)}));
+    }
+    const needle = sv('line', {class: 'needle', x1: c, y1: c});
+    svg.append(needle, sv('circle', {class: 'knob', cx: c, cy: c, r: Math.max(1.6, size * 0.09)}));
+    const draw = v => {
+      const f = ((+v || 0) % oneTurn + oneTurn) % oneTurn / oneTurn, a = f * 2 * Math.PI;
+      const sx = Math.sin(a), sy = -Math.cos(a);
+      needle.setAttribute('x2', c + (r - 1) * sx);
+      needle.setAttribute('y2', c + (r - 1) * sy);
+      used.setAttribute('d', f < 1e-6 ? 'M0,0' : 'M' + c + ',' + c + 'L' + c + ',' + (c - r) + 'A' + r + ',' + r +
+                        ' 0 ' + (f > 0.5 ? 1 : 0) + ' 1 ' + (c + r * sx) + ',' + (c + r * sy) + 'Z');
+    };
+    // the angle of the pointer around the center, clockwise from 12 o'clock;
+    // none too close to the center, where it is meaningless
+    let last = null;
+    const angle = ev => {
+      const b = svg.getBoundingClientRect();
+      const dx = ev.clientX - (b.left + b.width / 2), dy = ev.clientY - (b.top + b.height / 2);
+      return Math.hypot(dx, dy) < 3 ? null : Math.atan2(dx, -dy);
+    };
+    return {el: svg, draw,
+      start(ev){ last = angle(ev); },
+      delta(ev){
+        const a = angle(ev);
+        if(a === null) return 0;
+        if(last === null){ last = a; return 0; }
+        let d = a - last;
+        if(d > Math.PI) d -= 2 * Math.PI;
+        if(d < -Math.PI) d += 2 * Math.PI;
+        last = a;
+        return d / (2 * Math.PI) * oneTurn;
+      }};
+  }
+  function wheelControl(w, h, oneTurn){
+    const id = 'wewos-tw' + (++gradIds);
+    const svg = sv('svg', {class: 'thumbwheel', width: w, height: h, viewBox: '0 0 ' + w + ' ' + h});
+    const defs = sv('defs', {}), grad = sv('linearGradient', {id, x1: 0, x2: 1, y1: 0, y2: 0});
+    [[0, 'edge'], [0.5, 'mid'], [1, 'edge']].forEach(([off, k]) => grad.append(sv('stop', {offset: off, class: 'tw-' + k})));
+    defs.append(grad);
+    svg.append(defs, sv('rect', {class: 'body', x: 0.5, y: 0.5, width: w - 1, height: h - 1,
+                                 rx: Math.min(4, h / 4), fill: 'url(#' + id + ')'}));
+    const ribs = sv('g', {class: 'ribs'});
+    svg.append(ribs);
+    const N = h > 16 ? 30 : 22, cx = w / 2, R = w / 2 - 2;
+    const draw = v => {
+      ribs.textContent = '';
+      const phi = (+v || 0) / oneTurn * 2 * Math.PI;
+      for(let i = 0; i < N; i++){
+        const t = phi + i * 2 * Math.PI / N, s = Math.sin(t);
+        if(s <= 0.08) continue;                      // the back of the wheel
+        const x = cx - Math.cos(t) * R;
+        ribs.append(sv('line', {class: 'rib', x1: x, x2: x, y1: 2, y2: h - 2, 'stroke-opacity': (0.2 + 0.7 * s).toFixed(2)}),
+                    sv('line', {class: 'rib-hi', x1: x + 1, x2: x + 1, y1: 2, y2: h - 2, 'stroke-opacity': (0.8 * s).toFixed(2)}));
+      }
+    };
+    let lastX = 0;
+    return {el: svg, draw,
+      start(ev){ lastX = ev.clientX; },
+      delta(ev){ const dx = ev.clientX - lastX; lastX = ev.clientX; return dx / 360 * oneTurn; }};
   }
 
   /* number: thumbwheel and dial. Drag the handle (or the field with the
@@ -128,9 +220,23 @@ const W = (() => {
        SVG of a node (foreignObject) */
     const spin = el('span', {class: 'spin', title: 'click or hold to step (Shift: finer, Alt/Option: coarser)'},
                     '<span data-d=1>&#9652;</span><span data-d=-1>&#9662;</span>');
-    box.append(scrub, inp, spin);
+    // Vision's NEDial and NEThumbWheel get their own controls; other number
+    // widgets keep the field with its drag handle and arrows
+    const cls = String(spec.class || '');
+    const look = /Dial$/.test(cls) ? 'dial' : /ThumbWheel$/.test(cls) ? 'wheel' : null;
+    const oneTurn = +o.oneTurn > 0 ? +o.oneTurn : 360;
+    let ctl = null;
+    if(look === 'dial') ctl = dialControl(ctx.compact ? 18 : 44, oneTurn);
+    if(look === 'wheel') ctl = ctx.compact ? wheelControl(40, 14, oneTurn) : wheelControl(110, 20, oneTurn);
+    if(ctl){
+      box.classList.add('w-' + look);
+      ctl.el.setAttribute('title', (look === 'dial' ? 'drag around the dial' : 'drag along the wheel') +
+        ', or scroll, to change (Shift: finer)');
+      box.append(ctl.el, inp);
+      ctl.draw(spec.value);
+    } else box.append(scrub, inp, spin);
     let range = null;
-    if(hasRange && !ctx.compact){
+    if(hasRange && !ctx.compact && !ctl){
       range = el('input', {type: 'range', min: o.min, max: o.max,
                            step: o.type === 'int' ? 1 : ((o.max - o.min) / 500 || 'any')});
       range.value = spec.value;
@@ -156,15 +262,57 @@ const W = (() => {
       if(v === cur) return;
       inp.value = fmt(v, o);
       if(range) range.value = v;
+      if(ctl) ctl.draw(v);
       send(v, false);
     };
     onWheel(box, bump);
+    if(ctl){
+      // drag the dial around, or the wheel along: the value follows the pointer
+      ctl.el.addEventListener('pointerdown', e => {
+        if(e.button !== 0) return;
+        e.preventDefault(); e.stopPropagation();
+        ctl.el.setPointerCapture(e.pointerId);
+        dragging = true;
+        ctl.el.classList.add('dragging');       // the node is not redrawn under it (editor.js)
+        ctl.start(e);
+        let acc = inp.value === '' ? 0 : +inp.value, shown = acc;
+        const move = ev => {
+          acc += ctl.delta(ev) * (ev.shiftKey ? 0.1 : 1);
+          if(o.min != null && acc < o.min) acc = +o.min;       // no winding past the ends
+          if(o.max != null && acc > o.max) acc = +o.max;
+          let v = o.increment > 0 ? Math.round(acc / o.increment) * o.increment : acc;
+          v = clamp(o.type === 'int' ? v : +fmt(v, o));
+          if(v === shown) return;
+          shown = v;
+          inp.value = fmt(v, o);
+          ctl.draw(v);
+          send(v, false);
+        };
+        const up = () => {
+          ['pointermove', 'pointerup', 'pointercancel'].forEach((t, i) => ctl.el.removeEventListener(t, i ? up : move));
+          dragging = false; busyUntil = performance.now() + 400;
+          ctl.el.classList.remove('dragging');
+          if(inp.value !== '') live(+inp.value);
+        };
+        ctl.el.addEventListener('pointermove', move);
+        ctl.el.addEventListener('pointerup', up);
+        ctl.el.addEventListener('pointercancel', up);
+      });
+      inp.addEventListener('change', () => { if(inp.value !== '') ctl.draw(+inp.value); });
+    }
+    // the arrow keys step the value (Shift: finer, Alt/Option: coarser)
+    inp.addEventListener('keydown', e => {
+      if(e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+      e.preventDefault();
+      bump((e.key === 'ArrowUp' ? 1 : -1) * (e.shiftKey ? 0.1 : e.altKey ? 10 : 1));
+    });
     spin.addEventListener('pointerdown', e => {
       const d = +(e.target.dataset && e.target.dataset.d);
       if(!d) return;
       e.preventDefault(); e.stopPropagation();     // not a node drag
       const k = d * (e.shiftKey ? 0.1 : e.altKey ? 10 : 1);
       dragging = true;
+      spin.classList.add('dragging');
       bump(k);
       let timer = setTimeout(function again(){ bump(k); timer = setTimeout(again, 70); }, 400);
       const stop = () => {
@@ -172,6 +320,7 @@ const W = (() => {
         spin.removeEventListener('pointerup', stop); spin.removeEventListener('pointercancel', stop);
         spin.removeEventListener('lostpointercapture', stop);
         dragging = false; busyUntil = performance.now() + 400;
+        spin.classList.remove('dragging');
         if(inp.value !== '') live(+inp.value);
       };
       spin.setPointerCapture(e.pointerId);
@@ -184,6 +333,7 @@ const W = (() => {
       e.preventDefault(); e.stopPropagation();
       scrub.setPointerCapture(e.pointerId);
       dragging = true;
+      scrub.classList.add('dragging');
       const x0 = e.clientX, v0 = +inp.value || 0;
       const oneTurn = o.oneTurn || (hasRange ? (o.max - o.min) : 10);
       const per = oneTurn / 200;                // 200 px = one turn of the wheel
@@ -200,6 +350,7 @@ const W = (() => {
       const up = () => { scrub.removeEventListener('pointermove', move);
                          scrub.removeEventListener('pointerup', up);
                          dragging = false; busyUntil = performance.now() + 400;
+                         scrub.classList.remove('dragging');
                          live(+inp.value); };
       scrub.addEventListener('pointermove', move);
       scrub.addEventListener('pointerup', up);
@@ -670,5 +821,6 @@ const W = (() => {
     return e;
   }
 
-  return {render, esc, el, setReverse, isReversed: () => reverse, isBusy};
+  return {render, esc, el, setReverse, isReversed: () => reverse, isBusy,
+          quiet(){ GEN++; }, isStaleSend: () => staleSend};
 })();

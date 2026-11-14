@@ -120,7 +120,12 @@ const ED = (() => {
     const o = (w && w.options) || {};
     if(o.nodeWidth) return Math.max(30, Math.min(400, +o.nodeWidth));
     switch(w && w.kind){
-      case 'number': return 38 + numberChars(w) * 7;
+      case 'number': {
+        // Vision's dial and thumbwheel draw a small control beside the field
+        const cls = String(w.class || '');
+        if(/Dial$/.test(cls)) return 30 + numberChars(w) * 7;
+        if(/ThumbWheel$/.test(cls)) return 52 + numberChars(w) * 7;
+        return 38 + numberChars(w) * 7; }
       case 'checkbox': return 18;
       case 'entry': return 16 + textChars(w.value, 4, 16) * 6.6;
       case 'file': case 'dir': case 'filesave': return 46 + textChars(w.value, 6, 18) * 6.6;  // input padding + the … button
@@ -345,11 +350,21 @@ const ED = (() => {
     if(first && Object.keys(net.nodes).length) fit(1);    // a macro opened for the first time
   }
   function current(){ return NET; }
+  const redrawLater = new Set();
   function updateNode(id, full){
     if(!NET || !NET.nodes[id]) return;
     const el = gEls[id], n = NET.nodes[id];
-    if(!full && el && el.contains(document.activeElement)){
-      nodeClasses(el, n);               // keep the field being typed in
+    if(!full && el && (el.contains(document.activeElement) || el.querySelector('.dragging'))){
+      nodeClasses(el, n);               // keep the field being typed in, or the control being dragged
+      if(el.querySelector('.dragging') && !redrawLater.has(id)){
+        redrawLater.add(id);            // and draw the node once the drag ends
+        const again = () => {
+          if(gEls[id] && gEls[id].querySelector('.dragging')) return setTimeout(again, 200);
+          redrawLater.delete(id);
+          updateNode(id);
+        };
+        setTimeout(again, 200);
+      }
       return;
     }
     drawNode(n);

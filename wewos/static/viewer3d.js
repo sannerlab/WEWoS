@@ -544,7 +544,16 @@ const VIEW3D = (() => {
     IM[id] = rec;
     return rec;
   }
+  // one request at a time per image; a change meanwhile fetches it once more after
+  const IMQ = {};
   async function loadImage(id){
+    const q = IMQ[id] || (IMQ[id] = {busy: false, again: false});
+    if(q.busy){ q.again = true; return; }
+    q.busy = true;
+    try { do { q.again = false; await loadImageNow(id); } while(q.again); }
+    finally { q.busy = false; }
+  }
+  async function loadImageNow(id){
     const d = await cb.edit('image_data', {node: id});
     if(!d || d.error || !d.png) return;
     const rec = ensureImage(id);
@@ -592,14 +601,22 @@ const VIEW3D = (() => {
     },
     apply(e){
       const rec = ensure(e.viewer);
-      const names = (e.changed || []).map(c => c.name);
-      // drawing is chained, so a snapshot can wait for what is pending
-      rec.pending = rec.pending.then(async () => {
-        if(!rec.be) makeBackend(rec, rec.kind || '3dmol');
-        (e.removed || []).forEach(n => drop(rec, n));
-        if(names.length) await fetchAndDraw(rec, names);
-        else await rec.be.flush();
-      }).catch(err => status('viewer: ' + esc(err.message)));
+      // drawing is chained, so a snapshot can wait for what is pending. Changes
+      // that arrive while a draw waits to start merge into it: a burst of runs
+      // (a widget turned fast) is drawn once, with the latest geometries
+      if(!rec.queued){
+        const job = rec.queued = {ops: new Map()};
+        rec.pending = rec.pending.then(async () => {
+          rec.queued = null;              // from here on, changes start a new draw
+          if(!rec.be) makeBackend(rec, rec.kind || '3dmol');
+          const puts = [];
+          job.ops.forEach((op, name) => { if(op === 'drop') drop(rec, name); else puts.push(name); });
+          if(puts.length) await fetchAndDraw(rec, puts);
+          else await rec.be.flush();
+        }).catch(err => status('viewer: ' + esc(err.message)));
+      }
+      (e.removed || []).forEach(n => rec.queued.ops.set(n, 'drop'));
+      (e.changed || []).forEach(c => rec.queued.ops.set(c.name, 'put'));
     },
     removeViewer(id){
       if(IM[id]){ IM[id].panel.remove(); delete IM[id]; }

@@ -123,6 +123,12 @@ def widget_width(w):
         return max(30, min(400, float(o['nodeWidth'])))
     kind = w.get('kind')
     if kind == 'number':
+        # Vision's dial and thumbwheel draw a small control beside the field
+        cls = str(w.get('class') or '')
+        if cls.endswith('Dial'):
+            return 30 + _number_chars(w) * 7
+        if cls.endswith('ThumbWheel'):
+            return 52 + _number_chars(w) * 7
         return 38 + _number_chars(w) * 7
     if kind == 'checkbox':
         return 18

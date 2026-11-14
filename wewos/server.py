@@ -491,6 +491,18 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
     # ---- plumbing --------------------------------------------------------------------
+    def parse_request(self):
+        self._body_read = False         # per request: the handler serves a whole connection
+        return super().parse_request()
+
+    def _close_if_body_unread(self):
+        """A request answered without reading its body (a bad token, an unknown
+        endpoint, a body too large) ends its connection: the unread bytes must not
+        be taken for the start of the next request on it."""
+        if int(self.headers.get('Content-Length') or 0) > 0 and not getattr(self, '_body_read', False):
+            self.send_header('Connection', 'close')
+            self.close_connection = True
+
     def _send(self, obj, code=200, ctype='application/json', headers=()):
         body = (obj if isinstance(obj, bytes)
                 else json.dumps(obj).encode() if ctype == 'application/json'
@@ -502,6 +514,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Cache-Control', 'no-store')
         for k, v in headers:
             self.send_header(k, v)
+        self._close_if_body_unread()
         self.end_headers()
         self.wfile.write(body)
 
@@ -512,10 +525,13 @@ class Handler(BaseHTTPRequestHandler):
     def _raw(self, limit):
         n = int(self.headers.get('Content-Length') or 0)
         if n <= 0:
+            self._body_read = True
             return b''
         if n > limit:
             raise Refused('the request is larger than %d MB' % (limit >> 20))
-        return self.rfile.read(n)
+        data = self.rfile.read(n)
+        self._body_read = True
+        return data
 
     def _json(self):
         raw = self._raw(MAX_BODY)
@@ -545,6 +561,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_response(301)
                 self.send_header('Location', loc)
                 self.send_header('Content-Length', '0')
+                self._close_if_body_unread()
                 self.end_headers()
                 return None
             if u.path.startswith(base + '/'):
@@ -615,6 +632,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Vary', 'Accept-Encoding')
         self.send_header('Content-Length', str(len(body)))
         self.send_header('Cache-Control', 'max-age=3600')
+        self._close_if_body_unread()
         self.end_headers()
         self.wfile.write(body)
 
@@ -633,6 +651,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Content-Type', DOC_TYPES[os.path.splitext(full)[1]])
         self.send_header('Content-Length', str(len(body)))
         self.send_header('Cache-Control', 'max-age=600')
+        self._close_if_body_unread()
         self.end_headers()
         self.wfile.write(body)
 

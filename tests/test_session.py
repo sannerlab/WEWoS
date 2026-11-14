@@ -172,6 +172,9 @@ def test_long_port_names_and_widgets_keep_nodes_narrow():
        {'indexedPolygons_instanceMatrices': 'indPolInstMat',
         'spheres_instanceMatrices': 'spheresInstMat'})               # never two alike
     eq(widget_width({'kind': 'number', 'value': 1, 'options': {'type': 'int', 'min': 1}}), 52)
+    # Vision's dial and thumbwheel: a small control beside the field (widgets.js)
+    eq(widget_width({'kind': 'number', 'class': 'NEDial', 'value': 1, 'options': {'type': 'int', 'min': 1}}), 44)
+    eq(widget_width({'kind': 'number', 'class': 'NEThumbWheel', 'value': 1, 'options': {'type': 'int', 'min': 1}}), 66)
     eq(widget_width({'kind': 'entry', 'value': '2plv'}), 16 + 4 * 6.6)
     eq(widget_width({'kind': 'number', 'value': 1, 'options': {'nodeWidth': 120}}), 120)
     eq(widget_width({'kind': 'checkbox'}), 18)

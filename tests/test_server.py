@@ -241,3 +241,35 @@ def test_close_network_and_the_unused_empty_one():
         check(_code(base + '/api/close', json.dumps({'s': named}).encode()) == 403)
     finally:
         httpd.shutdown()
+
+
+def test_a_refused_post_does_not_spoil_the_next_request():
+    # a page left open across a restart sends edits with the old token: the server
+    # refuses them without reading their bodies, which must not be taken for the
+    # start of the next request on the same connection (it was: 501 '{"s":…}GET')
+    import http.client
+    httpd, base, tok = _server()
+    try:
+        host, port = httpd.server_address[:2]
+        conn = http.client.HTTPConnection(host, port, timeout=10)
+        body = json.dumps({'s': 'x', 'op': 'set_widget', 'node': 'n8', 'port': 'dial', 'value': 79.66})
+        conn.request('POST', '/api/edit?t=wrong', body=body, headers={'Content-Type': 'application/json'})
+        r = conn.getresponse()
+        r.read()
+        eq(r.status, 403)
+        conn.request('GET', '/api/sessions?t=' + tok)
+        r = conn.getresponse()
+        eq(r.status, 200)
+        check('sessions' in json.loads(r.read().decode()))
+        # an endpoint that does not exist, with a body
+        conn.request('POST', '/api/nothing?t=' + tok, body=body)
+        r = conn.getresponse()
+        r.read()
+        eq(r.status, 404)
+        conn.request('GET', '/api/sessions?t=' + tok)
+        r = conn.getresponse()
+        eq(r.status, 200)
+        r.read()
+        conn.close()
+    finally:
+        httpd.shutdown()

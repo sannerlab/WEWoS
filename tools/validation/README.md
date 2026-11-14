@@ -38,12 +38,16 @@ VALIDATE_DISPLAY=:77 bin/wewos-python tools/validation/validate.py \
 the examples). Every difference there has a known cause; see the Validation section of the paper
 and the notes below.
 
+The results in `results/` were made with WEWoS in the `adcpsuite` environment (Python 3.7.12,
+NumPy 1.21.6, Pillow 9.5.0, matplotlib 3.5.3) and MGLTools Vision 1.5.7 (Python 2.7.3,
+NumPy 1.10.4, PIL 1.1.7, matplotlib 1.2.0).
+
 ## Known differences (tutorial and examples)
 
 | Ports | Cause |
 |---|---|
 | 12 | mol2plv and icoscage edit the inside of SymServer's Icosahedral1 macro (a translation). The importer reports such edits and does not carry them over. |
-| 7 | matplotlib 3 builds box plots, stem plots and scatter plots from other artists than matplotlib 0.99. Histogram flattens a 2-D input, where matplotlib 0.99 drew one histogram per row. |
-| 5 | Pillow 13 and PIL 1.1.7 differ in nearest-neighbour resampling (about 10% of the pixels of a scaled image) and in JPEG decoding (up to 22 levels). |
+| 7 | matplotlib 3.5 builds box plots, stem plots and scatter plots from other artists than matplotlib 1.2. Histogram flattens a 2-D input, where matplotlib 1.2 drew one histogram per row. |
+| 5 | Pillow 9.5 and PIL 1.1.7 differ in nearest-neighbour resampling (about 10% of the pixels of a scaled image) and in JPEG decoding (up to 22 levels). |
 | 1 | Grid3DBB gives a crystallographic map's corners in Å; Vision gave them in fractional coordinates. |
 | 1 | OrthoSlice is a colored mesh; Vision drew a textured quad. |
