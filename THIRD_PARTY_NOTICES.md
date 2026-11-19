@@ -104,5 +104,5 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ## MolKit2, ProDy, mslib (used, not included)
 
 The Molecules library uses MolKit2, ProDy and mslib (MSMS) from the Python environment it runs
-in (the ADCP distribution's adcpsuite env); they are not included here and keep their own
-licences.
+in (the Sanner lab's package index, or the ADCP distribution's adcpsuite env); they are not
+included here and keep their own licences.

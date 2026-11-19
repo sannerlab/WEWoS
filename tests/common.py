@@ -23,7 +23,7 @@ class Skip(Exception):
 
 def requires(*modules):
     """Skip the test when one of these modules does not import (MolKit2,
-    mslib and UTpackages come only with the ADCP environment)."""
+    mslib and UTpackages come from the Sanner lab's py3 index or the ADCP environment)."""
     import functools
     import importlib
 

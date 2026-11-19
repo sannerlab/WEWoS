@@ -2,9 +2,10 @@
 """The Python environment WEWoS runs in, and what it records about it.
 
 The engine needs only Python 3.7+ and numpy. The Molecules library needs
-MolKit2 and prody, and molecular surfaces need mslib (MSMS); the ADCP
-distribution's `adcpsuite` env (Python 3.7) has all of them, which is what
-bin/wewos looks for.
+MolKit2 and prody, and molecular surfaces need mslib (MSMS); on Linux with
+Python 3.10+ they install from the Sanner lab's package index (see the
+README), and the ADCP distribution's `adcpsuite` env (Python 3.7) has all of
+them, which is what bin/wewos looks for.
 """
 import os
 import subprocess

@@ -19,8 +19,18 @@ dependencies = [
 imaging = ["Pillow"]
 plots = ["matplotlib"]
 all = ["Pillow", "matplotlib"]
-# The Molecules library (MolKit2, ProDy, mslib) and isocontouring (UTpackages) come
-# with the ADCP distribution's Python 3.7 environment; see the README.
+# The Molecules library (MolKit2, the Sanner lab's ProDy, mslib) and isocontouring
+# (UTpackages), Linux x86_64, Python 3.10 to 3.13: this extra has what they need from PyPI;
+# the packages themselves come from the Sanner lab's index only (some of their names belong to
+# other projects on PyPI), see the README:
+#   pip install --no-deps --index-url https://sannerlab.github.io/pip/py3/ molkit2==0.0.7 ...
+# On Python 3.7 they come with the ADCP distribution's adcpsuite environment.
+molecules = [
+    "biopython; python_version >= '3.10' and sys_platform == 'linux' and platform_machine == 'x86_64'",
+    "scipy; python_version >= '3.10' and sys_platform == 'linux' and platform_machine == 'x86_64'",
+    "mmtf-python; python_version >= '3.10' and sys_platform == 'linux' and platform_machine == 'x86_64'",
+    "openbabel-wheel>=3.1.1; python_version >= '3.10' and sys_platform == 'linux' and platform_machine == 'x86_64'",
+]
 
 [project.scripts]
 wewos = "wewos.__main__:main"

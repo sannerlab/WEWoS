@@ -18,13 +18,24 @@ python -m venv .venv && . .venv/bin/activate     # or a conda environment
 pip install -e ".[all]"                           # numpy, Pillow, matplotlib (and fissix on 3.13+)
 wewos check                                       # what is missing (see below)
 wewos run examples/spheres_colormap.wnet.json     # a network, without the browser
-wewos test                                        # tests needing MolKit2, mslib or UTpackages are skipped
+wewos test                                        # without the molecules packages, their tests are skipped
 wewos serve                                       # prints http://127.0.0.1:8767/?t=...  open it in a browser
 ```
 
 **Molecules and isocontouring.** The Molecules library needs MolKit2, ProDy (the Sanner lab's
-fork) and mslib (MSMS); isocontouring, blurring and meshing in the Volume library need
-UTpackages. These are built for Python 3.7 and come with the `adcpsuite` environment that the
+fork), Open Babel and mslib (MSMS); isocontouring, blurring and meshing in the Volume library
+need UTpackages. On Linux (x86_64) with Python 3.10 to 3.13, they install with pip: what they
+need from PyPI (Open Babel as `openbabel-wheel`) with the `molecules` extra, and the packages
+themselves from the Sanner lab's package index, with `--index-url` and `--no-deps` (some of their
+names belong to other projects on PyPI):
+
+```
+pip install -e ".[all,molecules]"
+pip install --no-deps --index-url https://sannerlab.github.io/pip/py3/ \
+    molkit2==0.0.7 prody==0.0.5 bhtree==0.0.2 mglutil==0.0.5 mslib==0.0.2 utpackages==0.0.2
+```
+
+They also come, built for Python 3.7, with the `adcpsuite` environment that the
 [ADCP 1.1 installer](https://sannerlab.github.io/software/adcp/1.1/download.html) creates (Linux).
 `bin/wewos` finds that environment by itself (`$WEWOS_PYTHON_ENV` names another one) and runs
 WEWoS in it:
@@ -33,9 +44,10 @@ WEWoS in it:
 bin/wewos serve            # or: check, test, run, import
 ```
 
-**Tested** on Linux (Ubuntu 22.04): Python 3.10, 3.12 and 3.13 with the core (NumPy 2.2-2.5,
-Pillow 12-13, matplotlib 3.10-3.11), and Python 3.7 in the `adcpsuite` environment with
-everything (NumPy 1.21, matplotlib 3.5); the page in Chrome and Firefox. The execution modes
+**Tested** on Linux (Ubuntu 22.04): Python 3.10 to 3.13 with everything, the molecules packages
+installed as above (NumPy 2.2-2.5, Pillow 12-13, matplotlib 3.10-3.11, Open Babel 3.1.1), and
+Python 3.7 in the `adcpsuite` environment with everything (NumPy 1.21, matplotlib 3.5); the
+page in Chrome and Firefox. The execution modes
 (sandbox) were also tested on macOS (Intel Python under Rosetta) and on Windows (GitHub's Windows
 runner, where the whole test suite passes, skipping what needs MolKit2 or UTpackages).
 
