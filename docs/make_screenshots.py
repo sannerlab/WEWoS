@@ -169,6 +169,9 @@ class Page(object):
 
     def shot(self, name, clip=None, pad=0):
         """Capture the window, or a rectangle {x, y, width, height}, or a CSS selector's box."""
+        # only_this_network() closes the other networks behind the page's back; a request
+        # still pending for one of them leaves this message, which a user never sees
+        self.js("if(/no such network/.test(document.getElementById('status').textContent)) status('')")
         if isinstance(clip, str):
             clip = self.js('DOC.rect(%s)' % json.dumps(clip))
         if clip:
